@@ -97,8 +97,8 @@
                 <p>Dein persönlicher Trainings-Tracker</p>
             </header>
 
-            <!-- Google Login -->
-            <a href="/auth/google" class="google-btn">
+            <!-- Google Login (wird ausgeblendet wenn nicht verfügbar) -->
+            <a href="/auth/google" class="google-btn" id="google-login-btn" style="display: none;">
                 <svg width="20" height="20" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -108,7 +108,7 @@
                 Mit Google anmelden
             </a>
 
-            <div class="divider">
+            <div class="divider" id="google-divider" style="display: none;">
                 <span>ODER</span>
             </div>
 
@@ -153,6 +153,27 @@
     </div>
 
     <script>
+        // WICHTIG: Warte bis DOM geladen ist
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ Login-Seite geladen');
+            
+            // Prüfe ob Google OAuth verfügbar ist
+            fetch('/api/config')
+                .then(res => res.json())
+                .then(config => {
+                    if (config.googleOAuth) {
+                        document.getElementById('google-login-btn').style.display = 'flex';
+                        document.getElementById('google-divider').style.display = 'block';
+                        console.log('✅ Google OAuth verfügbar');
+                    } else {
+                        console.log('ℹ️ Google OAuth nicht konfiguriert');
+                    }
+                })
+                .catch(() => {
+                    console.log('ℹ️ Konnte Config nicht laden');
+                });
+        });
+
         function switchAuthTab(tab) {
             document.querySelectorAll('.auth-tab').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.auth-form').forEach(el => el.classList.remove('active'));
@@ -163,64 +184,108 @@
 
         async function handleLogin(e) {
             e.preventDefault();
+            e.stopPropagation();
+            
             const errorEl = document.getElementById('login-error');
             errorEl.classList.remove('show');
 
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
+            
+            if (!email || !password) {
+                errorEl.textContent = 'Email und Passwort erforderlich';
+                errorEl.classList.add('show');
+                return;
+            }
+            
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.textContent = '⏳ Lade...';
+            btn.disabled = true;
 
             try {
+                console.log('📤 Sende Login:', email);
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({ email, password }),
+                    credentials: 'include'
                 });
 
                 const data = await res.json();
+                console.log('📥 Antwort:', res.status, data);
 
                 if (res.ok) {
                     localStorage.setItem('token', data.token);
                     localStorage.setItem('user', JSON.stringify(data.user));
                     window.location.href = '/';
                 } else {
-                    errorEl.textContent = data.error || 'Login fehlgeschlagen';
+                    errorEl.textContent = data.error || `Login fehlgeschlagen (${res.status})`;
                     errorEl.classList.add('show');
                 }
             } catch (err) {
-                errorEl.textContent = 'Verbindungsfehler';
+                console.error('❌ Fehler:', err);
+                errorEl.textContent = 'Verbindungsfehler - prüfe deine Internetverbindung';
                 errorEl.classList.add('show');
+            } finally {
+                btn.textContent = 'Einloggen';
+                btn.disabled = false;
             }
         }
 
         async function handleRegister(e) {
             e.preventDefault();
+            e.stopPropagation();
+            
             const errorEl = document.getElementById('register-error');
             errorEl.classList.remove('show');
 
             const displayName = document.getElementById('register-name').value;
             const email = document.getElementById('register-email').value;
             const password = document.getElementById('register-password').value;
+            
+            if (!email || !password) {
+                errorEl.textContent = 'Email und Passwort erforderlich';
+                errorEl.classList.add('show');
+                return;
+            }
+            
+            if (password.length < 6) {
+                errorEl.textContent = 'Passwort muss mindestens 6 Zeichen haben';
+                errorEl.classList.add('show');
+                return;
+            }
+            
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.textContent = '⏳ Lade...';
+            btn.disabled = true;
 
             try {
+                console.log('📤 Sende Registrierung:', email);
                 const res = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ displayName, email, password })
+                    body: JSON.stringify({ displayName, email, password }),
+                    credentials: 'include'
                 });
 
                 const data = await res.json();
+                console.log('📥 Antwort:', res.status, data);
 
                 if (res.ok) {
                     localStorage.setItem('token', data.token);
                     localStorage.setItem('user', JSON.stringify(data.user));
                     window.location.href = '/';
                 } else {
-                    errorEl.textContent = data.error || 'Registrierung fehlgeschlagen';
+                    errorEl.textContent = data.error || `Registrierung fehlgeschlagen (${res.status})`;
                     errorEl.classList.add('show');
                 }
             } catch (err) {
-                errorEl.textContent = 'Verbindungsfehler';
+                console.error('❌ Fehler:', err);
+                errorEl.textContent = 'Verbindungsfehler - prüfe deine Internetverbindung';
                 errorEl.classList.add('show');
+            } finally {
+                btn.textContent = 'Konto erstellen';
+                btn.disabled = false;
             }
         }
 

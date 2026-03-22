@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: ironcoach-tracker
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: PORT
+        value: 10000
+      # GOOGLE OAUTH - Diese Werte müssen in Render Dashboard manuell gesetzt werden:
+      # GOOGLE_CLIENT_ID: Deine Client ID von Google Cloud Console
+      # GOOGLE_CLIENT_SECRET: Dein Client Secret von Google Cloud Console  
+      # GOOGLE_CALLBACK_URL: https://deine-app-name.onrender.com/auth/google/callback

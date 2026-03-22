@@ -17,17 +17,9 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dein-geheimer-schluessel-mindestens-32-zeichen-lang';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'session-secret-mindestens-32-zeichen-lang-hier';
 
-// Security Middleware
+// Security Middleware - CSP für API-Anfragen offen lassen
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-      scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
-    },
-  },
+  contentSecurityPolicy: false // Deaktiviert CSP für einfaches API-Hosting
 }));
 
 // Rate Limiting
@@ -45,9 +37,12 @@ const authLimiter = rateLimit({
   message: { error: 'Zu viele Login-Versuche' }
 });
 
+// CORS für alle Origins erlauben (sicher für diese App)
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGIN || true,
-  credentials: true
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 
@@ -66,8 +61,15 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// SQLite Datenbank
-const db = new sqlite3.Database('./training.db');
+// SQLite Datenbank - Pfad für Render/kostenlose Hosting-Anbieter
+const DB_PATH = process.env.DATABASE_PATH || './training.db';
+const db = new sqlite3.Database(DB_PATH, (err) => {
+  if (err) {
+    console.error('❌ Datenbank-Fehler:', err.message);
+  } else {
+    console.log('✅ Datenbank verbunden:', DB_PATH);
+  }
+});
 
 // Tabellen erstellen
 db.serialize(() => {
@@ -182,26 +184,35 @@ passport.deserializeUser((id, done) => {
 
 // Register
 app.post('/api/auth/register', authLimiter, async (req, res) => {
+  console.log('📝 Registrierungsversuch:', req.body.email);
   const { email, password, displayName } = req.body;
   
   if (!email || !password || password.length < 6) {
+    console.log('❌ Validation fehlgeschlagen');
     return res.status(400).json({ error: 'Email und Passwort (min. 6 Zeichen) erforderlich' });
   }
   
-  const hashedPassword = await bcrypt.hash(password, 10);
-  
-  db.run('INSERT INTO users (email, password, display_name) VALUES (?, ?, ?)',
-    [email, hashedPassword, displayName || email], function(err) {
-    if (err) {
-      if (err.message.includes('UNIQUE')) {
-        return res.status(409).json({ error: 'Email bereits registriert' });
-      }
-      return res.status(500).json({ error: err.message });
-    }
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
     
-    const token = jwt.sign({ userId: this.lastID, email }, JWT_SECRET, { expiresIn: '24h' });
-    res.json({ token, user: { id: this.lastID, email, displayName: displayName || email } });
-  });
+    db.run('INSERT INTO users (email, password, display_name) VALUES (?, ?, ?)',
+      [email, hashedPassword, displayName || email], function(err) {
+      if (err) {
+        console.error('❌ DB Fehler:', err.message);
+        if (err.message.includes('UNIQUE')) {
+          return res.status(409).json({ error: 'Email bereits registriert' });
+        }
+        return res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
+      }
+      
+      console.log('✅ User registriert:', email, 'ID:', this.lastID);
+      const token = jwt.sign({ userId: this.lastID, email }, JWT_SECRET, { expiresIn: '24h' });
+      res.json({ token, user: { id: this.lastID, email, displayName: displayName || email } });
+    });
+  } catch (err) {
+    console.error('❌ Server Fehler:', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
 });
 
 // Login
@@ -222,16 +233,37 @@ app.post('/api/auth/login', authLimiter, (req, res, next) => {
   })(req, res, next);
 });
 
-// Google Auth Routes
-app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+// Google Auth Routes (nur wenn konfiguriert)
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
-app.get('/auth/google/callback', 
-  passport.authenticate('google', { failureRedirect: '/login.html' }),
-  (req, res) => {
-    const token = jwt.sign({ userId: req.user.id, email: req.user.email }, JWT_SECRET, { expiresIn: '24h' });
-    res.redirect(`/?token=${token}`);
-  }
-);
+  app.get('/auth/google/callback', 
+    passport.authenticate('google', { failureRedirect: '/login.html' }),
+    (req, res) => {
+      const token = jwt.sign({ userId: req.user.id, email: req.user.email }, JWT_SECRET, { expiresIn: '24h' });
+      res.redirect(`/?token=${token}`);
+    }
+  );
+}
+
+// Health Check - für Testing
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    database: 'SQLite',
+    environment: process.env.NODE_ENV || 'development',
+    googleOAuth: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
+  });
+});
+
+// Config Endpoint - für Frontend zu wissen was verfügbar ist
+app.get('/api/config', (req, res) => {
+  res.json({
+    googleOAuth: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Verify Token
 app.get('/api/auth/verify', authenticateJWT, (req, res) => {
@@ -342,8 +374,10 @@ app.get('/api/progress/:exercise_id', authenticateJWT, (req, res) => {
   });
 });
 
-// Static Files (nach Auth-Routes, damit Login-Seite erreichbar ist)
-app.use(express.static('public'));
+// Static Files - ABSOLUTER PFAD für Render/Hosting
+const publicPath = path.join(__dirname, 'public');
+console.log('📁 Serving static files from:', publicPath);
+app.use(express.static(publicPath));
 
 // Fallback für SPA
 app.get('*', (req, res) => {

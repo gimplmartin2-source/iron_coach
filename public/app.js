@@ -9,23 +9,34 @@ if (!token && !window.location.pathname.includes('login')) {
 // API Helper mit Auth Header
 async function apiFetch(url, options = {}) {
     const token = localStorage.getItem('token');
-    const res = await fetch(`${API_URL}${url}`, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : '',
-            ...options.headers
+    try {
+        const fetchOptions = {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                ...options.headers
+            }
+        };
+        
+        console.log('📤 API Request:', url, fetchOptions);
+        const res = await fetch(`${API_URL}${url}`, fetchOptions);
+        
+        console.log('📥 API Response:', url, res.status);
+        
+        if (res.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login.html';
+            return null;
         }
-    });
-    
-    if (res.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login.html';
-        return;
+        
+        return res;
+    } catch (err) {
+        console.error('❌ API Fehler:', err);
+        alert('Verbindungsfehler: ' + err.message);
+        throw err;
     }
-    
-    return res;
 }
 
 // Init
@@ -134,9 +145,20 @@ async function addExercise(e) {
     const name = document.getElementById('exercise-name').value;
     const muscle = document.getElementById('exercise-muscle').value;
     
+    if (!name || !muscle) {
+        alert('Bitte Name und Muskelgruppe ausfüllen');
+        return;
+    }
+    
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.textContent;
+    btn.textContent = '⏳ Speichern...';
+    btn.disabled = true;
+    
     try {
         const res = await apiFetch('/api/exercises', {
             method: 'POST',
+            credentials: 'include',
             body: JSON.stringify({ name, muscle_group: muscle })
         });
         
@@ -144,9 +166,16 @@ async function addExercise(e) {
             document.getElementById('exercise-form').reset();
             loadExercises();
             loadStats();
+        } else {
+            const data = await res.json().catch(() => ({}));
+            alert('Fehler: ' + (data.error || 'Konnte Übung nicht speichern'));
         }
     } catch (err) {
         console.error('Fehler beim Hinzufügen:', err);
+        alert('Fehler: ' + err.message);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
     }
 }
 
@@ -200,8 +229,14 @@ async function loadWorkouts() {
 async function addWorkout(e) {
     e.preventDefault();
     
+    const exerciseId = document.getElementById('workout-exercise').value;
+    if (!exerciseId) {
+        alert('Bitte eine Übung auswählen');
+        return;
+    }
+    
     const data = {
-        exercise_id: parseInt(document.getElementById('workout-exercise').value),
+        exercise_id: parseInt(exerciseId),
         weight: parseFloat(document.getElementById('workout-weight').value),
         sets: parseInt(document.getElementById('workout-sets').value),
         reps: parseInt(document.getElementById('workout-reps').value),
@@ -210,9 +245,15 @@ async function addWorkout(e) {
         date: document.getElementById('workout-date').value
     };
     
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.textContent;
+    btn.textContent = '⏳ Speichern...';
+    btn.disabled = true;
+    
     try {
         const res = await apiFetch('/api/workouts', {
             method: 'POST',
+            credentials: 'include',
             body: JSON.stringify(data)
         });
         
@@ -221,9 +262,17 @@ async function addWorkout(e) {
             document.getElementById('workout-date').valueAsDate = new Date();
             loadWorkouts();
             loadStats();
+            alert('✅ Workout gespeichert!');
+        } else {
+            const errorData = await res.json().catch(() => ({}));
+            alert('Fehler: ' + (errorData.error || 'Konnte nicht speichern'));
         }
     } catch (err) {
         console.error('Fehler beim Speichern:', err);
+        alert('Fehler: ' + err.message);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
     }
 }
 
