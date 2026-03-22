@@ -13,10 +13,10 @@ services:
         generateValue: true
       - key: PORT
         value: 10000
-      # Google OAuth - REQUIRED für Sheets:
+      # Google OAuth (needed for all users):
       - key: GOOGLE_CLIENT_ID
-        sync: false  # Setzen in Render Dashboard
+        sync: false
       - key: GOOGLE_CLIENT_SECRET
-        sync: false  # Setzen in Render Dashboard
+        sync: false
       - key: GOOGLE_CALLBACK_URL
-        sync: false  # z.B. https://trainings-tracker.onrender.com/auth/google/callback
+        sync: false

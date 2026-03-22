@@ -10,31 +10,25 @@ if (!token && !window.location.pathname.includes('login')) {
 async function apiFetch(url, options = {}) {
     const token = localStorage.getItem('token');
     try {
-        const fetchOptions = {
+        const res = await fetch(`${API_URL}${url}`, {
             ...options,
             headers: {
                 'Content-Type': 'application/json',
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                'Authorization': token ? `Bearer ${token}` : '',
                 ...options.headers
             }
-        };
-        
-        console.log('📤 API Request:', url, fetchOptions);
-        const res = await fetch(`${API_URL}${url}`, fetchOptions);
-        
-        console.log('📥 API Response:', url, res.status);
+        });
         
         if (res.status === 401) {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = '/login.html';
-            return null;
+            return;
         }
         
         return res;
     } catch (err) {
         console.error('❌ API Fehler:', err);
-        alert('Verbindungsfehler: ' + err.message);
         throw err;
     }
 }
@@ -91,6 +85,9 @@ function showUserInfo() {
             <button id="logout-btn" style="padding: 8px 16px; background: rgba(255,50,50,0.2); border: 1px solid rgba(255,50,50,0.5); border-radius: 6px; color: #ff6666; cursor: pointer; font-size: 0.9rem;">Abmelden</button>
         `;
         header.appendChild(userDiv);
+        
+        // Re-attach event listener
+        document.getElementById('logout-btn').addEventListener('click', logout);
     }
 }
 
@@ -146,7 +143,7 @@ async function addExercise(e) {
     const muscle = document.getElementById('exercise-muscle').value;
     
     if (!name || !muscle) {
-        alert('Bitte Name und Muskelgruppe ausfüllen');
+        alert('Bitte Name und Muskelgruppe auswählen');
         return;
     }
     
@@ -158,7 +155,6 @@ async function addExercise(e) {
     try {
         const res = await apiFetch('/api/exercises', {
             method: 'POST',
-            credentials: 'include',
             body: JSON.stringify({ name, muscle_group: muscle })
         });
         
@@ -171,7 +167,7 @@ async function addExercise(e) {
             alert('Fehler: ' + (data.error || 'Konnte Übung nicht speichern'));
         }
     } catch (err) {
-        console.error('Fehler beim Hinzufügen:', err);
+        console.error('❌ Fehler:', err);
         alert('Fehler: ' + err.message);
     } finally {
         btn.textContent = originalText;
@@ -253,7 +249,6 @@ async function addWorkout(e) {
     try {
         const res = await apiFetch('/api/workouts', {
             method: 'POST',
-            credentials: 'include',
             body: JSON.stringify(data)
         });
         
@@ -268,7 +263,7 @@ async function addWorkout(e) {
             alert('Fehler: ' + (errorData.error || 'Konnte nicht speichern'));
         }
     } catch (err) {
-        console.error('Fehler beim Speichern:', err);
+        console.error('❌ Fehler:', err);
         alert('Fehler: ' + err.message);
     } finally {
         btn.textContent = originalText;

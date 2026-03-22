@@ -153,26 +153,34 @@
     </div>
 
     <script>
-        // WICHTIG: Warte bis DOM geladen ist
-        document.addEventListener('DOMContentLoaded', function() {
+        // WICHTIG: Prüfe erst, ob wir von Google zurückkommen
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        
+        // Token aus URL speichern und URL bereinigen
+        if (token) {
+            localStorage.setItem('token', token);
+            window.location.href = '/'; // Redirect zur App
+        } else {
+            // Normaler Seitenaufbau
+            initPage();
+        }
+        
+        function initPage() {
             console.log('✅ Login-Seite geladen');
             
             // Prüfe ob Google OAuth verfügbar ist
-            fetch('/api/config')
+            fetch('/api/health')
                 .then(res => res.json())
-                .then(config => {
-                    if (config.googleOAuth) {
+                .then(data => {
+                    if (data.googleOAuth) {
                         document.getElementById('google-login-btn').style.display = 'flex';
                         document.getElementById('google-divider').style.display = 'block';
                         console.log('✅ Google OAuth verfügbar');
-                    } else {
-                        console.log('ℹ️ Google OAuth nicht konfiguriert');
                     }
                 })
-                .catch(() => {
-                    console.log('ℹ️ Konnte Config nicht laden');
-                });
-        });
+                .catch(err => console.log('ℹ️ Health Check fehlgeschlagen:', err));
+        }
 
         function switchAuthTab(tab) {
             document.querySelectorAll('.auth-tab').forEach(el => el.classList.remove('active'));
@@ -188,6 +196,7 @@
             
             const errorEl = document.getElementById('login-error');
             errorEl.classList.remove('show');
+            errorEl.textContent = '';
 
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
@@ -238,6 +247,7 @@
             
             const errorEl = document.getElementById('register-error');
             errorEl.classList.remove('show');
+            errorEl.textContent = '';
 
             const displayName = document.getElementById('register-name').value;
             const email = document.getElementById('register-email').value;
@@ -287,14 +297,6 @@
                 btn.textContent = 'Konto erstellen';
                 btn.disabled = false;
             }
-        }
-
-        // Check for token in URL (Google OAuth callback)
-        const urlParams = new URLSearchParams(window.location.search);
-        const token = urlParams.get('token');
-        if (token) {
-            localStorage.setItem('token', token);
-            window.location.href = '/';
         }
     </script>
 </body>

@@ -1,54 +1,41 @@
-# IronCoach - Google Sheets Version
-
-## Was ist neu?
-- Daten werden jetzt in **Google Sheets** gespeichert (statt SQLite)
-- Jeder Nutzer bekommt ein eigenes Google Sheet bei der Anmeldung
-- Zugriff über: https://docs.google.com/spreadsheets/d/[ID]/edit
+# IronCoach - SQLite Version (funktioniert sofort)
 
 ## Setup
 
-### 1. Google Cloud Console (bereits gemacht ✅)
-- [x] Scopes eingetragen:
-  - `https://www.googleapis.com/auth/spreadsheets`
-  - `https://www.googleapis.com/auth/drive.file`
-
-### 2. Code deployen
+### 1. Code pushen
 ```bash
 git add .
-git commit -m "Migrate to Google Sheets storage"
+git commit -m "Revert to SQLite - stable working version"
 git push
 ```
 
-Dann in Render: **Manual Deploy**
+### 2. Render deployen
+- Dashboard → **Manual Deploy** → **Deploy latest commit**
 
 ### 3. Testen
-- Mit Google anmelden
-- Automatisch wird ein Sheet erstellt: "IronCoach - Trainingsdaten"
-- Daten erscheinen in deinem Google Drive
+- https://trainings-tracker.onrender.com/login.html
+- Registrieren mit Email/Passwort
+- Übungen und Workouts speichern
 
-## Wichtige Änderungen
+## Wichtig
 
-| Feature | Vorher | Jetzt |
-|---------|--------|-------|
-| Speicher | SQLite (lokal) | Google Sheets (Drive) |
-| Zugriff | Nur App | App + Google Sheets Web |
-| Backup | Keiner | Automatisch via Google |
-| Teilen | Nicht möglich | Per Google Share möglich |
+- SQLite ist **flüchtig** auf Render (bei Neustart/neuem Deploy → Daten weg)
+- Für Produktion bräuchtest du PostgreSQL oder ähnliches
+- Export-Funktion (CSV/JSON) ist eine Option für Backups
 
-## Hinweise
-- **Lokale Anmeldung** (Email/Passwort) funktioniert für Login, aber Daten speichern geht nur mit Google OAuth
-- Das Sheet hat 2 Tabs: "Exercises" und "Workouts"
-- Du kannst das Sheet direkt in Google Sheets öffnen und bearbeiten
+## Features
 
-## Fehlerbehebung
+✅ Login mit Email/Passwort (sofort funktioniert)
+✅ Login mit Google OAuth (wenn in Google Cloud Console konfiguriert)
+✅ Übungen speichern/löschen
+✅ Workouts speichern/löschen
+✅ Statistiken anzeigen
+✅ Charts für Fortschritt
 
-### "Fehler beim Speichern"
-- Prüfe ob Google OAuth Scopes korrekt sind
-- Eventuell Token erneuern: Abmelden und neu anmelden
+## Google OAuth (optional)
 
-### Kein Spreadsheet erstellt
-- Siehe Render Logs für Fehlermeldungen
-- Re-Login versuchen
+Wenn du willst, dann erst später:
+1. Google Cloud Console: App veröffentlichen
+2. Dann funktioniert Google Login
 
----
-Letzte Änderung: Migration zu Google Sheets
+Aber lokales Login funktioniert JETZT sofort!
