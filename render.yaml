@@ -13,7 +13,10 @@ services:
         generateValue: true
       - key: PORT
         value: 10000
-      # GOOGLE OAUTH - Diese Werte müssen in Render Dashboard manuell gesetzt werden:
-      # GOOGLE_CLIENT_ID: Deine Client ID von Google Cloud Console
-      # GOOGLE_CLIENT_SECRET: Dein Client Secret von Google Cloud Console  
-      # GOOGLE_CALLBACK_URL: https://deine-app-name.onrender.com/auth/google/callback
+      # Google OAuth - REQUIRED für Sheets:
+      - key: GOOGLE_CLIENT_ID
+        sync: false  # Setzen in Render Dashboard
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false  # Setzen in Render Dashboard
+      - key: GOOGLE_CALLBACK_URL
+        sync: false  # z.B. https://trainings-tracker.onrender.com/auth/google/callback

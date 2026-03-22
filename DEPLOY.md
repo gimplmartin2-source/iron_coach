@@ -1,70 +1,54 @@
-# IronCoach - Deployment & Auth Setup
+# IronCoach - Google Sheets Version
 
-## Problem
-Das Login funktioniert nicht, weil:
-1. **Google OAuth** ist nicht konfiguriert (fehlende Env-Variablen)
-2. **Lokale Anmeldung** sollte eigentlich funktionieren, aber es könnte CORS/Session-Probleme geben
+## Was ist neu?
+- Daten werden jetzt in **Google Sheets** gespeichert (statt SQLite)
+- Jeder Nutzer bekommt ein eigenes Google Sheet bei der Anmeldung
+- Zugriff über: https://docs.google.com/spreadsheets/d/[ID]/edit
 
-## Lösung für normales Login (Email/Passwort)
+## Setup
 
-Das sollte jetzt funktionieren. Falls nicht, prüfe:
+### 1. Google Cloud Console (bereits gemacht ✅)
+- [x] Scopes eingetragen:
+  - `https://www.googleapis.com/auth/spreadsheets`
+  - `https://www.googleapis.com/auth/drive.file`
 
-1. **Render Dashboard** → Dein Service → **Logs**
-   - Schau nach Fehlermeldungen beim Login-Versuch
-
-2. **Env-Variablen prüfen** in Render:
-   - `JWT_SECRET` - sollte vorhanden sein
-   - `SESSION_SECRET` - sollte vorhanden sein
-   - `NODE_ENV` = `production`
-
-## Google OAuth einrichten (optional)
-
-Falls du Google-Login willst:
-
-### 1. Google Cloud Console
-- Gehe zu https://console.cloud.google.com/
-- Erstelle ein neues Projekt
-- **APIs & Services** → **Credentials**
-- **Create OAuth 2.0 Client ID**
-- Autorisierte Redirect-URI: `https://deine-app.onrender.com/auth/google/callback`
-
-### 2. In Render Dashboard
-Füge diese Environment Variables hinzu:
-
-```
-GOOGLE_CLIENT_ID=deine-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=dein-secret
-GOOGLE_CALLBACK_URL=https://deine-app-name.onrender.com/auth/google/callback
+### 2. Code deployen
+```bash
+git add .
+git commit -m "Migrate to Google Sheets storage"
+git push
 ```
 
-**Wichtig:** Ersetze `deine-app-name` mit deinem tatsächlichen Render-App-Namen!
+Dann in Render: **Manual Deploy**
 
-### 3. Deploy neu
-- Im Render Dashboard: **Manual Deploy** → **Deploy latest commit**
+### 3. Testen
+- Mit Google anmelden
+- Automatisch wird ein Sheet erstellt: "IronCoach - Trainingsdaten"
+- Daten erscheinen in deinem Google Drive
 
-## App-URL finden
-Deine App läuft auf:
-```
-https://ironcoach-tracker-XXXX.onrender.com
-```
-(Steht im Render Dashboard unter deinem Service)
+## Wichtige Änderungen
+
+| Feature | Vorher | Jetzt |
+|---------|--------|-------|
+| Speicher | SQLite (lokal) | Google Sheets (Drive) |
+| Zugriff | Nur App | App + Google Sheets Web |
+| Backup | Keiner | Automatisch via Google |
+| Teilen | Nicht möglich | Per Google Share möglich |
+
+## Hinweise
+- **Lokale Anmeldung** (Email/Passwort) funktioniert für Login, aber Daten speichern geht nur mit Google OAuth
+- Das Sheet hat 2 Tabs: "Exercises" und "Workouts"
+- Du kannst das Sheet direkt in Google Sheets öffnen und bearbeiten
 
 ## Fehlerbehebung
 
-### "Failed to fetch" beim Login
-- Prüfe, ob die App-URL korrekt ist
-- Browser DevTools → Network Tab → schau auf den Response
-- Render Logs prüfen
+### "Fehler beim Speichern"
+- Prüfe ob Google OAuth Scopes korrekt sind
+- Eventuell Token erneuern: Abmelden und neu anmelden
 
-### "Email bereits registriert"
-- Einfach mit dem existierenden Account einloggen
-
-### Datenbank-Probleme
-Die SQLite-Datenbank wird bei jedem Deploy auf Render zurückgesetzt (Ephemeral Filesystem). Für echte Nutzung brauchst du einen externen DB-Service wie:
-- Render PostgreSQL (kostenpflichtig)
-- Supabase (kostenlos)
-- Railway PostgreSQL (kostenlos)
+### Kein Spreadsheet erstellt
+- Siehe Render Logs für Fehlermeldungen
+- Re-Login versuchen
 
 ---
-
-**Status:** Code ist gefixt. Jetzt musst du in Render die Env-Variablen setzen und neu deployen.
+Letzte Änderung: Migration zu Google Sheets
