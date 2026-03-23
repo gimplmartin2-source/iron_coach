@@ -11,6 +11,7 @@ const jwt = require('jsonwebtoken');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { google } = require('googleapis');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
@@ -407,6 +408,78 @@ app.get('/api/progress/:exercise_id', authenticateJWT, (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
+});
+
+// === GOOGLE DRIVE BACKUP ===
+
+// Backup zu Google Drive
+app.post('/api/backup/drive', authenticateJWT, async (req, res) => {
+  try {
+    const credentialsPath = path.join(__dirname, 'google-credentials.json');
+    
+    if (!fs.existsSync(credentialsPath)) {
+      return res.status(400).json({ 
+        error: 'Google Credentials nicht gefunden. Bitte google-credentials.json erstellen.' 
+      });
+    }
+    
+    const auth = new google.auth.GoogleAuth({
+      keyFile: credentialsPath,
+      scopes: ['https://www.googleapis.com/auth/drive.file'],
+    });
+    
+    const drive = google.drive({ version: 'v3', auth });
+    
+    // Suche ob Backup-Ordner existiert
+    const folderResponse = await drive.files.list({
+      q: "name='IronCoach-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+      fields: 'files(id, name)',
+      spaces: 'drive'
+    });
+    
+    let folderId;
+    if (folderResponse.data.files.length === 0) {
+      // Ordner erstellen
+      const folder = await drive.files.create({
+        requestBody: {
+          name: 'IronCoach-Backups',
+          mimeType: 'application/vnd.google-apps.folder',
+        },
+        fields: 'id',
+      });
+      folderId = folder.data.id;
+      console.log('✅ Backup-Ordner erstellt:', folderId);
+    } else {
+      folderId = folderResponse.data.files[0].id;
+    }
+    
+    // Backup-Datei hochladen
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `training_backup_${req.user.userId}_${timestamp}.db`;
+    
+    const file = await drive.files.create({
+      requestBody: {
+        name: filename,
+        parents: [folderId],
+      },
+      media: {
+        mimeType: 'application/x-sqlite3',
+        body: fs.createReadStream(DB_PATH),
+      },
+      fields: 'id, name, webViewLink',
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Backup erfolgreich',
+      fileName: filename,
+      link: file.data.webViewLink
+    });
+    
+  } catch (error) {
+    console.error('❌ Backup Fehler:', error);
+    res.status(500).json({ error: 'Backup fehlgeschlagen: ' + error.message });
+  }
 });
 
 // Static Files

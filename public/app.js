@@ -444,3 +444,26 @@ function formatDate(dateStr) {
 function calculate1RM(weight, reps) {
     return weight * (1 + reps / 30);
 }
+
+// Backup to Google Drive
+async function backupToDrive() {
+    const statusEl = document.getElementById('backup-status');
+    statusEl.textContent = '🔄 Backup wird erstellt...';
+    statusEl.style.color = '#00d4ff';
+    
+    try {
+        const res = await apiFetch('/api/backup/drive', { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.success) {
+            statusEl.textContent = `✅ Backup gespeichert: ${data.fileName}`;
+            statusEl.style.color = '#00ff88';
+        } else {
+            statusEl.textContent = '❌ Fehler: ' + data.error;
+            statusEl.style.color = '#ff4444';
+        }
+    } catch (err) {
+        statusEl.textContent = '❌ Backup fehlgeschlagen: ' + err.message;
+        statusEl.style.color = '#ff4444';
+    }
+}
