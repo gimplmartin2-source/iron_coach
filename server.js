@@ -471,22 +471,44 @@ app.post('/api/backup/drive', authenticateJWT, async (req, res) => {
       folderId = folderResponse.data.files[0].id;
     }
     
-    // Backup-Datei hochladen
-    const timestamp = new Date().toISOString().split('T')[0];
+    // Backup-Datei hochladen/aktualisieren
     const userId = req.user.userId || req.user.id;
-    const filename = `training_backup_user${userId}_${timestamp}.db`;
+    const filename = `ironcoach_backup_user${userId}.db`;
     
-    const file = await drive.files.create({
-      requestBody: {
-        name: filename,
-        parents: [folderId],
-      },
-      media: {
-        mimeType: 'application/x-sqlite3',
-        body: fs.createReadStream(DB_PATH),
-      },
-      fields: 'id, name, webViewLink',
+    // Prüfe ob Backup-Datei schon existiert
+    const existingFileResponse = await drive.files.list({
+      q: `name='${filename}' and '${folderId}' in parents and trashed=false`,
+      fields: 'files(id, name)',
     });
+    
+    let file;
+    if (existingFileResponse.data.files.length > 0) {
+      // Existierende Datei aktualisieren
+      const fileId = existingFileResponse.data.files[0].id;
+      file = await drive.files.update({
+        fileId: fileId,
+        media: {
+          mimeType: 'application/x-sqlite3',
+          body: fs.createReadStream(DB_PATH),
+        },
+        fields: 'id, name, webViewLink',
+      });
+      console.log('✅ Backup aktualisiert:', filename);
+    } else {
+      // Neue Datei erstellen
+      file = await drive.files.create({
+        requestBody: {
+          name: filename,
+          parents: [folderId],
+        },
+        media: {
+          mimeType: 'application/x-sqlite3',
+          body: fs.createReadStream(DB_PATH),
+        },
+        fields: 'id, name, webViewLink',
+      });
+      console.log('✅ Backup erstellt:', filename);
+    }
     
     res.json({ 
       success: true, 
