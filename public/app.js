@@ -201,6 +201,7 @@ async function addExercise(e) {
             document.getElementById('exercise-form').reset();
             loadExercises();
             loadStats();
+            autoBackup(); // HINZUGEFÜGT: Backup nach Speichern
         } else {
             const data = await res.json().catch(() => ({}));
             alert('Fehler: ' + (data.error || 'Konnte Übung nicht speichern'));
