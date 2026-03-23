@@ -211,7 +211,12 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       db.run('INSERT INTO users (email, google_id, display_name) VALUES (?, ?, ?)', 
         [email, googleId, displayName], function(err) {
         if (err) return done(err);
-        db.get('SELECT * FROM users WHERE id = ?', [this.lastID], (err, newUser) => {
+        const newUserId = this.lastID;
+        
+        // Standardübungen erstellen
+        seedDefaultExercises(newUserId);
+        
+        db.get('SELECT * FROM users WHERE id = ?', [newUserId], (err, newUser) => {
           done(err, newUser, authInfo);
         });
       });
@@ -225,6 +230,73 @@ passport.deserializeUser((id, done) => {
 });
 
 // === AUTH ROUTES ===
+
+// Hilfsfunktion: Standardübungen für neuen User
+function seedDefaultExercises(userId) {
+  const defaultExercises = [
+    // Gym - Brust
+    { name: 'Bankdrücken (Langhantel)', muscle_group: 'Brust' },
+    { name: 'Schrägbankdrücken', muscle_group: 'Brust' },
+    { name: 'Fliegende (Butterfly)', muscle_group: 'Brust' },
+    { name: 'Dips', muscle_group: 'Brust' },
+    
+    // Gym - Rücken
+    { name: 'Kreuzheben', muscle_group: 'Rücken' },
+    { name: 'Klimmzüge', muscle_group: 'Rücken' },
+    { name: 'Rudern (Langhantel)', muscle_group: 'Rücken' },
+    { name: 'Latzug', muscle_group: 'Rücken' },
+    { name: 'T-Bar Rudern', muscle_group: 'Rücken' },
+    
+    // Gym - Beine
+    { name: 'Kniebeugen', muscle_group: 'Beine' },
+    { name: 'Beinpresse', muscle_group: 'Beine' },
+    { name: 'Beinstrecker', muscle_group: 'Beine' },
+    { name: 'Beinbeuger', muscle_group: 'Beine' },
+    { name: 'Wadenheben', muscle_group: 'Beine' },
+    { name: 'Ausfallschritte', muscle_group: 'Beine' },
+    
+    // Gym - Schultern
+    { name: 'Schulterdrücken', muscle_group: 'Schultern' },
+    { name: 'Seitheben', muscle_group: 'Schultern' },
+    { name: 'Frontheben', muscle_group: 'Schultern' },
+    { name: 'Face Pulls', muscle_group: 'Schultern' },
+    
+    // Gym - Arme
+    { name: 'Bizeps-Curls', muscle_group: 'Arme' },
+    { name: 'Trizeps-Drücken', muscle_group: 'Arme' },
+    { name: 'Hammer Curls', muscle_group: 'Arme' },
+    { name: 'Französisches Trizeps', muscle_group: 'Arme' },
+    
+    // Gym - Bauch
+    { name: 'Plank (Unterarmstütz)', muscle_group: 'Bauch' },
+    { name: 'Crunches', muscle_group: 'Bauch' },
+    { name: 'Beinheben', muscle_group: 'Bauch' },
+    { name: 'Russische Twist', muscle_group: 'Bauch' },
+    { name: 'ADIM-Core (für Gleitwirbel)', muscle_group: 'Bauch' },
+    
+    // Judo - Spezifisch
+    { name: 'Uchi-Komi (Wurfübungen)', muscle_group: 'Ganzkörper' },
+    { name: 'Nage-Komi (Wurftraining)', muscle_group: 'Ganzkörper' },
+    { name: 'Randori (Freikampf)', muscle_group: 'Ganzkörper' },
+    { name: 'Kata (Formen)', muscle_group: 'Ganzkörper' },
+    { name: 'Sprungsukomikomi', muscle_group: 'Beine' },
+    { name: 'Explosive Beinarbeit', muscle_group: 'Beine' },
+    { name: 'Grip Fighting', muscle_group: 'Arme' },
+    { name: 'Ne-waza (Bodenkampf)', muscle_group: 'Ganzkörper' },
+    { name: 'Turn-Uchikomi', muscle_group: 'Rücken' },
+  ];
+  
+  defaultExercises.forEach(exercise => {
+    db.run('INSERT INTO exercises (user_id, name, muscle_group) VALUES (?, ?, ?)',
+      [userId, exercise.name, exercise.muscle_group],
+      (err) => {
+        if (err) console.error('❌ Fehler beim Erstellen der Übung:', err.message);
+      }
+    );
+  });
+  
+  console.log(`✅ ${defaultExercises.length} Standardübungen für User ${userId} erstellt`);
+}
 
 // Register
 app.post('/api/auth/register', authLimiter, async (req, res) => {
@@ -247,6 +319,10 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       }
       
       const token = jwt.sign({ userId: this.lastID, email }, JWT_SECRET, { expiresIn: '24h' });
+      
+      // Standardübungen erstellen
+      seedDefaultExercises(this.lastID);
+      
       res.json({ token, user: { id: this.lastID, email, displayName: displayName || email } });
     });
   } catch (err) {
