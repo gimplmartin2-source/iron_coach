@@ -64,7 +64,7 @@ app.use(passport.session());
 
 // SQLite Datenbank
 const DB_PATH = process.env.DATABASE_PATH || './training.db';
-const db = new sqlite3.Database(DB_PATH, (err) => {
+let db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
     console.error('❌ Datenbank-Fehler:', err.message);
   } else {
