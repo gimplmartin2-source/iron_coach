@@ -85,18 +85,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function showUserInfo() {
-    const header = document.querySelector('header');
-    if (currentUser && header) {
-        const userDiv = document.createElement('div');
-        userDiv.style.cssText = 'margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 15px;';
-        userDiv.innerHTML = `
-            <span style="color: #888;">👤 ${currentUser.displayName || currentUser.email}</span>
-            <button id="logout-btn" style="padding: 8px 16px; background: rgba(255,50,50,0.2); border: 1px solid rgba(255,50,50,0.5); border-radius: 6px; color: #ff6666; cursor: pointer; font-size: 0.9rem;">Abmelden</button>
-        `;
-        header.appendChild(userDiv);
-        
-        // Re-attach event listener
-        document.getElementById('logout-btn').addEventListener('click', logout);
+    const userInfoDiv = document.getElementById('user-info');
+    const userNameSpan = document.getElementById('user-name');
+    if (currentUser && userInfoDiv) {
+        userNameSpan.textContent = `👤 ${currentUser.displayName || currentUser.email}`;
+        userInfoDiv.style.display = 'flex';
     }
 }
 
