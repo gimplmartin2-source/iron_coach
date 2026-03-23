@@ -583,21 +583,33 @@ app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
     const fileId = fileResponse.data.files[0].id;
     console.log('✅ Backup-Datei ID:', fileId);
     
-    // Prüfe ob lokale DB neuer ist
+    // Prüfe ob lokale DB Daten enthält (nicht nur ob sie neuer ist)
     const backupModified = new Date(fileResponse.data.files[0].modifiedTime);
     let localModified = null;
+    let hasLocalData = false;
     
     try {
       const stats = fs.statSync(DB_PATH);
       localModified = stats.mtime;
+      
+      // Prüfe ob Users-Tabelle Einträge hat
+      const userCount = await new Promise((resolve, reject) => {
+        db.get('SELECT COUNT(*) as count FROM users', [], (err, row) => {
+          if (err) resolve(0);
+          else resolve(row ? row.count : 0);
+        });
+      });
+      hasLocalData = userCount > 0;
+      console.log('📊 Lokale Users:', userCount);
     } catch (e) {
-      console.log('ℹ Keine lokale DB vorhanden');
+      console.log('ℹ Keine lokale DB vorhanden oder Fehler beim Lesen');
     }
     
-    console.log('📊 Backup:', backupModified, '| Lokal:', localModified);
+    console.log('📊 Backup:', backupModified, '| Lokal:', localModified, '| Hat Daten:', hasLocalData);
     
-    if (localModified && localModified > backupModified) {
-      console.log('ℹ Lokale Daten sind neuer');
+    // Nur restore verweigern wenn lokale Daten VORHANDEN UND neuer
+    if (hasLocalData && localModified && localModified > backupModified) {
+      console.log('ℹ Lokale Daten sind neuer und enthalten Daten');
       return res.json({ restored: false, message: 'Lokale Daten sind neuer als Backup' });
     }
     
