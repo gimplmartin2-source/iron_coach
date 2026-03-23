@@ -1,5 +1,14 @@
 const API_URL = '';
 
+// Token aus URL lesen (nach Google OAuth Redirect)
+const urlParams = new URLSearchParams(window.location.search);
+const urlToken = urlParams.get('token');
+if (urlToken) {
+    localStorage.setItem('token', urlToken);
+    // URL bereinigen (token entfernen)
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
+
 // Auth Check
 const token = localStorage.getItem('token');
 if (!token && !window.location.pathname.includes('login')) {
