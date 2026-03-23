@@ -189,6 +189,9 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     const email = profile.emails[0].value;
     const googleId = profile.id;
     const displayName = profile.displayName;
+    
+    // Tokens für Drive-API speichern
+    const authInfo = { accessToken, refreshToken };
 
     db.get('SELECT * FROM users WHERE google_id = ? OR email = ?', [googleId, email], (err, user) => {
       if (err) return done(err);
@@ -198,7 +201,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         if (!user.google_id) {
           db.run('UPDATE users SET google_id = ? WHERE id = ?', [googleId, user.id]);
         }
-        return done(null, user);
+        return done(null, user, authInfo);
       }
       
       // Neuen User erstellen
@@ -206,7 +209,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         [email, googleId, displayName], function(err) {
         if (err) return done(err);
         db.get('SELECT * FROM users WHERE id = ?', [this.lastID], (err, newUser) => {
-          done(err, newUser);
+          done(err, newUser, authInfo);
         });
       });
     });
@@ -264,11 +267,20 @@ app.post('/api/auth/login', authLimiter, (req, res, next) => {
 
 // Google Auth Routes
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+  app.get('/auth/google', passport.authenticate('google', { 
+    scope: ['profile', 'email', 'https://www.googleapis.com/auth/drive.file'],
+    accessType: 'offline',
+    prompt: 'consent'
+  }));
 
   app.get('/auth/google/callback', 
     passport.authenticate('google', { failureRedirect: '/login.html' }),
     (req, res) => {
+      // Speichere Google Tokens für Drive-Backup
+      if (req.authInfo && req.authInfo.accessToken) {
+        req.session.googleAccessToken = req.authInfo.accessToken;
+        req.session.googleRefreshToken = req.authInfo.refreshToken;
+      }
       const token = jwt.sign({ userId: req.user.id, email: req.user.email }, JWT_SECRET, { expiresIn: '24h' });
       res.redirect(`/?token=${token}`);
     }
@@ -415,20 +427,19 @@ app.get('/api/progress/:exercise_id', authenticateJWT, (req, res) => {
 // Backup zu Google Drive
 app.post('/api/backup/drive', authenticateJWT, async (req, res) => {
   try {
-    const credentialsPath = path.join(__dirname, 'google-credentials.json');
+    // Prüfe ob Google OAuth vorhanden ist
+    const accessToken = req.session?.googleAccessToken || req.headers['x-google-token'];
     
-    if (!fs.existsSync(credentialsPath)) {
+    if (!accessToken) {
       return res.status(400).json({ 
-        error: 'Google Credentials nicht gefunden. Bitte google-credentials.json erstellen.' 
+        error: 'Nicht mit Google angemeldet. Bitte mit Google-Login neu anmelden.' 
       });
     }
     
-    const auth = new google.auth.GoogleAuth({
-      keyFile: credentialsPath,
-      scopes: ['https://www.googleapis.com/auth/drive.file'],
-    });
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({ access_token: accessToken });
     
-    const drive = google.drive({ version: 'v3', auth });
+    const drive = google.drive({ version: 'v3', auth: oauth2Client });
     
     // Suche ob Backup-Ordner existiert
     const folderResponse = await drive.files.list({
@@ -455,7 +466,8 @@ app.post('/api/backup/drive', authenticateJWT, async (req, res) => {
     
     // Backup-Datei hochladen
     const timestamp = new Date().toISOString().split('T')[0];
-    const filename = `training_backup_${req.user.userId}_${timestamp}.db`;
+    const userId = req.user.userId || req.user.id;
+    const filename = `training_backup_user${userId}_${timestamp}.db`;
     
     const file = await drive.files.create({
       requestBody: {
