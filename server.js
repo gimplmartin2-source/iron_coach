@@ -276,12 +276,18 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   app.get('/auth/google/callback', 
     passport.authenticate('google', { failureRedirect: '/login.html' }),
     (req, res) => {
-      // Speichere Google Tokens für Drive-Backup
+      // Google Tokens für Drive-Backup in JWT speichern
+      const tokenPayload = { 
+        userId: req.user.id, 
+        email: req.user.email 
+      };
+      
+      // Wenn Google OAuth, zusätzliche Tokens speichern
       if (req.authInfo && req.authInfo.accessToken) {
-        req.session.googleAccessToken = req.authInfo.accessToken;
-        req.session.googleRefreshToken = req.authInfo.refreshToken;
+        tokenPayload.googleAccessToken = req.authInfo.accessToken;
       }
-      const token = jwt.sign({ userId: req.user.id, email: req.user.email }, JWT_SECRET, { expiresIn: '24h' });
+      
+      const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '24h' });
       res.redirect(`/?token=${token}`);
     }
   );
@@ -428,12 +434,12 @@ app.get('/api/progress/:exercise_id', authenticateJWT, (req, res) => {
 // Backup zu Google Drive
 app.post('/api/backup/drive', authenticateJWT, async (req, res) => {
   try {
-    // Prüfe ob Google OAuth vorhanden ist
-    const accessToken = req.session?.googleAccessToken || req.headers['x-google-token'];
+    // Google Token aus JWT holen
+    const accessToken = req.user.googleAccessToken;
     
     if (!accessToken) {
       return res.status(400).json({ 
-        error: 'Nicht mit Google angemeldet. Bitte mit Google-Login neu anmelden.' 
+        error: 'Nicht mit Google angemeldet. Bitte mit Google-Login neu anmelden (nicht Email/Passwort).' 
       });
     }
     

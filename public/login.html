@@ -157,9 +157,19 @@
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
         
-        // Token aus URL speichern und URL bereinigen
+        // Token aus URL speichern und User laden
         if (token) {
             localStorage.setItem('token', token);
+            // User aus Token decodieren (Basis64 Payload)
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                localStorage.setItem('user', JSON.stringify({
+                    email: payload.email,
+                    id: payload.userId
+                }));
+            } catch(e) {
+                console.log('Konnte User nicht decodieren');
+            }
             window.location.href = '/'; // Redirect zur App
         } else {
             // Normaler Seitenaufbau
