@@ -24,6 +24,9 @@ app.use(helmet({
   contentSecurityPolicy: false
 }));
 
+// Trust proxy for Render/Heroku
+app.set('trust proxy', 1);
+
 // Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -540,34 +543,45 @@ app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
     const oauth2Client = new google.auth.OAuth2();
     oauth2Client.setCredentials({ access_token: accessToken });
     
+    console.log('📡 Verbinde zu Google Drive...');
     const drive = google.drive({ version: 'v3', auth: oauth2Client });
     
     // Suche Backup-Ordner
+    console.log('🔍 Suche Backup-Ordner...');
     const folderResponse = await drive.files.list({
       q: "name='IronCoach-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
       fields: 'files(id, name)',
     });
     
+    console.log('📁 Ordner-Suche Ergebnis:', folderResponse.data.files.length, 'gefunden');
+    
     if (folderResponse.data.files.length === 0) {
+      console.log('❌ Kein Backup-Ordner gefunden');
       return res.json({ restored: false, message: 'Kein Backup-Ordner gefunden' });
     }
     
     const folderId = folderResponse.data.files[0].id;
+    console.log('✅ Backup-Ordner ID:', folderId);
     
     // Suche Backup-Datei
     const userId = req.user.userId || req.user.id;
     const filename = `ironcoach_backup_user${userId}.db`;
+    console.log('🔍 Suche Datei:', filename);
     
     const fileResponse = await drive.files.list({
       q: `name='${filename}' and '${folderId}' in parents and trashed=false`,
       fields: 'files(id, name, modifiedTime)',
     });
     
+    console.log('📄 Datei-Suche Ergebnis:', fileResponse.data.files.length, 'gefunden');
+    
     if (fileResponse.data.files.length === 0) {
+      console.log('❌ Keine Backup-Datei gefunden');
       return res.json({ restored: false, message: 'Keine Backup-Datei gefunden' });
     }
     
     const fileId = fileResponse.data.files[0].id;
+    console.log('✅ Backup-Datei ID:', fileId);
     
     // Prüfe ob lokale DB neuer ist
     const backupModified = new Date(fileResponse.data.files[0].modifiedTime);
@@ -577,12 +591,17 @@ app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
       const stats = fs.statSync(DB_PATH);
       localModified = stats.mtime;
     } catch (e) {
-      // Lokale DB existiert nicht
+      console.log('ℹ Keine lokale DB vorhanden');
     }
     
+    console.log('📊 Backup:', backupModified, '| Lokal:', localModified);
+    
     if (localModified && localModified > backupModified) {
+      console.log('ℹ Lokale Daten sind neuer');
       return res.json({ restored: false, message: 'Lokale Daten sind neuer als Backup' });
     }
+    
+    console.log('📥 Starte Download...');
     
     // Download Backup
     console.log('📥 Lade Backup herunter...');
