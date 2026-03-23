@@ -66,10 +66,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
     
-    // Restore VOR dem Laden der Daten
-    const restoreResult = await restoreFromDrive();
+    // Restore VOR dem Laden der Daten (nur einmal pro Session)
+    const restoreAttempted = sessionStorage.getItem('restoreAttempted');
+    if (!restoreAttempted) {
+        sessionStorage.setItem('restoreAttempted', 'true');
+        const restoreResult = await restoreFromDrive();
+        if (restoreResult) {
+            // Restore erfolgreich, Seite wird neu geladen
+            return;
+        }
+    }
     
-    // Daten laden (jetzt mit möglicherweise restaurierten Daten)
+    // Kein Restore nötig oder fehlgeschlagen - normale Initialisierung
     loadExercises();
     loadWorkouts();
     loadStats();
@@ -100,6 +108,7 @@ function showUserInfo() {
 function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    sessionStorage.removeItem('restoreAttempted'); // Reset für nächsten Login
     window.location.href = '/login.html';
 }
 
@@ -138,7 +147,8 @@ async function restoreFromDrive() {
         
         if (data.restored) {
             console.log('✅ Daten von Drive wiederhergestellt');
-            alert('📥 Deine Daten wurden vom Backup geladen!');
+            // WICHTIG: Seite neu laden damit neue DB verwendet wird
+            window.location.reload();
             return true;
         } else if (data.message) {
             console.log('ℹ️ ' + data.message);
