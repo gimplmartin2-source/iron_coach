@@ -581,22 +581,46 @@ app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
     }
     
     // Download Backup
+    console.log('📥 Lade Backup herunter...');
     const response = await drive.files.get({ fileId, alt: 'media' }, { responseType: 'stream' });
     
     // Schließe aktuelle DB
-    await new Promise((resolve) => db.close(resolve));
+    await new Promise((resolve) => {
+      db.close(() => {
+        console.log('📁 Alte DB geschlossen');
+        resolve();
+      });
+    });
     
-    // Speichere Backup als neue DB
+    // Backup herunterladen
     const dest = fs.createWriteStream(DB_PATH);
     response.data.pipe(dest);
     
     await new Promise((resolve, reject) => {
       dest.on('finish', resolve);
-      dest.on('error', reject);
+      dest.on('error', (err) => {
+        console.error('❌ Download Fehler:', err);
+        reject(err);
+      });
     });
     
-    // Reconnect DB
-    db = new sqlite3.Database(DB_PATH);
+    console.log('✅ Backup heruntergeladen');
+    
+    // DB neu verbinden
+    await new Promise((resolve, reject) => {
+      db = new sqlite3.Database(DB_PATH, (err) => {
+        if (err) {
+          console.error('❌ DB Verbindung fehlgeschlagen:', err);
+          reject(err);
+        } else {
+          console.log('✅ DB neu verbunden');
+          resolve();
+        }
+      });
+    });
+    
+    // Foreign Keys wieder aktivieren
+    db.run('PRAGMA foreign_keys = ON');
     
     res.json({ restored: true, message: 'Daten vom Backup wiederhergestellt' });
     
