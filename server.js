@@ -527,12 +527,16 @@ app.post('/api/backup/drive', authenticateJWT, async (req, res) => {
 app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
   try {
     // Prüfe ob Google OAuth vorhanden
+    console.log('🔄 RESTORE-REQUEST für User:', req.user.userId || req.user.id);
+    
     const accessToken = req.user.googleAccessToken;
     
     if (!accessToken) {
+      console.log('❌ Kein Google Access Token im JWT');
       return res.json({ restored: false, message: 'Nicht mit Google angemeldet' });
     }
     
+    console.log('✅ Google Token gefunden');
     const oauth2Client = new google.auth.OAuth2();
     oauth2Client.setCredentials({ access_token: accessToken });
     
