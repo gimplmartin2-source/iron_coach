@@ -523,6 +523,89 @@ app.post('/api/backup/drive', authenticateJWT, async (req, res) => {
   }
 });
 
+// Restore von Google Drive
+app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
+  try {
+    // Prüfe ob Google OAuth vorhanden
+    const accessToken = req.user.googleAccessToken;
+    
+    if (!accessToken) {
+      return res.json({ restored: false, message: 'Nicht mit Google angemeldet' });
+    }
+    
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({ access_token: accessToken });
+    
+    const drive = google.drive({ version: 'v3', auth: oauth2Client });
+    
+    // Suche Backup-Ordner
+    const folderResponse = await drive.files.list({
+      q: "name='IronCoach-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+      fields: 'files(id, name)',
+    });
+    
+    if (folderResponse.data.files.length === 0) {
+      return res.json({ restored: false, message: 'Kein Backup-Ordner gefunden' });
+    }
+    
+    const folderId = folderResponse.data.files[0].id;
+    
+    // Suche Backup-Datei
+    const userId = req.user.userId || req.user.id;
+    const filename = `ironcoach_backup_user${userId}.db`;
+    
+    const fileResponse = await drive.files.list({
+      q: `name='${filename}' and '${folderId}' in parents and trashed=false`,
+      fields: 'files(id, name, modifiedTime)',
+    });
+    
+    if (fileResponse.data.files.length === 0) {
+      return res.json({ restored: false, message: 'Keine Backup-Datei gefunden' });
+    }
+    
+    const fileId = fileResponse.data.files[0].id;
+    
+    // Prüfe ob lokale DB neuer ist
+    const backupModified = new Date(fileResponse.data.files[0].modifiedTime);
+    let localModified = null;
+    
+    try {
+      const stats = fs.statSync(DB_PATH);
+      localModified = stats.mtime;
+    } catch (e) {
+      // Lokale DB existiert nicht
+    }
+    
+    if (localModified && localModified > backupModified) {
+      return res.json({ restored: false, message: 'Lokale Daten sind neuer als Backup' });
+    }
+    
+    // Download Backup
+    const response = await drive.files.get({ fileId, alt: 'media' }, { responseType: 'stream' });
+    
+    // Schließe aktuelle DB
+    await new Promise((resolve) => db.close(resolve));
+    
+    // Speichere Backup als neue DB
+    const dest = fs.createWriteStream(DB_PATH);
+    response.data.pipe(dest);
+    
+    await new Promise((resolve, reject) => {
+      dest.on('finish', resolve);
+      dest.on('error', reject);
+    });
+    
+    // Reconnect DB
+    db = new sqlite3.Database(DB_PATH);
+    
+    res.json({ restored: true, message: 'Daten vom Backup wiederhergestellt' });
+    
+  } catch (error) {
+    console.error('❌ Restore Fehler:', error);
+    res.status(500).json({ error: 'Restore fehlgeschlagen: ' + error.message });
+  }
+});
+
 // Static Files
 const publicPath = path.join(__dirname, 'public');
 console.log('📁 Serving static files from:', publicPath);

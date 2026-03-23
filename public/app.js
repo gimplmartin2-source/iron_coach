@@ -66,6 +66,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
     
+    // Restore von Google Drive (nur beim ersten Start)
+    await restoreFromDrive();
+    
     loadExercises();
     loadWorkouts();
     loadStats();
@@ -110,6 +113,31 @@ function showTab(tabName) {
     if (tabName === 'stats') {
         loadProgressChart();
         loadVolumeChart();
+    }
+}
+
+// Restore von Google Drive
+async function restoreFromDrive() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    // Prüfe ob Google-User
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (!payload.googleAccessToken) return; // Nur für Google-User
+        
+        // Restore vom Server
+        const res = await apiFetch('/api/restore/drive', { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.restored) {
+            console.log('✅ Daten von Drive wiederhergestellt');
+            alert('📥 Deine Daten wurden vom Backup geladen!');
+        } else if (data.message) {
+            console.log('ℹ️ ' + data.message);
+        }
+    } catch (err) {
+        console.log('ℹ️ Kein Backup vorhanden oder Fehler:', err.message);
     }
 }
 
