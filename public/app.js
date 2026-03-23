@@ -177,7 +177,23 @@ async function addExercise(e) {
     }
 }
 
-// Delete exercise
+// Auto-Backup nach Änderungen
+async function autoBackup() {
+    // Prüfe ob Google-User (hat Google Access Token im JWT)
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (!payload.googleAccessToken) return; // Nur für Google-User
+        
+        // Silent backup
+        await apiFetch('/api/backup/drive', { method: 'POST' });
+        console.log('☁️ Auto-Backup erledigt');
+    } catch (err) {
+        console.log('ℹ️ Auto-Backup übersprungen:', err.message);
+    }
+}
 async function deleteExercise(id) {
     if (!confirm('Übung wirklich löschen?')) return;
     
@@ -186,6 +202,7 @@ async function deleteExercise(id) {
         loadExercises();
         loadWorkouts();
         loadStats();
+        autoBackup(); // Auto-Backup
     } catch (err) {
         console.error('Fehler beim Löschen:', err);
     }
@@ -260,6 +277,7 @@ async function addWorkout(e) {
             loadWorkouts();
             loadStats();
             alert('✅ Workout gespeichert!');
+            autoBackup(); // Auto-Backup
         } else {
             const errorData = await res.json().catch(() => ({}));
             alert('Fehler: ' + (errorData.error || 'Konnte nicht speichern'));
@@ -281,6 +299,7 @@ async function deleteWorkout(id) {
         await apiFetch(`/api/workouts/${id}`, { method: 'DELETE' });
         loadWorkouts();
         loadStats();
+        autoBackup(); // Auto-Backup
     } catch (err) {
         console.error('Fehler beim Löschen:', err);
     }
