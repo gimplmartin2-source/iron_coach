@@ -66,9 +66,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
     
-    // Restore von Google Drive (nur beim ersten Start)
-    await restoreFromDrive();
+    // Restore VOR dem Laden der Daten
+    const restoreResult = await restoreFromDrive();
     
+    // Daten laden (jetzt mit möglicherweise restaurierten Daten)
     loadExercises();
     loadWorkouts();
     loadStats();
@@ -119,12 +120,17 @@ function showTab(tabName) {
 // Restore von Google Drive
 async function restoreFromDrive() {
     const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!token) return false;
     
     // Prüfe ob Google-User
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
-        if (!payload.googleAccessToken) return; // Nur für Google-User
+        if (!payload.googleAccessToken) {
+            console.log('ℹ️ Kein Google-Token, überspringe Restore');
+            return false;
+        }
+        
+        console.log('🔍 Versuche Restore vom Server...');
         
         // Restore vom Server
         const res = await apiFetch('/api/restore/drive', { method: 'POST' });
@@ -133,11 +139,14 @@ async function restoreFromDrive() {
         if (data.restored) {
             console.log('✅ Daten von Drive wiederhergestellt');
             alert('📥 Deine Daten wurden vom Backup geladen!');
+            return true;
         } else if (data.message) {
             console.log('ℹ️ ' + data.message);
         }
+        return false;
     } catch (err) {
         console.log('ℹ️ Kein Backup vorhanden oder Fehler:', err.message);
+        return false;
     }
 }
 
