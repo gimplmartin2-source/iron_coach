@@ -85,7 +85,7 @@ db.serialize(() => {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  // Exercises Tabelle (neu oder migriert)
+  // Exercises Tabelle - immer neu erstellen falls nicht existiert
   db.run(`CREATE TABLE IF NOT EXISTS exercises (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -93,21 +93,26 @@ db.serialize(() => {
     muscle_group TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  )`, (err) => {
-    if (err) {
-      console.log('⚠️ Versuche exercises Tabelle zu migrieren...');
-      // Alte Tabelle ohne user_id existiert → Spalte hinzufügen
-      db.run(`ALTER TABLE exercises ADD COLUMN user_id INTEGER DEFAULT 0`, (alterErr) => {
-        if (alterErr) {
-          console.log('ℹ️ user_id Spalte existiert schon oder Tabelle hat andere Struktur');
-        } else {
-          console.log('✅ user_id Spalte hinzugefügt');
-        }
-      });
+  )`);
+
+  // Migration: Prüfe ob user_id Spalte in exercises existiert
+  db.all(`PRAGMA table_info(exercises)`, [], (err, columns) => {
+    if (!err && columns) {
+      const hasUserId = columns.some(col => col.name === 'user_id');
+      if (!hasUserId) {
+        console.log('⚠️ Migration: user_id Spalte fehlt in exercises, füge hinzu...');
+        db.run(`ALTER TABLE exercises ADD COLUMN user_id INTEGER DEFAULT 0`, (alterErr) => {
+          if (alterErr) {
+            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
+          } else {
+            console.log('✅ user_id Spalte zu exercises hinzugefügt');
+          }
+        });
+      }
     }
   });
 
-  // Workouts Tabelle (neu oder migriert)
+  // Workouts Tabelle
   db.run(`CREATE TABLE IF NOT EXISTS workouts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -121,12 +126,22 @@ db.serialize(() => {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
-  )`, (err) => {
-    if (err) {
-      console.log('⚠️ Versuche workouts Tabelle zu migrieren...');
-      db.run(`ALTER TABLE workouts ADD COLUMN user_id INTEGER DEFAULT 0`, (alterErr) => {
-        if (!alterErr) console.log('✅ user_id in workouts hinzugefügt');
-      });
+  )`);
+
+  // Migration: Prüfe ob user_id Spalte in workouts existiert
+  db.all(`PRAGMA table_info(workouts)`, [], (err, columns) => {
+    if (!err && columns) {
+      const hasUserId = columns.some(col => col.name === 'user_id');
+      if (!hasUserId) {
+        console.log('⚠️ Migration: user_id Spalte fehlt in workouts, füge hinzu...');
+        db.run(`ALTER TABLE workouts ADD COLUMN user_id INTEGER DEFAULT 0`, (alterErr) => {
+          if (alterErr) {
+            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
+          } else {
+            console.log('✅ user_id Spalte zu workouts hinzugefügt');
+          }
+        });
+      }
     }
   });
 });
