@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IronCoach 💪 Trainings-Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💪 IronCoach</h1>
+            <p>Dein persönlicher Trainings-Tracker</p>
+            <div id="user-info" style="margin-top: 15px; display: none; align-items: center; justify-content: center; gap: 15px;">
+                <span id="user-name" style="color: #888;"></span>
+                <button id="logout-btn" style="padding: 8px 16px; background: rgba(255,50,50,0.2); border: 1px solid rgba(255,50,50,0.5); border-radius: 6px; color: #ff6666; cursor: pointer; font-size: 0.9rem;">Abmelden</button>
+            </div>
+        </header>
+
+        <!-- Stats Overview -->
+        <section class="stats-grid">
+            <div class="stat-card">
+                <h3>Gesamtvolumen</h3>
+                <p class="stat-value" id="total-volume">0 kg</p>
+            </div>
+            <div class="stat-card">
+                <h3>Workouts</h3>
+                <p class="stat-value" id="total-workouts">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Übungen</h3>
+                <p class="stat-value" id="total-exercises">0</p>
+            </div>
+            <div class="stat-card">
+                <h3>Diese Woche</h3>
+                <p class="stat-value" id="weekly-volume">0 kg</p>
+            </div>
+        </section>
+
+        <!-- Trainingsplan Toggle -->
+        <div class="plan-toggle" style="margin: 15px 0; text-align: center;">
+            <button id="plan-toggle-btn" class="btn-secondary" onclick="togglePlan()" style="background: rgba(100,200,100,0.2); border-color: rgba(100,200,100,0.5); color: #6c6;">
+                📋 Trainingsplan anzeigen
+            </button>
+        </div>
+
+        <!-- Trainingsplan Panel (initially hidden) -->
+        <section id="plan-panel" class="card" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>📋 Dein Trainingsplan</h2>
+                <span style="font-size: 0.8rem; color: #888;">Gleitwirbel-kompatibel • Judo-optimiert</span>
+            </div>
+            
+            <div class="plan-nav">
+                <button class="plan-day-btn active" onclick="showPlanDay('montag')">Mo</button>
+                <button class="plan-day-btn" onclick="showPlanDay('dienstag')">Di</button>
+                <button class="plan-day-btn" onclick="showPlanDay('mittwoch')">Mi</button>
+                <button class="plan-day-btn" onclick="showPlanDay('donnerstag')">Do</button>
+                <button class="plan-day-btn" onclick="showPlanDay('freitag')">Fr</button>
+                <button class="plan-day-btn" onclick="showPlanDay('samstag')">Sa</button>
+                <button class="plan-day-btn" onclick="showPlanDay('sonntag')">So</button>
+            </div>
+
+            <!-- Montag -->
+            <div id="plan-montag" class="plan-day active">
+                <h3>🥋 Montag - Judo-Training</h3>
+                <div class="plan-meta">
+                    <span class="badge intensity-high">Intensität: Hoch</span>
+                    <span class="badge">90-120 Min</span>
+                </div>
+                <div class="plan-content">
+                    <p><strong>Vor dem Training (5 Min):</strong></p>
+                    <ul class="checklist">
+                        <li>ADIM (20 Sek)</li>
+                        <li>Dead Bug (5 pro Seite)</li>
+                        <li>Hip Circles (10 pro Richtung)</li>
+                        <li>Schulterkreisen rückwärts (15x)</li>
+                    </ul>
+                    <p style="margin-top: 15px; color: #888;">→ Judo-Training im Dojo</p>
+                    <p><strong>Nach dem Training (5 Min):</strong></p>
+                    <ul class="checklist">
+                        <li>Kindhaltung (60 Sek)</li>
+                        <li>Hüftbeuger-Dehnung (60 Sek pro Seite)</li>
+                        <li>Tiefe Atmung im Liegen (1 Min)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Dienstag -->
+            <div id="plan-dienstag" class="plan-day">
+                <h3>💪 Dienstag - Core-Stabilisation + Dehnen</h3>
+                <div class="plan-meta">
+                    <span class="badge intensity-medium">Intensität: Mittel</span>
+                    <span class="badge">45 Min</span>
+                </div>
+                <div class="plan-content">
+                    <p><strong>Warm-up: ADIM (5 Min)</strong></p>
+                    <p style="color: #6c6; margin: 10px 0;">✓ Bauchnabel Richtung Wirbelsäule, 10 Sek halten, 10 Wdh, 3 Sätze</p>
+                    
+                    <table class="plan-table">
+                        <tr><th>Übung</th><th>Sätze</th><th>Wdh/Dauer</th></tr>
+                        <tr><td>Dead Bug</td><td>3</td><td>8-10 pro Seite</td></tr>
+                        <tr><td>Bird Dog</td><td>3</td><td>8-10 pro Seite</td></tr>
+                        <tr><td>Glute Bridge</td><td>3</td><td>12-15</td></tr>
+                        <tr><td>Side Plank (modifiziert)</td><td>3</td><td>20-30 Sek</td></tr>
+                        <tr><td>Pallof Press</td><td>3</td><td>10</td></tr>
+                    </table>
+                    <p style="margin-top: 10px; color: #888;">Ruhezeit: 60 Sek zwischen Sätzen</p>
+                    
+                    <p style="margin-top: 15px;"><strong>Dehnen (nach dem Core):</strong></p>
+                    <ul class="checklist">
+                        <li>Kniestand Hüftbeuger-Dehnung: 60 Sek pro Seite</li>
+                        <li>90/90 Hip Stretch: 90 Sek pro Seite</li>
+                        <li>Piriformis-Dehnung: 60 Sek pro Seite</li>
+                        <li>Schmetterling: 90 Sek</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Mittwoch -->
+            <div id="plan-mittwoch" class="plan-day">
+                <h3>💪 Mittwoch - Tiefer Core + Rücken</h3>
+                <div class="plan-meta">
+                    <span class="badge intensity-medium">Intensität: Mittel</span>
+                    <span class="badge">40 Min</span>
+                </div>
+                <div class="plan-content">
+                    <p><strong>Warm-up: ADIM (5 Min)</strong></p>
+                    
+                    <table class="plan-table">
+                        <tr><th>Übung</th><th>Sätze</th><th>Wdh/Dauer</th></tr>
+                        <tr><td>Dead Bug (langsamer)</td><td>3</td><td>6-8 pro Seite</td></tr>
+                        <tr><td>Bird Dog (5 Sek halten)</td><td>3</td><td>6-8 pro Seite</td></tr>
+                        <tr><td>Glute Bridge (2 Sek oben halten)</td><td>3</td><td>10-12</td></tr>
+                        <tr><td>Side Plank (beide Seiten)</td><td>3</td><td>20-25 Sek</td></tr>
+                        <tr><td>Pallof Press + Rotation</td><td>3</td><td>8 pro Seite</td></tr>
+                    </table>
+                    <p style="margin-top: 10px; color: #888;">Ruhezeit: 60 Sek zwischen Sätzen</p>
+                </div>
+            </div>
+
+            <!-- Donnerstag -->
+            <div id="plan-donnerstag" class="plan-day">
+                <h3>🧘 Donnerstag - Dehnen + Beweglichkeit</h3>
+                <div class="plan-meta">
+                    <span class="badge intensity-low">Intensität: Niedrig</span>
+                    <span class="badge">30 Min</span>
+                </div>
+                <div class="plan-content">
+                    <p><strong>Gezieltes Dehn-Programm:</strong></p>
+                    
+                    <p style="margin-top: 15px;"><strong>Hüfte & Oberschenkel:</strong></p>
+                    <ul class="checklist">
+                        <li>Kniestand Hüftbeuger: 60 Sek pro Seite</li>
+                        <li>90/90 Hip Stretch: 90 Sek pro Seite</li>
+                        <li>Piriformis-Dehnung: 60 Sek pro Seite</li>
+                        <li>Schmetterling (Adduktoren): 90 Sek</li>
+                    </ul>
+                    
+                    <p style="margin-top: 15px;"><strong>Rücken (sanft):</strong></p>
+                    <ul class="checklist">
+                        <li>Katze-Kuh: 10 Wdh</li>
+                        <li>Kindhaltung: 60 Sek</li>
+                        <li>LWS-Rotation (supine): 30 Sek pro Seite</li>
+                    </ul>
+                    
+                    <p style="margin-top: 15px;"><strong>Oberkörper:</strong></p>
+                    <ul class="checklist">
+                        <li>Brust-Dehnung an Tür: 60 Sek</li>
+                        <li>Lat-Dehnung: 45 Sek pro Seite</li>
+                        <li>Nacken-Dehnung: 30 Sek pro Seite</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Freitag -->
+            <div id="plan-freitag" class="plan-day">
+                <h3>🥋 Freitag - Judo-Training</h3>
+                <div class="plan-meta">
+                    <span class="badge intensity-high">Intensität: Hoch</span>
+                    <span class="badge">90-120 Min</span>
+                </div>
+                <div class="plan-content">
+                    <p><strong>Vor dem Training (5 Min):</strong></p>
+                    <ul class="checklist">
+                        <li>ADIM (20 Sek)</li>
+                        <li>Dead Bug (5 pro Seite)</li>
+                        <li>Hip Circles (10 pro Richtung)</li>
+                        <li>Schulterkreisen rückwärts (15x)</li>
+                    </ul>
+                    <p style="margin-top: 15px; color: #888;">→ Judo-Training im Dojo</p>
+                    <p><strong>Nach dem Training (5 Min):</strong></p>
+                    <ul class="checklist">
+                        <li>Kindhaltung (60 Sek)</li>
+                        <li>Hüftbeuger-Dehnung (60 Sek pro Seite)</li>
+                        <li>Tiefe Atmung im Liegen (1 Min)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Samstag -->
+            <div id="plan-samstag" class="plan-day">
+                <h3>💪 Samstag - Core-Ausdauer + Hüfte</h3>
+                <div class="plan-meta">
+                    <span class="badge intensity-medium">Intensität: Mittel</span>
+                    <span class="badge">40 Min</span>
+                </div>
+                <div class="plan-content">
+                    <p><strong>Warm-up: ADIM (5 Min)</strong></p>
+                    
+                    <table class="plan-table">
+                        <tr><th>Übung</th><th>Sätze</th><th>Dauer</th></tr>
+                        <tr><td>Front Plank (modifiziert)</td><td>3</td><td>30-45 Sek</td></tr>
+                        <tr><td>Dead Bug Variationen</td><td>3</td><td>45 Sek</td></tr>
+                        <tr><td>Glute March (Brücke)</td><td>3</td><td>10 pro Seite</td></tr>
+                        <tr><td>Copenhagen Plank (leicht)</td><td>2</td><td>15 Sek pro Seite</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Sonntag -->
+            <div id="plan-sonntag" class="plan-day">
+                <h3>☀️ Sonntag - Aktive Erholung</h3>
+                <div class="plan-meta">
+                    <span class="badge intensity-low">Intensität: Niedrig</span>
+                    <span class="badge">20 Min</span>
+                </div>
+                <div class="plan-content">
+                    <p><strong>Leichtes Dehnen:</strong></p>
+                    <ul class="checklist">
+                        <li>Kindhaltung: 60-90 Sek</li>
+                        <li>Hüftbeuger-Dehnung: 60 Sek pro Seite</li>
+                        <li>Piriformis: 45 Sek pro Seite</li>
+                        <li>Tiefe Atmung im Liegen (3 Min)</li>
+                    </ul>
+                    <p style="margin-top: 15px; color: #6c6;">Optional: Spaziergang oder leichte Aktivität</p>
+                </div>
+            </div>
+
+            <div class="plan-footer" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #333; font-size: 0.85rem; color: #666;">
+                <p><strong>⚠️ Warnsignale (STOPP bei):</strong> Schmerzen in LWS, Taubheitsgefühl, Verschlimmerung der Gleitwirbel-Symptome</p>
+                <p><strong>Progression:</strong> Alle 2 Wochen +1 Satz oder +5 Sek bei Planks, wenn schmerzfrei</p>
+            </div>
+        </section>
+
+        <!-- Navigation -->
+        <nav class="tabs">
+            <button class="tab-btn active" onclick="showTab('workouts')">📝 Workouts</button>
+            <button class="tab-btn" onclick="showTab('exercises')">🏋️ Übungen</button>
+            <button class="tab-btn" onclick="showTab('stats')">📊 Statistiken</button>
+        </nav>
+
+        <!-- Workouts Tab -->
+        <section id="workouts-tab" class="tab-content active">
+            <div class="card">
+                <h2>Neues Workout</h2>
+                <form id="workout-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Übung</label>
+                            <select id="workout-exercise" required>
+                                <option value="">-- Wähle Übung --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Datum</label>
+                            <input type="date" id="workout-date" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Gewicht (kg)</label>
+                            <input type="number" id="workout-weight" step="0.5" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Sätze</label>
+                            <input type="number" id="workout-sets" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Wdh./Satz</label>
+                            <input type="number" id="workout-reps" min="1" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Ruhezeit (Sek.)</label>
+                            <input type="number" id="workout-rest" min="0" placeholder="60">
+                        </div>
+                        <div class="form-group">
+                            <label>Gefühl (1-10)</label>
+                            <input type="number" id="workout-feeling" min="1" max="10" placeholder="5">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary">💾 Speichern</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Letzte Workouts</h2>
+                <div id="workouts-list" class="list-container">
+                    <p class="empty-state">Noch keine Workouts eingetragen.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Exercises Tab -->
+        <section id="exercises-tab" class="tab-content">
+            <div class="card">
+                <h2>Neue Übung</h2>
+                <form id="exercise-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Name</label>
+                            <input type="text" id="exercise-name" placeholder="z.B. Bankdrücken" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Muskelgruppe</label>
+                            <select id="exercise-muscle" required>
+                                <option value="">-- Wähle --</option>
+                                <option value="Brust">Brust</option>
+                                <option value="Rücken">Rücken</option>
+                                <option value="Schultern">Schultern</option>
+                                <option value="Beine">Beine</option>
+                                <option value="Arme">Arme</option>
+                                <option value="Bauch">Bauch</option>
+                                <option value="Ganzkörper">Ganzkörper</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary">➕ Hinzufügen</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Deine Übungen</h2>
+                <div id="exercises-list" class="list-container">
+                    <p class="empty-state">Noch keine Übungen vorhanden.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Tab -->
+        <section id="stats-tab" class="tab-content">
+            <div class="card">
+                <h2>☁️ Backup</h2>
+                <button onclick="backupToDrive()" class="btn-primary" style="width: 100%;">
+                    Zu Google Drive sichern
+                </button>
+                <p id="backup-status" style="margin-top: 10px; text-align: center; color: #666;"></p>
+            </div>
+
+            <div class="card">
+                <h2>Progress-Analyse</h2>
+                <div class="form-group">
+                    <label>Übung auswählen</label>
+                    <select id="stats-exercise" onchange="loadProgressChart()">
+                        <option value="">-- Wähle Übung --</option>
+                    </select>
+                </div>
+                <div class="chart-container">
+                    <canvas id="progress-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Volumen-Entwicklung</h2>
+                <div class="chart-container">
+                    <canvas id="volume-chart"></canvas>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
