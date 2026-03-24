@@ -1,0 +1,5 @@
+Also erstens, das Problem fürs Anmelden. Ich kann mich nicht auf Registrieren drücken.
+Also dieser Knopf funktioniert irgendwie nicht. Und zweitens, kannst du jetzt über den Browser
+in die Google Console schauen, die sollte noch offen sein. Und dort die Redirect URL richtig stellen.
+So, dass Google auch funktioniert und sollte ein anderer Fehler bei Google sein.
+Diesen auch noch beheben, dass die Google-Anmeldung funktioniert.

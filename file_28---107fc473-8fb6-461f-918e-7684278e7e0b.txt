@@ -1,0 +1,4 @@
+Anscheinend habe ich einen Fehler gemacht. Die client credentials und client ID von Google
+sind korrekt. Kannst du das Problem mit dem Registrier-Button beheben, so dass man sich
+normal registrieren kann ohne Google? Du hast Zugriff über Browser Relay, hast du Zugriff auf
+alle Tabs, die ich gerade genutzt habe.
