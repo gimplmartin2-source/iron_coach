@@ -213,8 +213,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         if (err) return done(err);
         const newUserId = this.lastID;
         
-        // Standardübungen erstellen
-        seedDefaultExercises(newUserId);
+        // KEINE Standardübungen hier erstellen - erst nach Restore-Check im Client!
         
         db.get('SELECT * FROM users WHERE id = ?', [newUserId], (err, newUser) => {
           done(err, newUser, authInfo);
@@ -437,6 +436,12 @@ app.post('/api/exercises', authenticateJWT, (req, res) => {
     console.log('✅ Übung gespeichert, ID:', this.lastID);
     res.json({ id: this.lastID, name, muscle_group });
   });
+});
+
+// Standardübungen erstellen (nach Restore)
+app.post('/api/exercises/seed', authenticateJWT, (req, res) => {
+  seedDefaultExercises(req.user.userId);
+  res.json({ message: 'Standardübungen werden erstellt' });
 });
 
 // Übung löschen

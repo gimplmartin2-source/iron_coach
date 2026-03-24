@@ -78,7 +78,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     // Kein Restore nötig oder fehlgeschlagen - normale Initialisierung
-    loadExercises();
+    // Zuerst Übungen laden, dann prüfen ob Seed nötig
+    await loadExercises();
+    
+    // Wenn keine Übungen vorhanden, Standardübungen erstellen
+    if (exercises.length === 0) {
+        console.log('📝 Keine Übungen gefunden, erstelle Standardübungen...');
+        await fetch('/api/exercises/seed', { 
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+        });
+        // Kurz warten und neu laden
+        await new Promise(r => setTimeout(r, 500));
+        await loadExercises();
+    }
+    
     loadWorkouts();
     loadStats();
     
