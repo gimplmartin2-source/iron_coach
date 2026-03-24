@@ -1,0 +1,12 @@
+[build]
+cmd = "npm install"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/api/auth/verify"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[env]
+PORT = "3000"
+NODE_ENV = "production"
