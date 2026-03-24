@@ -342,6 +342,7 @@
 
         <!-- Stats Tab -->
         <section id="stats-tab" class="tab-content">
+            <!-- Backup Card -->
             <div class="card">
                 <h2>☁️ Backup</h2>
                 <button onclick="backupToDrive()" class="btn-primary" style="width: 100%;">
@@ -350,23 +351,75 @@
                 <p id="backup-status" style="margin-top: 10px; text-align: center; color: #666;"></p>
             </div>
 
+            <!-- Wochen-Navigation -->
             <div class="card">
-                <h2>Progress-Analyse</h2>
-                <div class="form-group">
-                    <label>Übung auswählen</label>
-                    <select id="stats-exercise" onchange="loadProgressChart()">
-                        <option value="">-- Wähle Übung --</option>
-                    </select>
+                <h2>📅 Wochenansicht</h2>
+                <div class="week-nav" style="display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn-secondary" onclick="changeWeek(-1)" style="padding: 8px 16px;">← Vorherige</button>
+                    <span id="current-week-label" style="font-weight: bold; min-width: 150px; text-align: center;">Diese Woche</span>
+                    <button class="btn-secondary" onclick="changeWeek(1)" style="padding: 8px 16px;">Nächste →</button>
+                    <button class="btn-secondary" onclick="resetToCurrentWeek()" style="padding: 8px 16px; margin-left: 10px;">Heute</button>
                 </div>
-                <div class="chart-container">
-                    <canvas id="progress-chart"></canvas>
+                <div id="week-stats-summary" style="margin-top: 15px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px; text-align: center;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 15px;">
+                        <div>
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #00d4ff;" id="week-total-volume">0 kg</div>
+                            <div style="font-size: 0.8rem; color: #888;">Volumen</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #00d4ff;" id="week-workout-count">0</div>
+                            <div style="font-size: 0.8rem; color: #888;">Workouts</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #00d4ff;" id="week-exercise-count">0</div>
+                            <div style="font-size: 0.8rem; color: #888;">Übungen</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
+            <!-- Übungs-Filter -->
             <div class="card">
-                <h2>Volumen-Entwicklung</h2>
-                <div class="chart-container">
-                    <canvas id="volume-chart"></canvas>
+                <h2>🏋️ Übungen filtern</h2>
+                <p style="color: #888; margin-bottom: 10px; font-size: 0.9rem;">Wähle aus, welche Übungen im Chart angezeigt werden:</p>
+                <div id="exercise-filter-list" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">
+                    <!-- Wird dynamisch gefüllt -->
+                    <div style="color: #666; font-style: italic;">Lade Übungen...</div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-secondary" onclick="selectAllExercises(true)" style="padding: 6px 12px; font-size: 0.85rem;">Alle an</button>
+                    <button class="btn-secondary" onclick="selectAllExercises(false)" style="padding: 6px 12px; font-size: 0.85rem;">Alle aus</button>
+                </div>
+            </div>
+
+            <!-- Gesamt-Chart (alle Workouts) -->
+            <div class="card">
+                <h2>📊 Alle Workouts</h2>
+                <p style="color: #888; margin-bottom: 10px; font-size: 0.9rem;">Zeigt alle eingetragenen Workouts der gewählten Woche</p>
+                <div class="chart-container" style="height: 350px;">
+                    <canvas id="all-workouts-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Volumen pro Tag Chart -->
+            <div class="card">
+                <h2>📈 Tägliches Volumen</h2>
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="daily-volume-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Einzelne Übungen (optional) -->
+            <div class="card">
+                <h2>🔍 Einzelne Übung analysieren</h2>
+                <div class="form-group">
+                    <label>Übung auswählen</label>
+                    <select id="single-exercise-select" onchange="loadSingleExerciseChart()">
+                        <option value="">-- Optional: Einzelne Übung --</option>
+                    </select>
+                </div>
+                <div id="single-exercise-chart-container" class="chart-container" style="display: none; height: 300px;">
+                    <canvas id="single-exercise-chart"></canvas>
                 </div>
             </div>
         </section>

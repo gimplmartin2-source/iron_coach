@@ -509,9 +509,32 @@ function formatDate(dateStr) {
     return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
 }
 
-// Calculate 1RM (Epley formula)
-function calculate1RM(weight, reps) {
-    return weight * (1 + reps / 30);
+function showTab(tabName) {
+    // Alle Tabs ausblenden
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Alle Buttons zurücksetzen
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Gewählten Tab anzeigen
+    document.getElementById(tabName + '-tab').classList.add('active');
+    
+    // Button als aktiv markieren
+    const buttons = document.querySelectorAll('.tab-btn');
+    buttons.forEach(btn => {
+        if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes("'" + tabName + "'")) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Stats initialisieren wenn Stats-Tab geöffnet wird
+    if (tabName === 'stats') {
+        initStats();
+    }
 }
 
 // Backup to Google Drive
@@ -589,4 +612,359 @@ function selectTodayInPlan() {
     const today = new Date().getDay();
     const days = ['sonntag', 'montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag'];
     showPlanDay(days[today]);
+}
+
+// ===================== NEUE STATISTIK-FUNKTIONEN =====================
+
+let currentWeekOffset = 0;
+let selectedExercises = new Set();
+let allExercisesList = [];
+let allWorkoutsChart = null;
+let dailyVolumeChart = null;
+let singleExerciseChart = null;
+
+function changeWeek(offset) {
+    currentWeekOffset += offset;
+    updateWeekView();
+}
+
+function resetToCurrentWeek() {
+    currentWeekOffset = 0;
+    updateWeekView();
+}
+
+function updateWeekView() {
+    const now = new Date();
+    const currentWeekStart = getWeekStart(now);
+    currentWeekStart.setDate(currentWeekStart.getDate() + (currentWeekOffset * 7));
+    
+    const weekEnd = new Date(currentWeekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    
+    const label = document.getElementById('current-week-label');
+    if (currentWeekOffset === 0) {
+        label.textContent = 'Diese Woche';
+    } else if (currentWeekOffset === -1) {
+        label.textContent = 'Letzte Woche';
+    } else if (currentWeekOffset === 1) {
+        label.textContent = 'Nächste Woche';
+    } else {
+        const options = { month: 'short', day: 'numeric' };
+        label.textContent = `${currentWeekStart.toLocaleDateString('de-DE', options)} - ${weekEnd.toLocaleDateString('de-DE', options)}`;
+    }
+    
+    const weekWorkouts = workouts.filter(w => {
+        const workoutDate = new Date(w.date);
+        return workoutDate >= currentWeekStart && workoutDate <= weekEnd;
+    });
+    
+    updateWeekStats(weekWorkouts);
+    updateAllWorkoutsChart(weekWorkouts);
+    updateDailyVolumeChart(weekWorkouts, currentWeekStart);
+}
+
+function getWeekStart(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    d.setDate(diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+function updateWeekStats(weekWorkouts) {
+    let totalVolume = 0;
+    const uniqueExercises = new Set();
+    
+    weekWorkouts.forEach(w => {
+        totalVolume += w.weight * w.sets * w.reps;
+        if (w.exercise_id) uniqueExercises.add(w.exercise_id);
+    });
+    
+    document.getElementById('week-total-volume').textContent = formatWeight(totalVolume);
+    document.getElementById('week-workout-count').textContent = weekWorkouts.length;
+    document.getElementById('week-exercise-count').textContent = uniqueExercises.size;
+}
+
+function initExerciseFilter() {
+    const container = document.getElementById('exercise-filter-list');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    allExercisesList = exercises;
+    
+    if (exercises.length === 0) {
+        container.innerHTML = '<div style="color: #666; font-style: italic;">Noch keine Übungen vorhanden</div>';
+        return;
+    }
+    
+    exercises.forEach(ex => {
+        selectedExercises.add(ex.id);
+    });
+    
+    exercises.forEach(ex => {
+        const label = document.createElement('label');
+        label.style.cssText = 'display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(255,255,255,0.05); border-radius: 6px; cursor: pointer; font-size: 0.85rem;';
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = true;
+        checkbox.value = ex.id;
+        checkbox.onchange = (e) => {
+            if (e.target.checked) {
+                selectedExercises.add(parseInt(e.target.value));
+            } else {
+                selectedExercises.delete(parseInt(e.target.value));
+            }
+            updateWeekView();
+        };
+        
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(ex.name));
+        container.appendChild(label);
+    });
+}
+
+function selectAllExercises(select) {
+    const checkboxes = document.querySelectorAll('#exercise-filter-list input[type="checkbox"]');
+    checkboxes.forEach(cb => {
+        cb.checked = select;
+        if (select) {
+            selectedExercises.add(parseInt(cb.value));
+        } else {
+            selectedExercises.delete(parseInt(cb.value));
+        }
+    });
+    updateWeekView();
+}
+
+function updateAllWorkoutsChart(weekWorkouts) {
+    const ctx = document.getElementById('all-workouts-chart')?.getContext('2d');
+    if (!ctx) return;
+    
+    const dataByExercise = {};
+    weekWorkouts.forEach(w => {
+        if (!selectedExercises.has(w.exercise_id)) return;
+        
+        if (!dataByExercise[w.exercise_name]) {
+            dataByExercise[w.exercise_name] = [];
+        }
+        dataByExercise[w.exercise_name].push({
+            x: w.date,
+            y: w.weight,
+            volume: w.weight * w.sets * w.reps
+        });
+    });
+    
+    const datasets = Object.entries(dataByExercise).map(([name, data], index) => {
+        const colors = ['#00d4ff', '#7b2cbf', '#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff8b94'];
+        const color = colors[index % colors.length];
+        
+        return {
+            label: name,
+            data: data.map(d => ({ x: d.x, y: d.y })),
+            borderColor: color,
+            backgroundColor: color + '33',
+            tension: 0.3,
+            fill: false
+        };
+    });
+    
+    if (allWorkoutsChart) {
+        allWorkoutsChart.destroy();
+    }
+    
+    if (datasets.length === 0) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.fillStyle = '#666';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Keine Workouts in dieser Woche', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        return;
+    }
+    
+    allWorkoutsChart = new Chart(ctx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            scales: {
+                x: {
+                    type: 'category',
+                    grid: { color: 'rgba(255,255,255,0.1)' },
+                    ticks: { color: '#888' }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255,255,255,0.1)' },
+                    ticks: { color: '#888' },
+                    title: { display: true, text: 'Gewicht (kg)', color: '#888' }
+                }
+            },
+            plugins: {
+                legend: { labels: { color: '#fff' }, position: 'top' }
+            }
+        }
+    });
+}
+
+function updateDailyVolumeChart(weekWorkouts, weekStart) {
+    const ctx = document.getElementById('daily-volume-chart')?.getContext('2d');
+    if (!ctx) return;
+    
+    const volumeByDay = {};
+    const dayNames = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+    
+    for (let i = 0; i < 7; i++) {
+        const day = new Date(weekStart);
+        day.setDate(day.getDate() + i);
+        const dayKey = day.toISOString().split('T')[0];
+        volumeByDay[dayKey] = { volume: 0, label: dayNames[i] };
+    }
+    
+    weekWorkouts.forEach(w => {
+        if (!selectedExercises.has(w.exercise_id)) return;
+        
+        const dayVolume = w.weight * w.sets * w.reps;
+        if (volumeByDay[w.date]) {
+            volumeByDay[w.date].volume += dayVolume;
+        }
+    });
+    
+    const labels = Object.values(volumeByDay).map(d => d.label);
+    const volumes = Object.values(volumeByDay).map(d => d.volume);
+    
+    if (dailyVolumeChart) {
+        dailyVolumeChart.destroy();
+    }
+    
+    dailyVolumeChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Tagesvolumen',
+                data: volumes,
+                backgroundColor: volumes.map(v => v > 0 ? 'rgba(0,212,255,0.6)' : 'rgba(255,255,255,0.1)'),
+                borderColor: '#00d4ff',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255,255,255,0.1)' },
+                    ticks: { color: '#888', callback: (v) => formatWeight(v) }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#888' }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => `Volumen: ${formatWeight(ctx.raw)}`
+                    }
+                }
+            }
+        }
+    });
+}
+
+async function loadSingleExerciseChart() {
+    const exerciseId = document.getElementById('single-exercise-select')?.value;
+    const container = document.getElementById('single-exercise-chart-container');
+    
+    if (!exerciseId) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    container.style.display = 'block';
+    
+    try {
+        const res = await apiFetch(`/api/progress/${exerciseId}`);
+        if (!res) return;
+        const data = await res.json();
+        
+        if (data.length === 0) {
+            if (singleExerciseChart) singleExerciseChart.destroy();
+            return;
+        }
+        
+        const ctx = document.getElementById('single-exercise-chart').getContext('2d');
+        
+        if (singleExerciseChart) singleExerciseChart.destroy();
+        
+        singleExerciseChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => formatDate(d.date)),
+                datasets: [{
+                    label: 'Gewicht (kg)',
+                    data: data.map(d => d.weight),
+                    borderColor: '#00d4ff',
+                    backgroundColor: 'rgba(0,212,255,0.1)',
+                    tension: 0.3,
+                    fill: true
+                }, {
+                    label: 'Volumen',
+                    data: data.map(d => d.volume),
+                    borderColor: '#7b2cbf',
+                    backgroundColor: 'rgba(123,44,191,0.1)',
+                    tension: 0.3,
+                    fill: true,
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#888' } },
+                    y1: { position: 'right', beginAtZero: true, grid: { display: false }, ticks: { color: '#888' } },
+                    x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#888' } }
+                },
+                plugins: {
+                    legend: { labels: { color: '#fff' } }
+                }
+            }
+        });
+    } catch (err) {
+        console.error('Fehler beim Laden des Charts:', err);
+    }
+}
+
+function formatWeight(kg) {
+    if (kg >= 1000) {
+        return (kg / 1000).toFixed(1) + 'k';
+    }
+    return Math.round(kg) + ' kg';
+}
+
+function initStats() {
+    initExerciseFilter();
+    populateSingleExerciseSelect();
+    resetToCurrentWeek();
+}
+
+function populateSingleExerciseSelect() {
+    const select = document.getElementById('single-exercise-select');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">-- Optional: Einzelne Übung --</option>';
+    
+    exercises.forEach(ex => {
+        const option = document.createElement('option');
+        option.value = ex.id;
+        option.textContent = ex.name;
+        select.appendChild(option);
+    });
 }
