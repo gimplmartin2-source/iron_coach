@@ -414,12 +414,19 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
 // Health Check
 app.get('/api/health', (req, res) => {
+  const apiKeyConfigured = !!process.env.IRONCOACH_API_KEY;
+  const apiKeyValue = process.env.IRONCOACH_API_KEY ? process.env.IRONCOACH_API_KEY.substring(0, 10) + '...' : 'NOT SET';
+  
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
     database: 'SQLite',
     environment: process.env.NODE_ENV || 'development',
-    googleOAuth: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
+    googleOAuth: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    apiKey: {
+      configured: apiKeyConfigured,
+      preview: apiKeyValue
+    }
   });
 });
 
