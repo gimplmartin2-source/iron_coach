@@ -460,6 +460,20 @@ app.post('/api/workouts', authenticateJWT, (req, res) => {
   );
 });
 
+// Workout aktualisieren (PUT)
+app.put('/api/workouts/:id', authenticateJWT, (req, res) => {
+  const { exercise_id, weight, sets, reps, rest_seconds, feeling, date } = req.body;
+  db.run(
+    'UPDATE workouts SET exercise_id = ?, weight = ?, sets = ?, reps = ?, rest_seconds = ?, feeling = ?, date = ? WHERE id = ? AND user_id = ?',
+    [exercise_id, weight, sets, reps, rest_seconds, feeling, date, req.params.id, req.user.userId],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Workout nicht gefunden' });
+      res.json({ message: 'Workout aktualisiert', id: req.params.id, exercise_id, weight, sets, reps, rest_seconds, feeling, date });
+    }
+  );
+});
+
 // Workout löschen
 app.delete('/api/workouts/:id', authenticateJWT, (req, res) => {
   db.run('DELETE FROM workouts WHERE id = ? AND user_id = ?', [req.params.id, req.user.userId], (err) => {

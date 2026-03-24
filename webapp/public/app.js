@@ -173,14 +173,19 @@ async function loadExercises() {
     }
 }
 
-// Update select dropdowns im alten Format
+// Update select dropdowns im alten Format - nach Name sortiert
 function updateExerciseSelects() {
     const workoutSelect = document.getElementById('workout-exercise');
     const statsSelect = document.getElementById('stats-exercise');
     const singleSelect = document.getElementById('single-exercise-select');
     
+    // Nach Name alphabetisch sortieren
+    const sortedExercises = [...exercises].sort((a, b) => {
+        return a.name.localeCompare(b.name, 'de');
+    });
+    
     // Altes Format: "Bankdrücken (Brust)"
-    const options = exercises.map(e => `<option value="${e.id}">${e.name} (${e.muscle_group})</option>`).join('');
+    const options = sortedExercises.map(e => `<option value="${e.id}">${e.name} (${e.muscle_group})</option>`).join('');
     
     if (workoutSelect) {
         workoutSelect.innerHTML = '<option value="">-- Wähle Übung --</option>' + options;
