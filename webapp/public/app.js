@@ -173,19 +173,46 @@ async function loadExercises() {
     }
 }
 
-// Update select dropdowns im alten Format - nach Name sortiert
+// Update select dropdowns nach Kategorie (Muskelgruppe) gruppiert
 function updateExerciseSelects() {
     const workoutSelect = document.getElementById('workout-exercise');
     const statsSelect = document.getElementById('stats-exercise');
     const singleSelect = document.getElementById('single-exercise-select');
     
-    // Nach Name alphabetisch sortieren
-    const sortedExercises = [...exercises].sort((a, b) => {
-        return a.name.localeCompare(b.name, 'de');
+    // Nach Muskelgruppe gruppieren
+    const grouped = {};
+    exercises.forEach(e => {
+        if (!grouped[e.muscle_group]) {
+            grouped[e.muscle_group] = [];
+        }
+        grouped[e.muscle_group].push(e);
     });
     
-    // Altes Format: "Bankdrücken (Brust)"
-    const options = sortedExercises.map(e => `<option value="${e.id}">${e.name} (${e.muscle_group})</option>`).join('');
+    // Sortierreihenfolge der Muskelgruppen
+    const muscleOrder = ['Brust', 'Rücken', 'Schultern', 'Beine', 'Arme', 'Bauch', 'Ganzkörper'];
+    const sortedMuscles = Object.keys(grouped).sort((a, b) => {
+        const idxA = muscleOrder.indexOf(a);
+        const idxB = muscleOrder.indexOf(b);
+        if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+        if (idxA === -1) return 1;
+        if (idxB === -1) return -1;
+        return idxA - idxB;
+    });
+    
+    // Innerhalb jeder Gruppe nach Name sortieren
+    sortedMuscles.forEach(muscle => {
+        grouped[muscle].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    });
+    
+    // Optgroups erstellen
+    let options = '';
+    sortedMuscles.forEach(muscle => {
+        options += `<optgroup label="${muscle}">`;
+        grouped[muscle].forEach(e => {
+            options += `<option value="${e.id}">${e.name}</option>`;
+        });
+        options += '</optgroup>';
+    });
     
     if (workoutSelect) {
         workoutSelect.innerHTML = '<option value="">-- Wähle Übung --</option>' + options;
