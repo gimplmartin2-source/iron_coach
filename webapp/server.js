@@ -165,6 +165,32 @@ const authenticateJWT = (req, res, next) => {
   }
 };
 
+// API Key Middleware für IronCoach (festes Token)
+const IRONCOACH_API_KEY = process.env.IRONCOACH_API_KEY || 'ironcoach-dev-key-change-in-production';
+
+const authenticateApiKey = (req, res, next) => {
+  const apiKey = req.headers['x-api-key'];
+  
+  if (apiKey === IRONCOACH_API_KEY) {
+    // API Key valid - setze einen Mock-User für Martin (User ID 1)
+    req.user = { userId: 1, email: 'martin@example.com', isApiKey: true };
+    return next();
+  }
+  
+  // Falls kein API Key, versuche JWT
+  const authHeader = req.headers.authorization;
+  if (authHeader) {
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+      if (err) return res.sendStatus(403);
+      req.user = user;
+      next();
+    });
+  } else {
+    res.sendStatus(401);
+  }
+};
+
 // Passport Local Strategy
 passport.use(new LocalStrategy(
   { usernameField: 'email' },
@@ -784,6 +810,72 @@ app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
     console.error('❌ Restore Fehler:', error);
     res.status(500).json({ error: 'Restore fehlgeschlagen: ' + error.message });
   }
+});
+
+// === API KEY ROUTES für IronCoach Analyse ===
+
+// Trainingsdaten für Analyse (API-Key oder JWT)
+app.get('/api/analytics/workouts', authenticateApiKey, (req, res) => {
+  const query = `
+    SELECT w.*, e.name as exercise_name, e.muscle_group 
+    FROM workouts w 
+    JOIN exercises e ON w.exercise_id = e.id 
+    WHERE w.user_id = ?
+    ORDER BY w.date DESC, w.created_at DESC
+  `;
+  db.all(query, [req.user.userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// Übersichts-Statistiken für Analyse
+app.get('/api/analytics/summary', authenticateApiKey, (req, res) => {
+  const userId = req.user.userId;
+  const summary = {};
+  
+  // Gesamtvolumen
+  db.get('SELECT SUM(weight * sets * reps) as total_volume FROM workouts WHERE user_id = ?', [userId], (err, row) => {
+    summary.total_volume = row?.total_volume || 0;
+    
+    // Workouts gesamt
+    db.get('SELECT COUNT(*) as total_workouts FROM workouts WHERE user_id = ?', [userId], (err, row) => {
+      summary.total_workouts = row?.total_workouts || 0;
+      
+      // Letzte 7 Tage
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      db.get('SELECT COUNT(*) as count, SUM(weight * sets * reps) as volume FROM workouts WHERE user_id = ? AND date >= ?', 
+        [userId, weekAgo.toISOString().split('T')[0]], (err, row) => {
+        summary.this_week = {
+          workouts: row?.count || 0,
+          volume: row?.volume || 0
+        };
+        
+        // Progress pro Übung
+        db.all(`
+          SELECT e.name, MAX(w.weight) as max_weight, COUNT(w.id) as workout_count,
+                 AVG(w.weight * w.sets * w.reps) as avg_volume
+          FROM workouts w
+          JOIN exercises e ON w.exercise_id = e.id
+          WHERE w.user_id = ?
+          GROUP BY w.exercise_id
+          ORDER BY workout_count DESC
+        `, [userId], (err, rows) => {
+          summary.exercise_progress = rows || [];
+          res.json(summary);
+        });
+      });
+    });
+  });
+});
+
+// API Key Info
+app.get('/api/analytics/key-info', (req, res) => {
+  res.json({ 
+    valid: req.headers['x-api-key'] === IRONCOACH_API_KEY,
+    hint: 'Verwende Header: X-API-Key'
+  });
 });
 
 // Static Files
