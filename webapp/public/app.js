@@ -173,15 +173,51 @@ async function loadExercises() {
     }
 }
 
-// Update select dropdowns
+// Update select dropdowns - gruppiert nach Muskelgruppe
 function updateExerciseSelects() {
     const workoutSelect = document.getElementById('workout-exercise');
     const statsSelect = document.getElementById('stats-exercise');
+    const singleSelect = document.getElementById('single-exercise-select');
     
-    const options = exercises.map(e => `<option value="${e.id}">${e.name} (${e.muscle_group})</option>`).join('');
+    // Nach Muskelgruppe gruppieren
+    const grouped = {};
+    exercises.forEach(e => {
+        if (!grouped[e.muscle_group]) {
+            grouped[e.muscle_group] = [];
+        }
+        grouped[e.muscle_group].push(e);
+    });
     
-    workoutSelect.innerHTML = '<option value="">-- Wähle Übung --</option>' + options;
-    statsSelect.innerHTML = '<option value="">-- Wähle Übung --</option>' + options;
+    // Sortierte Reihenfolge der Muskelgruppen
+    const muscleOrder = ['Brust', 'Rücken', 'Schultern', 'Beine', 'Arme', 'Bauch', 'Ganzkörper'];
+    const sortedMuscles = Object.keys(grouped).sort((a, b) => {
+        const idxA = muscleOrder.indexOf(a);
+        const idxB = muscleOrder.indexOf(b);
+        if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+        if (idxA === -1) return 1;
+        if (idxB === -1) return -1;
+        return idxA - idxB;
+    });
+    
+    // Optgroup HTML erstellen
+    let options = '';
+    sortedMuscles.forEach(muscle => {
+        options += `<optgroup label="${muscle}">`;
+        grouped[muscle].forEach(e => {
+            options += `<option value="${e.id}">${e.name}</option>`;
+        });
+        options += '</optgroup>';
+    });
+    
+    if (workoutSelect) {
+        workoutSelect.innerHTML = '<option value="">-- Wähle Übung --</option>' + options;
+    }
+    if (statsSelect) {
+        statsSelect.innerHTML = '<option value="">-- Wähle Übung --</option>' + options;
+    }
+    if (singleSelect) {
+        singleSelect.innerHTML = '<option value="">-- Optional: Einzelne Übung --</option>' + options;
+    }
 }
 
 // Add exercise
@@ -951,20 +987,6 @@ function formatWeight(kg) {
 
 function initStats() {
     initExerciseFilter();
-    populateSingleExerciseSelect();
+    updateExerciseSelects();
     resetToCurrentWeek();
-}
-
-function populateSingleExerciseSelect() {
-    const select = document.getElementById('single-exercise-select');
-    if (!select) return;
-    
-    select.innerHTML = '<option value="">-- Optional: Einzelne Übung --</option>';
-    
-    exercises.forEach(ex => {
-        const option = document.createElement('option');
-        option.value = ex.id;
-        option.textContent = ex.name;
-        select.appendChild(option);
-    });
 }

@@ -452,3 +452,24 @@ header p {
         font-size: 0.85rem;
     }
 }
+
+/* Optgroup Styling */
+select optgroup {
+    background: rgba(0,212,255,0.1);
+    color: #00d4ff;
+    font-weight: bold;
+    padding: 5px 0;
+}
+
+select optgroup option {
+    background: rgba(0,0,0,0.3);
+    color: #fff;
+    font-weight: normal;
+    padding: 8px 10px;
+}
+
+select option {
+    background: rgba(0,0,0,0.3);
+    color: #fff;
+    padding: 8px;
+}
