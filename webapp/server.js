@@ -246,6 +246,17 @@ function seedDefaultExercises(userId) {
     }
     
     const defaultExercises = [
+      // 🥋 Judo - Als eigene Kategorie
+      { name: 'Uchi-Komi (Wurfübungen)', muscle_group: 'Judo' },
+      { name: 'Nage-Komi (Wurftraining)', muscle_group: 'Judo' },
+      { name: 'Randori (Freikampf)', muscle_group: 'Judo' },
+      { name: 'Kata (Formen)', muscle_group: 'Judo' },
+      { name: 'Sprungsukomikomi', muscle_group: 'Judo' },
+      { name: 'Explosive Beinarbeit', muscle_group: 'Judo' },
+      { name: 'Grip Fighting', muscle_group: 'Judo' },
+      { name: 'Ne-waza (Bodenkampf)', muscle_group: 'Judo' },
+      { name: 'Turn-Uchikomi', muscle_group: 'Judo' },
+      
       // Gym - Brust
       { name: 'Bankdrücken (Langhantel)', muscle_group: 'Brust' },
       { name: 'Schrägbankdrücken', muscle_group: 'Brust' },
@@ -285,17 +296,6 @@ function seedDefaultExercises(userId) {
       { name: 'Beinheben', muscle_group: 'Bauch' },
       { name: 'Russische Twist', muscle_group: 'Bauch' },
       { name: 'ADIM-Core (für Gleitwirbel)', muscle_group: 'Bauch' },
-      
-      // Judo - Spezifisch
-      { name: 'Uchi-Komi (Wurfübungen)', muscle_group: 'Ganzkörper' },
-      { name: 'Nage-Komi (Wurftraining)', muscle_group: 'Ganzkörper' },
-      { name: 'Randori (Freikampf)', muscle_group: 'Ganzkörper' },
-      { name: 'Kata (Formen)', muscle_group: 'Ganzkörper' },
-      { name: 'Sprungsukomikomi', muscle_group: 'Beine' },
-      { name: 'Explosive Beinarbeit', muscle_group: 'Beine' },
-      { name: 'Grip Fighting', muscle_group: 'Arme' },
-      { name: 'Ne-waza (Bodenkampf)', muscle_group: 'Ganzkörper' },
-      { name: 'Turn-Uchikomi', muscle_group: 'Rücken' },
     ];
     
     let insertedCount = 0;
