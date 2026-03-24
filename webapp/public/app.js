@@ -173,15 +173,30 @@ async function loadExercises() {
     }
 }
 
-// Update select dropdowns nach Kategorie (Muskelgruppe) gruppiert
+// Update select dropdowns nach Kategorie gruppiert (Judo + Muskelgruppen)
 function updateExerciseSelects() {
     const workoutSelect = document.getElementById('workout-exercise');
     const statsSelect = document.getElementById('stats-exercise');
     const singleSelect = document.getElementById('single-exercise-select');
     
-    // Nach Muskelgruppe gruppieren
-    const grouped = {};
+    // Judo-Übungen erkennen (nach Namen)
+    const judoKeywords = ['uchi', 'nage', 'randori', 'kata', 'judo', 'ne-waza', 'grip', 'turn-uchi', 'sprungs', 'wurf'];
+    const judoExercises = [];
+    const otherExercises = [];
+    
     exercises.forEach(e => {
+        const nameLower = e.name.toLowerCase();
+        const isJudo = judoKeywords.some(keyword => nameLower.includes(keyword));
+        if (isJudo) {
+            judoExercises.push(e);
+        } else {
+            otherExercises.push(e);
+        }
+    });
+    
+    // Nach Muskelgruppe gruppieren (nur nicht-Judo)
+    const grouped = {};
+    otherExercises.forEach(e => {
         if (!grouped[e.muscle_group]) {
             grouped[e.muscle_group] = [];
         }
@@ -203,9 +218,21 @@ function updateExerciseSelects() {
     sortedMuscles.forEach(muscle => {
         grouped[muscle].sort((a, b) => a.name.localeCompare(b.name, 'de'));
     });
+    judoExercises.sort((a, b) => a.name.localeCompare(b.name, 'de'));
     
-    // Optgroups erstellen
+    // Optgroups erstellen - zuerst Judo, dann Muskelgruppen
     let options = '';
+    
+    // Judo-Kategorie zuerst
+    if (judoExercises.length > 0) {
+        options += `<optgroup label="🥋 Judo">`;
+        judoExercises.forEach(e => {
+            options += `<option value="${e.id}">${e.name}</option>`;
+        });
+        options += '</optgroup>';
+    }
+    
+    // Dann Muskelgruppen
     sortedMuscles.forEach(muscle => {
         options += `<optgroup label="${muscle}">`;
         grouped[muscle].forEach(e => {
