@@ -173,41 +173,14 @@ async function loadExercises() {
     }
 }
 
-// Update select dropdowns - gruppiert nach Muskelgruppe
+// Update select dropdowns im alten Format
 function updateExerciseSelects() {
     const workoutSelect = document.getElementById('workout-exercise');
     const statsSelect = document.getElementById('stats-exercise');
     const singleSelect = document.getElementById('single-exercise-select');
     
-    // Nach Muskelgruppe gruppieren
-    const grouped = {};
-    exercises.forEach(e => {
-        if (!grouped[e.muscle_group]) {
-            grouped[e.muscle_group] = [];
-        }
-        grouped[e.muscle_group].push(e);
-    });
-    
-    // Sortierte Reihenfolge der Muskelgruppen
-    const muscleOrder = ['Brust', 'Rücken', 'Schultern', 'Beine', 'Arme', 'Bauch', 'Ganzkörper'];
-    const sortedMuscles = Object.keys(grouped).sort((a, b) => {
-        const idxA = muscleOrder.indexOf(a);
-        const idxB = muscleOrder.indexOf(b);
-        if (idxA === -1 && idxB === -1) return a.localeCompare(b);
-        if (idxA === -1) return 1;
-        if (idxB === -1) return -1;
-        return idxA - idxB;
-    });
-    
-    // Optgroup HTML erstellen
-    let options = '';
-    sortedMuscles.forEach(muscle => {
-        options += `<optgroup label="${muscle}">`;
-        grouped[muscle].forEach(e => {
-            options += `<option value="${e.id}">${e.name}</option>`;
-        });
-        options += '</optgroup>';
-    });
+    // Altes Format: "Bankdrücken (Brust)"
+    const options = exercises.map(e => `<option value="${e.id}">${e.name} (${e.muscle_group})</option>`).join('');
     
     if (workoutSelect) {
         workoutSelect.innerHTML = '<option value="">-- Wähle Übung --</option>' + options;
@@ -346,22 +319,40 @@ async function addWorkout(e) {
     
     const btn = e.target.querySelector('button[type="submit"]');
     const originalText = btn.textContent;
-    btn.textContent = '⏳ Speichern...';
+    btn.textContent = editingWorkoutId ? '⏳ Aktualisieren...' : '⏳ Speichern...';
     btn.disabled = true;
     
     try {
-        const res = await apiFetch('/api/workouts', {
-            method: 'POST',
-            body: JSON.stringify(data)
-        });
+        let res;
+        
+        if (editingWorkoutId) {
+            // Update bestehendes Workout
+            res = await apiFetch(`/api/workouts/${editingWorkoutId}`, {
+                method: 'PUT',
+                body: JSON.stringify(data)
+            });
+        } else {
+            // Neues Workout erstellen
+            res = await apiFetch('/api/workouts', {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+        }
         
         if (res && res.ok) {
             document.getElementById('workout-form').reset();
             document.getElementById('workout-date').valueAsDate = new Date();
+            
+            if (editingWorkoutId) {
+                cancelEdit();
+                alert('✅ Workout aktualisiert!');
+            } else {
+                alert('✅ Workout gespeichert!');
+            }
+            
             loadWorkouts();
             loadStats();
-            alert('✅ Workout gespeichert!');
-            autoBackup(); // Auto-Backup
+            autoBackup();
         } else {
             const errorData = await res.json().catch(() => ({}));
             alert('Fehler: ' + (errorData.error || 'Konnte nicht speichern'));
@@ -370,8 +361,183 @@ async function addWorkout(e) {
         console.error('❌ Fehler:', err);
         alert('Fehler: ' + err.message);
     } finally {
-        btn.textContent = originalText;
+        btn.textContent = editingWorkoutId ? '💾 Aktualisieren' : originalText;
         btn.disabled = false;
+    }
+}
+
+// Edit workout - öffnet das Formular zum Bearbeiten
+let editingWorkoutId = null;
+
+function editWorkout(id) {
+    const workout = workouts.find(w => w.id === id);
+    if (!workout) return;
+    
+    editingWorkoutId = id;
+    
+    // Formular mit Daten füllen
+    document.getElementById('workout-exercise').value = workout.exercise_id;
+    document.getElementById('workout-date').value = workout.date;
+    document.getElementById('workout-weight').value = workout.weight;
+    document.getElementById('workout-sets').value = workout.sets;
+    document.getElementById('workout-reps').value = workout.reps;
+    document.getElementById('workout-rest').value = workout.rest_seconds || '';
+    document.getElementById('workout-feeling').value = workout.feeling || '';
+    
+    // Button-Text ändern
+    const submitBtn = document.querySelector('#workout-form button[type="submit"]');
+    submitBtn.textContent = '💾 Aktualisieren';
+    submitBtn.dataset.mode = 'edit';
+    
+    // Cancel Button hinzufügen
+    if (!document.getElementById('cancel-edit-btn')) {
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.id = 'cancel-edit-btn';
+        cancelBtn.className = 'btn-secondary';
+        cancelBtn.style.cssText = 'margin-left: 10px; padding: 12px 20px; background: rgba(255,100,100,0.2); border: 1px solid rgba(255,100,100,0.5); color: #f66; border-radius: 8px; cursor: pointer;';
+        cancelBtn.textContent = '❌ Abbrechen';
+        cancelBtn.onclick = cancelEdit;
+        submitBtn.after(cancelBtn);
+    }
+    
+    // Zur Workouts-Sektion scrollen
+    document.getElementById('workouts-tab').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelEdit() {
+    editingWorkoutId = null;
+    document.getElementById('workout-form').reset();
+    document.getElementById('workout-date').valueAsDate = new Date();
+    
+    const submitBtn = document.querySelector('#workout-form button[type="submit"]');
+    submitBtn.textContent = '💾 Speichern';
+    submitBtn.dataset.mode = 'create';
+    
+    const cancelBtn = document.getElementById('cancel-edit-btn');
+    if (cancelBtn) cancelBtn.remove();
+}
+
+// Gruppierte Workouts nach Datum
+function groupWorkoutsByDate() {
+    const grouped = {};
+    workouts.forEach(w => {
+        if (!grouped[w.date]) {
+            grouped[w.date] = [];
+        }
+        grouped[w.date].push(w);
+    });
+    return grouped;
+}
+
+// Render workouts list mit Gruppierung und Bearbeiten
+function renderWorkoutsList() {
+    const container = document.getElementById('workouts-list');
+    
+    if (workouts.length === 0) {
+        container.innerHTML = '<p class="empty-state">Noch keine Workouts eingetragen.</p>';
+        return;
+    }
+    
+    // Nach Datum sortieren (neueste zuerst)
+    const grouped = groupWorkoutsByDate();
+    const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b) - new Date(a));
+    
+    let html = '';
+    
+    sortedDates.forEach(date => {
+        const dateWorkouts = grouped[date];
+        const totalVolume = dateWorkouts.reduce((sum, w) => sum + (w.weight * w.sets * w.reps), 0);
+        const dateObj = new Date(date);
+        const dateStr = dateObj.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+        
+        // Prüfe ob Trainingssession (mehrere Übungen am selben Tag)
+        const isSession = dateWorkouts.length > 1;
+        const sessionType = isSession ? detectSessionType(dateWorkouts) : '';
+        
+        html += `
+        <div class="workout-date-group">
+            <div class="date-header" onclick="toggleDateGroup('${date}')">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: bold; font-size: 1.1rem;">${dateStr}${sessionType ? ` - ${sessionType}` : ''}</span>
+                    <span style="color: #00d4ff;">${dateWorkouts.length} Workouts | ${formatWeight(totalVolume)}</span>
+                </div>
+                <span class="toggle-icon" id="toggle-${date}">▼</span>
+            </div>
+            <div class="workouts-in-date" id="workouts-${date}">`;
+        
+        dateWorkouts.forEach(w => {
+            const volume = (w.weight * w.sets * w.reps).toLocaleString();
+            const feelingEmoji = w.feeling >= 8 ? '🔥' : w.feeling >= 5 ? '👍' : '😤';
+            
+            html += `
+            <div class="list-item workout-item" data-workout-id="${w.id}">
+                <div class="list-item-info">
+                    <h4>${w.exercise_name} <span style="color: #888; font-size: 0.85rem;">(${w.muscle_group})</span></h4>
+                    <p>${w.weight}kg × ${w.sets} × ${w.reps} | Ruhe: ${w.rest_seconds || '-'}s | Gefühl: ${w.feeling || '-'}/10 ${feelingEmoji}</p>
+                </div>
+                <div class="list-item-stats">
+                    <div class="volume">${volume} kg</div>
+                    <div class="workout-actions">
+                        <button class="btn-edit" onclick="editWorkout(${w.id})" title="Bearbeiten">✏️</button>
+                        <button class="btn-delete" onclick="deleteWorkout(${w.id})" title="Löschen">🗑️</button>
+                    </div>
+                </div>
+            </div>`;
+        });
+        
+        html += `
+            </div>
+        </div>`;
+    });
+    
+    container.innerHTML = html;
+}
+
+// Session Typ erkennen (Judo, Gym, etc.)
+function detectSessionType(dateWorkouts) {
+    const names = dateWorkouts.map(w => w.exercise_name.toLowerCase());
+    const muscleGroups = [...new Set(dateWorkouts.map(w => w.muscle_group))];
+    
+    // Judo-Training erkennen
+    if (names.some(n => n.includes('judo') || n.includes('wurf') || n.includes('technik'))) {
+        return '🥋 Judo Training';
+    }
+    
+    // Core/Dehnung erkennen
+    if (muscleGroups.includes('Bauch') && dateWorkouts.length <= 3) {
+        return '💪 Core / Dehnen';
+    }
+    
+    // Ganzkörper
+    if (muscleGroups.length >= 3) {
+        return '🏋️ Ganzkörper';
+    }
+    
+    // Oberkörper
+    if (muscleGroups.some(g => ['Brust', 'Rücken', 'Schultern', 'Arme'].includes(g))) {
+        return '💪 Oberkörper';
+    }
+    
+    // Unterkörper
+    if (muscleGroups.includes('Beine')) {
+        return '🦵 Unterkörper';
+    }
+    
+    return '';
+}
+
+// Datum-Gruppe ein-/ausklappen
+function toggleDateGroup(date) {
+    const container = document.getElementById(`workouts-${date}`);
+    const icon = document.getElementById(`toggle-${date}`);
+    
+    if (container.style.display === 'none') {
+        container.style.display = 'block';
+        icon.textContent = '▼';
+    } else {
+        container.style.display = 'none';
+        icon.textContent = '▶';
     }
 }
 
@@ -381,40 +547,13 @@ async function deleteWorkout(id) {
     
     try {
         await apiFetch(`/api/workouts/${id}`, { method: 'DELETE' });
+        if (editingWorkoutId === id) cancelEdit();
         loadWorkouts();
         loadStats();
-        autoBackup(); // Auto-Backup
+        autoBackup();
     } catch (err) {
-        console.error('Fehler beim Löschen:', err);
+        console.error('❌ Fehler beim Löschen:', err);
     }
-}
-
-// Render workouts list
-function renderWorkoutsList() {
-    const container = document.getElementById('workouts-list');
-    
-    if (workouts.length === 0) {
-        container.innerHTML = '<p class="empty-state">Noch keine Workouts eingetragen.</p>';
-        return;
-    }
-    
-    container.innerHTML = workouts.map(w => {
-        const volume = (w.weight * w.sets * w.reps).toLocaleString();
-        const feelingEmoji = w.feeling >= 8 ? '🔥' : w.feeling >= 5 ? '👍' : '😤';
-        
-        return `
-        <div class="list-item">
-            <div class="list-item-info">
-                <h4>${w.exercise_name}</h4>
-                <p>${w.weight}kg × ${w.sets} × ${w.reps} | Ruhe: ${w.rest_seconds}s | Gefühl: ${w.feeling}/10 ${feelingEmoji}</p>
-            </div>
-            <div class="list-item-stats">
-                <div class="volume">${volume} kg</div>
-                <div class="date">${formatDate(w.date)}</div>
-                <button class="btn-delete" onclick="deleteWorkout(${w.id})">🗑️</button>
-            </div>
-        </div>`;
-    }).join('');
 }
 
 // Load stats
