@@ -1,46 +1,81 @@
-# TOOLS.md - IronCoach
+# IronCoach - Verfügbare Tools
 
-## Memory-System (NEU)
+## 💪 Fitness-Tracking
 
-### Struktur
-- **`MEMORY.md`** - Index-Datei mit Quick-Reference
-- **`memory/YYYY-MM-DD.md`** - Tägliche Memory-Dateien
+### `read`, `write`, `edit`
+- **Nutzen:** Trainingsdaten lesen/schreiben (JSON/Excel)
+- **Beispiele:**
+  - `read path="fitness_data/workouts.json"`
+  - `write path="fitness_data/stats.json" content="..."`
 
-### Was in tägliche Dateien gehört
-- Alle Gespräche und Entscheidungen
-- Neue Informationen über User
-- Aktive Tasks/Projekte
-- Offene Fragen
-- Links & Referenzen
+### `exec`
+- **Nutzen:** Berechnungen, Daten-Verarbeitung
+- **Beispiel:** `exec command="python calculate_1rm.py"`
 
-### Ablauf bei jedem Chat
-1. Heutige Datei öffnen: `memory/YYYY-MM-DD.md`
-2. Wenn nicht existiert → neue erstellen
-3. Wichtige Infos aus dem Gespräch dokumentieren
-4. MEMORY.md Index bei Bedarf aktualisieren
+## 🔍 Recherche
 
----
+### `web_search` (Brave API)
+- **Nutzen:** Trainingsmethoden, Ernährung, Supplemente
+- **Beispiel:** `web_search query="optimal protein intake muscle building"`
 
-## Tracking Software
-- **Excel/Google Sheets** - Haupt-Tracking
-- **Formeln**: Automatische Berechnungen
-- **Charts**: Progress-Visualisierung
+### `web_fetch`
+- **Nutzen:** Wissenschaftliche Studien, Fitness-Artikel
+- **Beispiel:** `web_fetch url="https://pubmed.ncbi.nlm.nih.gov/..."`
 
-## Datenpunkte
-- Übung (Name, Muskelgruppe)
-- Sätze x Wiederholungen
-- Gewicht (kg)
-- Ruhezeit (Sekunden)
-- Datum & Zeit
-- Gefühl (1-10)
+### `browser`
+- **Nutzen:** Tracking-Apps, Fitness-Plattformen
+- **Beispiel:** `browser action=open url="https://www.myfitnesspal.com"`
 
-## Tracking-Dateien
-- `training_log.xlsx` - Alle Einträge
+## 📊 Analyse & Reports
+
+### Formeln (im Code)
+- **1RM-Schätzung:** Gewicht × (1 + Wdh/30)
+- **Volumen:** Sätze × Wiederholungen × Gewicht
+- **Progress:** Vergleich Woche zu Woche
+
+### `pdf`
+- **Nutzen:** Trainingspläne als PDF analysieren
+- **Beispiel:** `pdf pdf="plan.pdf" prompt="Extrahiere Übungen"`
+
+## 💬 Kommunikation
+
+### `message` (empfohlen)
+- **Nutzen:** Updates zu James über Trainingsfortschritt
+- **Beispiel:**
+```
+message(
+  action="send",
+  channel="telegram",
+  target="-1003510842431",
+  message="James: Trainingsanalyse fertig. Neue PRs: Bench +5kg"
+)
+```
+
+### `sessions_send`
+- **Nutzen:** Direkt an James' Session
+
+## 🗂️ Tracking-System
+
+### Dateien in `fitness_data/`
+- `workouts.json` - Alle Trainingseinträge
 - `uebungen.json` - Übungs-Datenbank
 - `ziele.json` - Fitness-Ziele
 - `stats.json` - Berechnete Statistiken
 
-## Formeln
-- 1RM-Schätzung (Epley)
-- Volumen (Sets x Reps x Gewicht)
-- Progress-% (vs Vorwoche)
+## 🔗 Externe Tools
+
+### Fitness-Apps (Browser)
+- **Hevy** (Styrke-Training App)
+- **Strong** (Alternative)
+- **Google Sheets** (Backup/Export)
+
+### Ressourcen
+- **ExRx.net** - Übungs-Datenbank
+- **PubMed** - Wissenschaftliche Studien
+
+## ⚠️ Sicherheit
+
+- **Gesundheitsdaten:** Privat behandeln, niemals teilen
+- **API-Keys:** Für Fitness-Apps nicht in Chat erwähnen
+- **Ärztlicher Rat:** Bei Verletzungen oder Unklarheiten → Arzt konsultieren
+- **Progress:** Niemals übermäßig pushen (Verletzungsgefahr)

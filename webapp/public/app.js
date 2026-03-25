@@ -106,6 +106,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Plan-Checkboxes initialisieren
     initPlanCheckboxes();
     
+    // Übungsbilder initialisieren
+    initExerciseImages();
+    
+    // Thumbnails automatisch hinzufügen wo nötig
+    autoAddExerciseThumbnails();
+    
     // Logout Button
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
@@ -1085,7 +1091,299 @@ async function createExerciseIfNotExists(name, muscleGroup) {
     }
 }
 
-// Workout aus Plan hinzufügen
+// Übungsbilder automatisch hinzufügen (falls im HTML noch nicht vorhanden)
+function autoAddExerciseThumbnails() {
+    document.querySelectorAll('.plan-exercise').forEach(item => {
+        // Prüfe ob schon ein Thumb existiert
+        if (!item.querySelector('.exercise-thumb')) {
+            const checkbox = item.querySelector('.plan-check');
+            const textSpan = item.querySelector('.exercise-text');
+            
+            if (checkbox) {
+                const exerciseName = checkbox.dataset.exercise;
+                const exerciseData = exerciseImages[exerciseName];
+                const emoji = exerciseData?.emoji || '💪';
+                
+                // Erstelle Thumbnail
+                const thumb = document.createElement('div');
+                thumb.className = 'exercise-thumb';
+                thumb.textContent = emoji;
+                
+                // Füge vor dem Text ein
+                if (textSpan) {
+                    item.insertBefore(thumb, textSpan);
+                } else {
+                    // Fallback: vor dem ersten Label
+                    const label = item.querySelector('label');
+                    if (label) item.insertBefore(thumb, label);
+                }
+            }
+        }
+    });
+}
+
+// Übungsbilder-Datenbank (kann später mit echten Bildern erweitert werden)
+const exerciseImages = {
+    'Dead Bug': {
+        emoji: '🐛',
+        description: 'Rückenlage, Arme nach oben, Beine im 90° Winkel. Gegengleiche Bewegung von Arm und Bein.',
+        tips: 'Rücken fest am Boden halten, LWS nicht durchhängen lassen.'
+    },
+    'Bird Dog': {
+        emoji: '🐕',
+        description: 'Vierfüßlerstand, diagonal Arm und Bein strecken, 5 Sek. halten.',
+        tips: 'Rumpf stabil halten, Becken nicht kippen.'
+    },
+    'Glute Bridge': {
+        emoji: '🍑',
+        description: 'Rückenlage, Füße nah am Gesäß, Becken anheben.',
+        tips: 'Nur so hoch anheben, dass eine gerade Linie entsteht. Nicht überstrecken.'
+    },
+    'Side Plank': {
+        emoji: '📐',
+        description: 'Seitstütz, Körper in einer Linie, Hüfte stabil.',
+        tips: 'Bei modifizierter Version: Unteres Knie am Boden ablegen.'
+    },
+    'Pallof Press': {
+        emoji: '🏋️',
+        description: 'Kabel oder Band auf Bauchhöhe, nach vorne drücken ohne zu rotieren.',
+        tips: 'Rumpf stabil, Anti-Rotation-Kraft trainieren.'
+    },
+    'Front Plank': {
+        emoji: '📋',
+        description: 'Unterarmstütz, Körper in einer Linie.',
+        tips: 'Hüfte nicht zu hoch oder zu tief. Core anspannen.'
+    },
+    'Glute March': {
+        emoji: '🚶',
+        description: 'Brückenposition, Beine abwechselnd anheben.',
+        tips: 'Becken stabil halten, nicht kippen.'
+    },
+    'Copenhagen Plank': {
+        emoji: '🇩🇰',
+        description: 'Seitstütz, oberes Bein auf Erhöhung. Adduktoren-Training.',
+        tips: 'Leichte Version: mit unterem Knie am Boden beginnen.'
+    },
+    'Kindhaltung': {
+        emoji: '🧒',
+        description: 'Kniebeuge, Po auf Fersen, Arme nach vorne, Stirn zum Boden.',
+        tips: 'Entspannte Wirbelsäule, tief durchatmen.'
+    },
+    'Katze-Kuh': {
+        emoji: '🐱',
+        description: 'Vierfüßlerstand, abwechselnd Rücken rund und hohl.',
+        tips: 'Mit der Atmung synchronisieren: Einatmen = Hohl, Ausatmen = Rund'
+    },
+    'Kniestand Hüftbeuger': {
+        emoji: '🙏',
+        description: 'Ein Knie steht, anderes Bein nach hinten, Becken vor schieben.',
+        tips: 'Oberkörper aufrecht, leichter Zug im Hüftbeuger spürbar.'
+    },
+    '90/90 Hip Stretch': {
+        emoji: '9️⃣',
+        description: 'Sitzen mit 90° im vorderen und hinteren Bein, nach vorne lehnen.',
+        tips: 'Langsam in die Dehnung gehen, bei Schmerzen aufhören.'
+    },
+    'Piriformis-Dehnung': {
+        emoji: '🦵',
+        description: 'Schere-Sitz, vorderes Bein über das andere, nach vorne drehen.',
+        tips: 'Hüfte bleibt am Boden, Oberkörper zum Knie drehen.'
+    },
+    'Schmetterling': {
+        emoji: '🦋',
+        description: 'Sitzen, Fußsohlen zusammen, Knie nach außen sinken lassen.',
+        tips: 'Entspannt halten, nicht mit Gewicht auf die Knie drücken.'
+    },
+    'ADIM': {
+        emoji: '🫁',
+        description: 'Bauchnabel Richtung Wirbelsäule einziehen, tief atmen.',
+        tips: '10 Sekunden halten, fließend atmen. 3x täglich üben.'
+    },
+    'Hip Circles': {
+        emoji: '⭕',
+        description: 'Hüftkreisen, große Bewegung.',
+        tips: 'Langsam und kontrolliert, beide Richtungen.'
+    },
+    'Schulterkreisen': {
+        emoji: '🔃',
+        description: 'Schultern kreisförmig bewegen.',
+        tips: 'Zuerst rückwärts (korrigierend), dann vorwärts.'
+    },
+    'Tiefe Atmung': {
+        emoji: '🌬️',
+        description: 'Bauchatmung, langsam ein- und ausatmen.',
+        tips: 'Hand auf Bauch, diese sollte sich heben.'
+    },
+    'Hüftbeuger-Dehnung': {
+        emoji: '🤸',
+        description: 'Lunge-Position, Hüfte nach vorne schieben.',
+        tips: 'Oberkörper aufrecht, Beinstreckung spürbar.'
+    },
+    'Brust-Dehnung': {
+        emoji: '🚪',
+        description: 'Arm an Türrahmen, nach vorne lehnen.',
+        tips: '90° Winkel am Arm, Brust öffnen.'
+    },
+    'Lat-Dehnung': {
+        emoji: '👐',
+        description: 'Arm über Kopf, zur Seite lehnen.',
+        tips: 'Oberkörper seitlich neigen, nicht nach vorne oder hinten.'
+    },
+    'Nacken-Dehnung': {
+        emoji: '🙆',
+        description: 'Kopf sanft zur Seite neigen, Hand kann unterstützen.',
+        tips: 'Nicht zwingen, sanfter Druck, beide Seiten.'
+    },
+    'LWS-Rotation': {
+        emoji: '🔄',
+        description: 'Rückenlage, Knie zur Seite lassen, Oberkörper stabil.',
+        tips: 'Nur so weit, wie es angenehm ist.'
+    }
+};
+
+// Bild-Modal für Übungen anzeigen
+function showExerciseImageModal(exerciseName) {
+    const exerciseData = exerciseImages[exerciseName] || {
+        emoji: '💪',
+        description: `${exerciseName} - Übung aus dem Trainingsplan.`,
+        tips: 'Technik beachten, bei Schmerzen aufhören.'
+    };
+    
+    const modal = document.createElement('div');
+    modal.className = 'exercise-image-modal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 3000;
+        animation: fadeIn 0.2s ease-out;
+    `;
+    
+    const content = document.createElement('div');
+    content.className = 'modal-content';
+    content.style.cssText = `
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border: 1px solid rgba(0,212,255,0.3);
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 400px;
+        width: 90%;
+        position: relative;
+        animation: slideUp 0.3s ease-out;
+    `;
+    
+    // Close Button
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = `
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: rgba(255,100,100,0.2);
+        border: 1px solid rgba(255,100,100,0.5);
+        color: #f66;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    closeBtn.onclick = () => document.body.removeChild(modal);
+    
+    // Emoji/Icon als große Darstellung
+    const icon = document.createElement('div');
+    icon.textContent = exerciseData.emoji;
+    icon.style.cssText = `
+        font-size: 4rem;
+        text-align: center;
+        margin-bottom: 15px;
+    `;
+    
+    // Übungsname
+    const title = document.createElement('h3');
+    title.textContent = exerciseName;
+    title.style.cssText = `
+        color: #00d4ff;
+        font-size: 1.4rem;
+        margin-bottom: 15px;
+        text-align: center;
+    `;
+    
+    // Beschreibung
+    const desc = document.createElement('p');
+    desc.textContent = exerciseData.description;
+    desc.style.cssText = `
+        color: #ccc;
+        font-size: 1rem;
+        line-height: 1.6;
+        margin-bottom: 15px;
+    `;
+    
+    // Tipps
+    const tipsLabel = document.createElement('p');
+    tipsLabel.textContent = '💡 Tipps:';
+    tipsLabel.style.cssText = 'color: #7b2cbf; font-weight: bold; margin-bottom: 5px;';
+    
+    const tips = document.createElement('p');
+    tips.textContent = exerciseData.tips;
+    tips.style.cssText = `
+        color: #888;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        font-style: italic;
+    `;
+    
+    // Zusammenbauen
+    content.appendChild(closeBtn);
+    content.appendChild(icon);
+    content.appendChild(title);
+    content.appendChild(desc);
+    content.appendChild(tipsLabel);
+    content.appendChild(tips);
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    // Klick außerhalb schließt
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) document.body.removeChild(modal);
+    });
+    
+    // ESC schließt
+    const handleEsc = (e) => {
+        if (e.key === 'Escape') {
+            document.body.removeChild(modal);
+            document.removeEventListener('keydown', handleEsc);
+        }
+    };
+    document.addEventListener('keydown', handleEsc);
+}
+
+// Übungsbilder initialisieren
+function initExerciseImages() {
+    document.addEventListener('click', (e) => {
+        const thumb = e.target.closest('.exercise-thumb');
+        if (thumb) {
+            // Finde den Übungsnamen
+            const exerciseItem = thumb.closest('.plan-exercise');
+            if (exerciseItem) {
+                const checkbox = exerciseItem.querySelector('.plan-check');
+                if (checkbox) {
+                    const exerciseName = checkbox.dataset.exercise;
+                    showExerciseImageModal(exerciseName);
+                }
+            }
+        }
+    });
+}
 async function addPlanWorkout(exerciseId, weight, sets, reps) {
     try {
         const data = {
