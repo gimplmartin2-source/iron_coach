@@ -794,12 +794,22 @@ function initPlanCheckboxes() {
                 }
                 
                 if (exercise) {
-                    // Stelle das Gewicht-Input bereit
-                    const weight = await askForWeight(exerciseName, sets, reps, duration);
+                    // Hole bearbeitete Werte aus dem Dialog
+                    const input = await askForTrainingInput(
+                        exerciseName, 
+                        parseInt(sets) || 1, 
+                        parseInt(reps) || 1, 
+                        duration
+                    );
                     
-                    if (weight !== null) {
-                        // Workout speichern
-                        await addPlanWorkout(exercise.id, weight, parseInt(sets), parseInt(reps));
+                    if (input !== null) {
+                        // Workout speichern mit den bearbeiteten Werten
+                        await addPlanWorkout(
+                            exercise.id, 
+                            input.weight, 
+                            input.sets, 
+                            input.reps
+                        );
                         exerciseRow?.classList.add('completed');
                         
                         // Visuelle Bestätigung
@@ -836,25 +846,84 @@ function initPlanCheckboxes() {
     });
 }
 
-// Async Prompt für Gewicht
-function askForWeight(exerciseName, sets, reps, duration) {
+// Async Prompt für Trainingseintrag
+function askForTrainingInput(exerciseName, defaultSets, defaultReps, duration) {
     return new Promise((resolve) => {
-        const isDuration = duration && duration.includes('Sek') || duration.includes('Min');
-        const labelText = isDuration ? 'Gewicht/Zusatz (kg, optional):' : 'Gewicht (kg):';
+        const isDuration = duration && (duration.includes('Sek') || duration.includes('Min'));
+        const isStretch = exerciseName.toLowerCase().includes('dehn') || 
+                         exerciseName.toLowerCase().includes('stretch') ||
+                         exerciseName.toLowerCase().includes('haltung') ||
+                         exerciseName.toLowerCase().includes('atmung');
         
-        const weight = prompt(
-            `Trainiert: ${exerciseName}\n\n` +
-            `Sätze: ${sets}${reps ? ` | Wdh: ${reps}` : ''}${duration ? ` | Dauer: ${duration}` : ''}\n\n` +
-            `${labelText}`,
-            isDuration ? '0' : '20'
+        // Parse Duration für default Reps
+        let defaultRepsFromDuration = defaultReps;
+        if (duration) {
+            const match = duration.match(/(\d+)/);
+            if (match) defaultRepsFromDuration = parseInt(match[1]);
+        }
+        
+        // Erster Prompt: Gewicht oder Duration
+        let message, defaultValue;
+        if (isStretch || isDuration) {
+            message = `Trainiert: ${exerciseName}\n\n` +
+                      `Dauer: ${duration || defaultReps + ' Sek'}\n\n` +
+                      `Gewicht/Zusatz (kg, optional für extra Widerstand):`;
+            defaultValue = '0';
+        } else {
+            message = `Trainiert: ${exerciseName}\n\n` +
+                      `Sätze: ${defaultSets} | Wdh: ${defaultReps}\n\n` +
+                      `Gewicht (kg):`;
+            defaultValue = '20';
+        }
+        
+        const weightInput = prompt(message, defaultValue);
+        
+        if (weightInput === null) {
+            resolve(null);
+            return;
+        }
+        
+        const weight = isNaN(parseFloat(weightInput)) ? 0 : parseFloat(weightInput);
+        
+        // Zweiter Prompt: Sätze bearbeiten (optional)
+        const setsInput = prompt(
+            `Sätze bearbeiten (aktuell: ${defaultSets}):\n` +
+            `(OK drücken um ${defaultSets} zu übernehmen)`,
+            defaultSets
         );
         
-        if (weight === null) {
+        if (setsInput === null) {
             resolve(null);
-        } else {
-            const parsed = parseFloat(weight);
-            resolve(isNaN(parsed) ? 0 : Math.max(0, parsed));
+            return;
         }
+        
+        const sets = isNaN(parseInt(setsInput)) ? defaultSets : parseInt(setsInput);
+        
+        // Dritter Prompt: Wdh/Dauer bearbeiten (optional)
+        let repsMessage;
+        if (isStretch || isDuration) {
+            repsMessage = `Dauer bearbeiten (in Sekunden, aktuell: ${defaultRepsFromDuration}):`;
+        } else {
+            repsMessage = `Wiederholungen bearbeiten (aktuell: ${defaultReps}):`;
+        }
+        
+        const repsInput = prompt(
+            repsMessage + `\n(OK drücken um ${defaultRepsFromDuration} zu übernehmen)`,
+            defaultRepsFromDuration
+        );
+        
+        if (repsInput === null) {
+            resolve(null);
+            return;
+        }
+        
+        const reps = isNaN(parseInt(repsInput)) ? defaultRepsFromDuration : parseInt(repsInput);
+        
+        resolve({
+            weight: isStretch ? 0 : weight, // Bei Dehnungen immer 0 kg
+            sets: sets,
+            reps: reps
+        });
     });
 }
 
@@ -1254,7 +1323,7 @@ function updateDailyVolumeChart(weekWorkouts, weekStart) {
         const day = new Date(weekStart);
         day.setDate(day.getDate() + i);
         const dayKey = day.toISOString().split('T')[0];
-        volumeByDay[dayKey] = { volume: 0, label: dayNames[i] };
+        volumeByDay[dayKey] = { volume: 0, label: dayNames[i], hasWorkouts: false };
     }
     
     weekWorkouts.forEach(w => {
@@ -1263,6 +1332,7 @@ function updateDailyVolumeChart(weekWorkouts, weekStart) {
         const dayVolume = w.weight * w.sets * w.reps;
         if (volumeByDay[w.date]) {
             volumeByDay[w.date].volume += dayVolume;
+            volumeByDay[w.date].hasWorkouts = true;
         }
     });
     
@@ -1273,6 +1343,9 @@ function updateDailyVolumeChart(weekWorkouts, weekStart) {
         dailyVolumeChart.destroy();
     }
     
+    // Alle Werte sind 0? Dann zeigen wir trotzdem das Diagramm
+    const hasAnyWorkouts = volumes.some(v => v > 0);
+    
     dailyVolumeChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -1280,7 +1353,7 @@ function updateDailyVolumeChart(weekWorkouts, weekStart) {
             datasets: [{
                 label: 'Tagesvolumen',
                 data: volumes,
-                backgroundColor: volumes.map(v => v > 0 ? 'rgba(0,212,255,0.6)' : 'rgba(255,255,255,0.1)'),
+                backgroundColor: volumes.map(v => v > 0 ? 'rgba(0,212,255,0.6)' : 'rgba(255,255,255,0.05)'),
                 borderColor: '#00d4ff',
                 borderWidth: 1
             }]
@@ -1292,7 +1365,10 @@ function updateDailyVolumeChart(weekWorkouts, weekStart) {
                 y: {
                     beginAtZero: true,
                     grid: { color: 'rgba(255,255,255,0.1)' },
-                    ticks: { color: '#888', callback: (v) => formatWeight(v) }
+                    ticks: { 
+                        color: '#888', 
+                        callback: (v) => hasAnyWorkouts ? formatWeight(v) : '0 kg'
+                    }
                 },
                 x: {
                     grid: { display: false },
@@ -1304,6 +1380,16 @@ function updateDailyVolumeChart(weekWorkouts, weekStart) {
                 tooltip: {
                     callbacks: {
                         label: (ctx) => `Volumen: ${formatWeight(ctx.raw)}`
+                    },
+                    enabled: hasAnyWorkouts
+                },
+                annotation: hasAnyWorkouts ? {} : {
+                    annotations: {
+                        text: {
+                            type: 'label',
+                            content: 'Keine Workouts diese Woche',
+                            position: 'center'
+                        }
                     }
                 }
             }
@@ -1348,8 +1434,8 @@ async function loadSingleExerciseChart() {
                     tension: 0.3,
                     fill: true
                 }, {
-                    label: 'Volumen',
-                    data: data.map(d => d.volume),
+                    label: 'Wiederholungen',
+                    data: data.map(d => d.reps),
                     borderColor: '#7b2cbf',
                     backgroundColor: 'rgba(123,44,191,0.1)',
                     tension: 0.3,
