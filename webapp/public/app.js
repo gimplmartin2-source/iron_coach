@@ -794,8 +794,8 @@ function initPlanCheckboxes() {
                 }
                 
                 if (exercise) {
-                    // Hole bearbeitete Werte aus dem Dialog
-                    const input = await askForTrainingInput(
+                    // Zeige Modal mit allen Feldern
+                    const input = await showTrainingModal(
                         exerciseName, 
                         parseInt(sets) || 1, 
                         parseInt(reps) || 1, 
@@ -846,8 +846,8 @@ function initPlanCheckboxes() {
     });
 }
 
-// Async Prompt für Trainingseintrag
-function askForTrainingInput(exerciseName, defaultSets, defaultReps, duration) {
+// Modal für Trainingseintrag
+function showTrainingModal(exerciseName, defaultSets, defaultReps, duration) {
     return new Promise((resolve) => {
         const isDuration = duration && (duration.includes('Sek') || duration.includes('Min'));
         const isStretch = exerciseName.toLowerCase().includes('dehn') || 
@@ -862,68 +862,206 @@ function askForTrainingInput(exerciseName, defaultSets, defaultReps, duration) {
             if (match) defaultRepsFromDuration = parseInt(match[1]);
         }
         
-        // Erster Prompt: Gewicht oder Duration
-        let message, defaultValue;
-        if (isStretch || isDuration) {
-            message = `Trainiert: ${exerciseName}\n\n` +
-                      `Dauer: ${duration || defaultReps + ' Sek'}\n\n` +
-                      `Gewicht/Zusatz (kg, optional für extra Widerstand):`;
-            defaultValue = '0';
-        } else {
-            message = `Trainiert: ${exerciseName}\n\n` +
-                      `Sätze: ${defaultSets} | Wdh: ${defaultReps}\n\n` +
-                      `Gewicht (kg):`;
-            defaultValue = '20';
-        }
+        // Modal erstellen
+        const modal = document.createElement('div');
+        modal.className = 'training-modal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            animation: fadeIn 0.2s ease-out;
+        `;
         
-        const weightInput = prompt(message, defaultValue);
+        const content = document.createElement('div');
+        content.style.cssText = `
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 1px solid rgba(0,212,255,0.3);
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            animation: slideUp 0.3s ease-out;
+        `;
         
-        if (weightInput === null) {
+        // Übungstitel
+        const title = document.createElement('h3');
+        title.textContent = exerciseName;
+        title.style.cssText = `
+            margin: 0 0 20px 0;
+            color: #00d4ff;
+            font-size: 1.3rem;
+            text-align: center;
+        `;
+        
+        // Formular
+        const form = document.createElement('div');
+        form.style.cssText = 'display: flex; flex-direction: column; gap: 15px;';
+        
+        // Gewicht Feld
+        const weightGroup = document.createElement('div');
+        weightGroup.style.cssText = 'display: flex; flex-direction: column; gap: 5px;';
+        
+        const weightLabel = document.createElement('label');
+        weightLabel.textContent = isStretch ? 'Gewicht (optional, für extra Widerstand)' : 'Gewicht (kg)';
+        weightLabel.style.cssText = 'color: #888; font-size: 0.9rem;';
+        
+        const weightInput = document.createElement('input');
+        weightInput.type = 'number';
+        weightInput.value = isStretch ? '0' : '20';
+        weightInput.step = '0.5';
+        weightInput.min = '0';
+        weightInput.style.cssText = `
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 12px;
+            color: #fff;
+            font-size: 1rem;
+        `;
+        
+        weightGroup.appendChild(weightLabel);
+        weightGroup.appendChild(weightInput);
+        
+        // Sätze Feld
+        const setsGroup = document.createElement('div');
+        setsGroup.style.cssText = 'display: flex; flex-direction: column; gap: 5px;';
+        
+        const setsLabel = document.createElement('label');
+        setsLabel.textContent = 'Sätze';
+        setsLabel.style.cssText = 'color: #888; font-size: 0.9rem;';
+        
+        const setsInput = document.createElement('input');
+        setsInput.type = 'number';
+        setsInput.value = defaultSets;
+        setsInput.min = '1';
+        setsInput.style.cssText = `
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 12px;
+            color: #fff;
+            font-size: 1rem;
+        `;
+        
+        setsGroup.appendChild(setsLabel);
+        setsGroup.appendChild(setsInput);
+        
+        // Reps/Dauer Feld
+        const repsGroup = document.createElement('div');
+        repsGroup.style.cssText = 'display: flex; flex-direction: column; gap: 5px;';
+        
+        const repsLabel = document.createElement('label');
+        repsLabel.textContent = isStretch ? 'Dauer (Sekunden)' : 'Wiederholungen';
+        repsLabel.style.cssText = 'color: #888; font-size: 0.9rem;';
+        
+        const repsInput = document.createElement('input');
+        repsInput.type = 'number';
+        repsInput.value = defaultRepsFromDuration;
+        repsInput.min = '1';
+        repsInput.style.cssText = `
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 12px;
+            color: #fff;
+            font-size: 1rem;
+        `;
+        
+        repsGroup.appendChild(repsLabel);
+        repsGroup.appendChild(repsInput);
+        
+        // Buttons
+        const buttonGroup = document.createElement('div');
+        buttonGroup.style.cssText = 'display: flex; gap: 10px; margin-top: 20px;';
+        
+        const saveBtn = document.createElement('button');
+        saveBtn.textContent = '💾 Speichern';
+        saveBtn.style.cssText = `
+            flex: 1;
+            padding: 12px;
+            background: linear-gradient(45deg, #00d4ff, #7b2cbf);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        `;
+        saveBtn.onmouseover = () => saveBtn.style.transform = 'scale(1.02)';
+        saveBtn.onmouseout = () => saveBtn.style.transform = 'scale(1)';
+        
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = '❌ Abbrechen';
+        cancelBtn.style.cssText = `
+            flex: 1;
+            padding: 12px;
+            background: rgba(255,100,100,0.2);
+            border: 1px solid rgba(255,100,100,0.5);
+            border-radius: 8px;
+            color: #f66;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        `;
+        cancelBtn.onmouseover = () => cancelBtn.style.background = 'rgba(255,100,100,0.3)';
+        cancelBtn.onmouseout = () => cancelBtn.style.background = 'rgba(255,100,100,0.2)';
+        
+        buttonGroup.appendChild(cancelBtn);
+        buttonGroup.appendChild(saveBtn);
+        
+        // Zusammenbauen
+        form.appendChild(weightGroup);
+        form.appendChild(setsGroup);
+        form.appendChild(repsGroup);
+        form.appendChild(buttonGroup);
+        
+        content.appendChild(title);
+        content.appendChild(form);
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+        
+        // Event Handlers
+        const handleSave = () => {
+            const weight = parseFloat(weightInput.value) || 0;
+            const sets = parseInt(setsInput.value) || defaultSets;
+            const reps = parseInt(repsInput.value) || defaultRepsFromDuration;
+            
+            document.body.removeChild(modal);
+            resolve({
+                weight: isStretch ? 0 : weight,
+                sets: sets,
+                reps: reps
+            });
+        };
+        
+        const handleCancel = () => {
+            document.body.removeChild(modal);
             resolve(null);
-            return;
-        }
+        };
         
-        const weight = isNaN(parseFloat(weightInput)) ? 0 : parseFloat(weightInput);
+        saveBtn.addEventListener('click', handleSave);
+        cancelBtn.addEventListener('click', handleCancel);
         
-        // Zweiter Prompt: Sätze bearbeiten (optional)
-        const setsInput = prompt(
-            `Sätze bearbeiten (aktuell: ${defaultSets}):\n` +
-            `(OK drücken um ${defaultSets} zu übernehmen)`,
-            defaultSets
-        );
-        
-        if (setsInput === null) {
-            resolve(null);
-            return;
-        }
-        
-        const sets = isNaN(parseInt(setsInput)) ? defaultSets : parseInt(setsInput);
-        
-        // Dritter Prompt: Wdh/Dauer bearbeiten (optional)
-        let repsMessage;
-        if (isStretch || isDuration) {
-            repsMessage = `Dauer bearbeiten (in Sekunden, aktuell: ${defaultRepsFromDuration}):`;
-        } else {
-            repsMessage = `Wiederholungen bearbeiten (aktuell: ${defaultReps}):`;
-        }
-        
-        const repsInput = prompt(
-            repsMessage + `\n(OK drücken um ${defaultRepsFromDuration} zu übernehmen)`,
-            defaultRepsFromDuration
-        );
-        
-        if (repsInput === null) {
-            resolve(null);
-            return;
-        }
-        
-        const reps = isNaN(parseInt(repsInput)) ? defaultRepsFromDuration : parseInt(repsInput);
-        
-        resolve({
-            weight: isStretch ? 0 : weight, // Bei Dehnungen immer 0 kg
-            sets: sets,
-            reps: reps
+        // Enter zum Speichern
+        modal.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') handleSave();
+            if (e.key === 'Escape') handleCancel();
         });
+        
+        // Klick außerhalb schließt
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) handleCancel();
+        });
+        
+        // Fokus auf erstes Feld
+        weightInput.focus();
     });
 }
 
