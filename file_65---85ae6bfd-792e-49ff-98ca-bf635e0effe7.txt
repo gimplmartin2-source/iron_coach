@@ -1,0 +1,7 @@
+Währenddessen hätte ich gerne, dass wir einige Änderungen oder Verbesserungen in der Web App machen.
+Und zwar erstens hätte ich gerne, dass man die vergangenen Übungen, die man durchgebührt hat,
+sind zurzeit im Tagesformat grobiert.
+Macht diese Format standardmäßig komprimiert, klein geschlossen und nicht offen.
+Und weiteres, bei den Werk auswählen, hätte ich gerne, dass man zuerst die Kategorie auswählen muss
+und dann in der Kategorie die Übung auswählen muss, damit das ein bisschen übersichtlicher wird.
+Und als dreht das die Übungen, die hinzugefügt worden sind, soll man in Übungs-Tab auch bearbeiten können.

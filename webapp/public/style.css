@@ -796,4 +796,120 @@ header p {
 
 .training-modal button:hover {
     transform: scale(1.02);
+}/* Neue Styles für Workout-Kategorien und Edit-Buttons */
+
+/* Workout-Auswahl Kategorie + Übung */
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr auto;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr !important;
+    }
+    
+    #workout-category,
+    #workout-exercise {
+        width: 100%;
+    }
+}
+
+/* Zugeklappte Workouts */
+.workouts-in-date {
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.workouts-in-date[style*="display: none"] {
+    max-height: 0;
+}
+
+.date-header {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    transition: background 0.2s ease;
+}
+
+.date-header:hover {
+    background: rgba(0,212,255,0.1);
+}
+
+.toggle-icon {
+    font-size: 1.2rem;
+    color: #00d4ff;
+    transition: transform 0.2s ease;
+    margin-left: 10px;
+}
+
+.toggle-icon.expanded {
+    transform: rotate(90deg);
+}
+
+/* Edit/Delete Actions in Listen */
+.list-item-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.btn-edit {
+    background: rgba(255,200,100,0.2);
+    border: 1px solid rgba(255,200,100,0.5);
+    color: #fca;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.btn-edit:hover {
+    background: rgba(255,200,100,0.3);
+}
+
+.btn-delete {
+    background: rgba(255,100,100,0.2);
+    border: 1px solid rgba(255,100,100,0.5);
+    color: #f66;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.btn-delete:hover {
+    background: rgba(255,100,100,0.3);
+}
+
+/* Exercise list item with actions */
+.list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    transition: background 0.2s ease;
+}
+
+.list-item:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+/* Kategorie-Auswahl Styling */
+#workout-category {
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.3);
 }

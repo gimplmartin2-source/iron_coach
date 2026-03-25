@@ -257,10 +257,26 @@
                 <h2>Neues Workout</h2>
                 <form id="workout-form">
                     <div class="form-row">
-                        <div class="form-group">
+                        <div class="form-group" style="flex: 1;">
+                            <label>Kategorie</label>
+                            <select id="workout-category" onchange="filterExercisesByCategory()">
+                                <option value="">-- Alle Kategorien --</option>
+                                <option value="Judo">🥋 Judo</option>
+                                <option value="Core">💪 Core</option>
+                                <option value="Dehnen">🧘 Dehnen</option>
+                                <option value="Brust">Brust</option>
+                                <option value="Rücken">Rücken</option>
+                                <option value="Schultern">Schultern</option>
+                                <option value="Beine">Beine</option>
+                                <option value="Arme">Arme</option>
+                                <option value="Bauch">Bauch</option>
+                                <option value="Ganzkörper">Ganzkörper</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 2;">
                             <label>Übung</label>
                             <select id="workout-exercise" required>
-                                <option value="">-- Wähle Übung --</option>
+                                <option value="">-- Wähle zuerst Kategorie --</option>
                             </select>
                         </div>
                         <div class="form-group">
