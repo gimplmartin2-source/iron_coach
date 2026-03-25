@@ -196,6 +196,147 @@ async function loadExercises() {
     }
 }
 
+// Übungs-Selector Modal öffnen
+let selectedExerciseForWorkout = null;
+
+function openExerciseSelector() {
+    const modal = document.createElement('div');
+    modal.id = 'exercise-selector-modal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 3000;
+        animation: fadeIn 0.2s ease-out;
+    `;
+    
+    // Nach Kategorie gruppieren
+    const grouped = {};
+    const judoKeywords = ['uchi', 'nage', 'randori', 'kata', 'judo', 'ne-waza', 'grip', 'turn-uchi', 'sprungs', 'wurf'];
+    
+    exercises.forEach(e => {
+        const nameLower = e.name.toLowerCase();
+        const isJudo = judoKeywords.some(keyword => nameLower.includes(keyword));
+        
+        let category = e.muscle_group;
+        if (isJudo) category = '🥋 Judo';
+        else if (e.muscle_group === 'Dehnen') category = '🧘 Dehnen';
+        else if (e.muscle_group === 'Bauch' || e.muscle_group === 'Core' || 
+                 nameLower.includes('plank') || nameLower.includes('bug') || 
+                 nameLower.includes('bird') || nameLower.includes('bridge')) {
+            category = '💪 Core';
+        }
+        
+        if (!grouped[category]) {
+            grouped[category] = [];
+        }
+        grouped[category].push(e);
+    });
+    
+    // Sortiere Kategorien
+    const categoryOrder = ['🥋 Judo', '💪 Core', '🧘 Dehnen', 'Brust', 'Rücken', 'Schultern', 'Beine', 'Arme', 'Bauch', 'Ganzkörper'];
+    const sortedCategories = Object.keys(grouped).sort((a, b) => {
+        const idxA = categoryOrder.indexOf(a);
+        const idxB = categoryOrder.indexOf(b);
+        if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+        if (idxA === -1) return 1;
+        if (idxB === -1) return -1;
+        return idxA - idxB;
+    });
+    
+    // Sortiere Übungen innerhalb Kategorien
+    sortedCategories.forEach(cat => {
+        grouped[cat].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    });
+    
+    // Erstelle HTML für Kategorien und Übungen
+    let categoriesHtml = '';
+    let exercisesHtml = '';
+    
+    sortedCategories.forEach((cat, index) => {
+        const isFirst = index === 0;
+        categoriesHtml += `<button type="button" class="category-btn ${isFirst ? 'active' : ''}" data-category="${cat}" onclick="selectCategory('${cat}')" style="padding: 10px 20px; margin: 5px; background: ${isFirst ? 'linear-gradient(45deg, #00d4ff, #7b2cbf)' : 'rgba(255,255,255,0.1)'}; border: none; border-radius: 8px; color: #fff; cursor: pointer; transition: all 0.2s;">${cat}</button>`;
+        
+        const display = isFirst ? 'grid' : 'none';
+        exercisesHtml += `<div class="exercise-grid" id="exercises-${cat}" style="display: ${display}; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 15px;">`;
+        
+        grouped[cat].forEach(e => {
+            exercisesHtml += `
+                <button type="button" class="exercise-option" onclick="selectExerciseForWorkout(${e.id}, '${e.name.replace(/'/g, "\\'")}')" style="padding: 15px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; cursor: pointer; transition: all 0.2s; text-align: left;"
+                onmouseover="this.style.background='rgba(0,212,255,0.2)'; this.style.borderColor='#00d4ff';" 
+                onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.2)';">
+                    <div style="font-weight: bold; margin-bottom: 5px;">${e.name}</div>
+                    <div style="font-size: 0.8rem; color: #888;">${e.muscle_group}</div>
+                </button>`;
+        });
+        
+        exercisesHtml += '</div>';
+    });
+    
+    modal.innerHTML = `
+        <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 1px solid rgba(0,212,255,0.3); border-radius: 16px; padding: 30px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="color: #00d4ff; margin: 0;">💪 Übung auswählen</h3>
+                <button type="button" onclick="closeExerciseSelector()" style="background: rgba(255,100,100,0.2); border: 1px solid rgba(255,100,100,0.5); color: #f66; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 1.2rem;">✕</button>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <span style="color: #888; font-size: 0.9rem;">Schritt 1: Kategorie wählen</span>
+                <div style="margin-top: 10px; display: flex; flex-wrap: wrap;">
+                    ${categoriesHtml}
+                </div>
+            </div>
+            
+            <div>
+                <span style="color: #888; font-size: 0.9rem;">Schritt 2: Übung wählen</span>
+                ${exercisesHtml}
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+function selectCategory(category) {
+    // Update button styles
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        if (btn.dataset.category === category) {
+            btn.style.background = 'linear-gradient(45deg, #00d4ff, #7b2cbf)';
+            btn.classList.add('active');
+        } else {
+            btn.style.background = 'rgba(255,255,255,0.1)';
+            btn.classList.remove('active');
+        }
+    });
+    
+    // Show selected category exercises, hide others
+    document.querySelectorAll('.exercise-grid').forEach(grid => {
+        grid.style.display = 'none';
+    });
+    const selectedGrid = document.getElementById(`exercises-${category}`);
+    if (selectedGrid) {
+        selectedGrid.style.display = 'grid';
+    }
+}
+
+function selectExerciseForWorkout(exerciseId, exerciseName) {
+    document.getElementById('workout-exercise').value = exerciseId;
+    document.getElementById('selected-exercise-display').textContent = exerciseName;
+    document.getElementById('selected-exercise-display').style.color = '#00d4ff';
+    closeExerciseSelector();
+}
+
+function closeExerciseSelector() {
+    const modal = document.getElementById('exercise-selector-modal');
+    if (modal) modal.remove();
+}
+
 // Update select dropdowns nach Kategorie gruppiert (Judo + Muskelgruppen)
 function updateExerciseSelects() {
     const workoutSelect = document.getElementById('workout-exercise');
@@ -275,75 +416,8 @@ function updateExerciseSelects() {
     }
 }
 
-// Filter exercises by category for workout form
-function filterExercisesByCategory() {
-    const category = document.getElementById('workout-category').value;
-    const exerciseSelect = document.getElementById('workout-exercise');
-    
-    if (!category) {
-        // Wenn keine Kategorie gewählt, zeige Hinweis
-        exerciseSelect.innerHTML = '<option value="">-- Wähle zuerst Kategorie --</option>';
-        return;
-    }
-    
-    // Filtere Übungen nach Kategorie
-    let filtered = exercises;
-    
-    if (category === 'Core') {
-        // Core-Übungen (Bauch + Rumpf + Ganzkörper Core-Übungen)
-        const coreKeywords = ['Core', 'Bauch', 'Brücke', 'Plank', 'Bird', 'Bug', 'Bridge', 'March'];
-        filtered = exercises.filter(e => 
-            e.muscle_group === 'Bauch' || 
-            e.muscle_group === 'Ganzkörper' ||
-            coreKeywords.some(kw => e.name.toLowerCase().includes(kw.toLowerCase()))
-        );
-    } else if (category === 'Dehnen') {
-        // Dehnungs-Übungen
-        const stretchKeywords = ['Dehn', 'Stretch', 'Haltung', 'Kindhaltung', 'Butterfly'];
-        filtered = exercises.filter(e => 
-            e.muscle_group === 'Dehnen' ||
-            stretchKeywords.some(kw => e.name.toLowerCase().includes(kw.toLowerCase()))
-        );
-    } else if (category === 'Judo') {
-        // Judo-Übungen
-        const judoKeywords = ['uchi', 'nage', 'randori', 'kata', 'judo', 'ne-waza', 'grip', 'turn-uchi', 'sprungs', 'wurf'];
-        filtered = exercises.filter(e => 
-            judoKeywords.some(kw => e.name.toLowerCase().includes(kw.toLowerCase()))
-        );
-    } else {
-        // Andere Muskelgruppen direkt
-        filtered = exercises.filter(e => e.muscle_group === category);
-    }
-    
-    // Sortiere nach Name
-    filtered.sort((a, b) => a.name.localeCompare(b.name, 'de'));
-    
-    // Erstelle Optionen
-    let options = '<option value="">-- Wähle Übung --</option>';
-    
-    // Nach Muskelgruppe gruppieren
-    const grouped = {};
-    filtered.forEach(e => {
-        if (!grouped[e.muscle_group]) {
-            grouped[e.muscle_group] = [];
-        }
-        grouped[e.muscle_group].push(e);
-    });
-    
-    Object.keys(grouped).sort().forEach(muscle => {
-        options += `<optgroup label="${muscle}">`;
-        grouped[muscle].forEach(e => {
-            options += `<option value="${e.id}">${e.name}</option>`;
-        });
-        options += '</optgroup>';
-    });
-    
-    if (filtered.length === 0) {
-        options = '<option value="">-- Keine Übungen in dieser Kategorie --</option>';
-    }
-    
-    exerciseSelect.innerHTML = options;
-}
+// Add exercise
+async function addExercise(e) {
     e.preventDefault();
     
     const name = document.getElementById('exercise-name').value;
@@ -414,7 +488,7 @@ async function deleteExercise(id) {
     }
 }
 
-// Render exercises list mit Edit-Button
+// Render exercises list
 function renderExercisesList() {
     const container = document.getElementById('exercises-list');
     
@@ -424,131 +498,14 @@ function renderExercisesList() {
     }
     
     container.innerHTML = exercises.map(e => `
-        <div class="list-item" data-exercise-id="${e.id}">
+        <div class="list-item">
             <div class="list-item-info">
                 <h4>${e.name}</h4>
                 <p>${e.muscle_group}</p>
             </div>
-            <div class="list-item-actions">
-                <button class="btn-edit" onclick="editExercise(${e.id})" title="Bearbeiten">✏️</button>
-                <button class="btn-delete" onclick="deleteExercise(${e.id})" title="Löschen">🗑️</button>
-            </div>
+            <button class="btn-delete" onclick="deleteExercise(${e.id})">🗑️</button>
         </div>
     `).join('');
-}
-
-// Edit exercise - öffnet Edit-Modal
-let editingExerciseId = null;
-
-async function editExercise(id) {
-    const exercise = exercises.find(e => e.id === id);
-    if (!exercise) return;
-    
-    editingExerciseId = id;
-    
-    // Erstelle Edit-Modal
-    const modal = document.createElement('div');
-    modal.id = 'edit-exercise-modal';
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.8);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 3000;
-    `;
-    
-    modal.innerHTML = `
-        <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 1px solid rgba(0,212,255,0.3); border-radius: 16px; padding: 30px; max-width: 400px; width: 90%;">
-            <h3 style="color: #00d4ff; margin-bottom: 20px;">✏️ Übung bearbeiten</h3>
-            <div style="display: flex; flex-direction: column; gap: 15px;">
-                <div>
-                    <label style="color: #888; font-size: 0.9rem;">Name</label>
-                    <input type="text" id="edit-exercise-name" value="${exercise.name}" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 12px; color: #fff; width: 100%; margin-top: 5px;">
-                </div>
-                <div>
-                    <label style="color: #888; font-size: 0.9rem;">Muskelgruppe</label>
-                    <select id="edit-exercise-muscle" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 12px; color: #fff; width: 100%; margin-top: 5px;">
-                        <option value="Brust" ${exercise.muscle_group === 'Brust' ? 'selected' : ''}>Brust</option>
-                        <option value="Rücken" ${exercise.muscle_group === 'Rücken' ? 'selected' : ''}>Rücken</option>
-                        <option value="Schultern" ${exercise.muscle_group === 'Schultern' ? 'selected' : ''}>Schultern</option>
-                        <option value="Beine" ${exercise.muscle_group === 'Beine' ? 'selected' : ''}>Beine</option>
-                        <option value="Arme" ${exercise.muscle_group === 'Arme' ? 'selected' : ''}>Arme</option>
-                        <option value="Bauch" ${exercise.muscle_group === 'Bauch' ? 'selected' : ''}>Bauch</option>
-                        <option value="Ganzkörper" ${exercise.muscle_group === 'Ganzkörper' ? 'selected' : ''}>Ganzkörper</option>
-                        <option value="Dehnen" ${exercise.muscle_group === 'Dehnen' ? 'selected' : ''}>Dehnen</option>
-                        <option value="Core" ${exercise.muscle_group === 'Core' ? 'selected' : ''}>Core</option>
-                        <option value="Judo" ${exercise.muscle_group === 'Judo' ? 'selected' : ''}>🥋 Judo</option>
-                    </select>
-                </div>
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button onclick="closeEditExerciseModal()" style="flex: 1; padding: 12px; background: rgba(255,100,100,0.2); border: 1px solid rgba(255,100,100,0.5); color: #f66; border-radius: 8px; cursor: pointer;">❌ Abbrechen</button>
-                    <button onclick="saveExerciseEdit()" style="flex: 1; padding: 12px; background: linear-gradient(45deg, #00d4ff, #7b2cbf); border: none; color: #fff; border-radius: 8px; cursor: pointer;">💾 Speichern</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-}
-
-function closeEditExerciseModal() {
-    const modal = document.getElementById('edit-exercise-modal');
-    if (modal) {
-        modal.remove();
-        editingExerciseId = null;
-    }
-}
-
-async function saveExerciseEdit() {
-    if (!editingExerciseId) return;
-    
-    const name = document.getElementById('edit-exercise-name').value;
-    const muscle = document.getElementById('edit-exercise-muscle').value;
-    
-    if (!name || !muscle) {
-        alert('Bitte Name und Muskelgruppe ausfüllen');
-        return;
-    }
-    
-    try {
-        const res = await apiFetch(`/api/exercises/${editingExerciseId}`, {
-            method: 'PUT',
-            body: JSON.stringify({ name, muscle_group: muscle })
-        });
-        
-        if (res && res.ok) {
-            closeEditExerciseModal();
-            await loadExercises();
-            await loadStats();
-            showToast('✅ Übung aktualisiert');
-        } else {
-            const data = await res.json().catch(() => ({}));
-            alert('Fehler: ' + (data.error || 'Konnte Übung nicht aktualisieren'));
-        }
-    } catch (err) {
-        console.error('❌ Fehler beim Bearbeiten:', err);
-        alert('Fehler beim Speichern');
-    }
-}
-
-// Delete exercise
-async function deleteExercise(id) {
-    if (!confirm('Übung wirklich löschen? Alle zugehörigen Workouts werden ebenfalls gelöscht.')) return;
-    
-    try {
-        await apiFetch(`/api/exercises/${id}`, { method: 'DELETE' });
-        await loadExercises();
-        await loadWorkouts();
-        await loadStats();
-        showToast('🗑️ Übung gelöscht');
-    } catch (err) {
-        console.error('❌ Fehler beim Löschen:', err);
-    }
 }
 
 // Load workouts
@@ -728,9 +685,9 @@ function renderWorkoutsList() {
                     <span style="font-weight: bold; font-size: 1.1rem;">${dateStr}${sessionType ? ` - ${sessionType}` : ''}</span>
                     <span style="color: #00d4ff;">${dateWorkouts.length} Workouts | ${formatWeight(totalVolume)}</span>
                 </div>
-                <span class="toggle-icon" id="toggle-${date}">▶</span>
+                <span class="toggle-icon" id="toggle-${date}">▼</span>
             </div>
-            <div class="workouts-in-date" id="workouts-${date}" style="display: none;">`;
+            <div class="workouts-in-date" id="workouts-${date}">`;
         
         dateWorkouts.forEach(w => {
             const volume = (w.weight * w.sets * w.reps).toLocaleString();
@@ -1310,133 +1267,6 @@ function autoAddExerciseThumbnails() {
 const exerciseImages = {
     'Dead Bug': {
         emoji: '🐛',
-        image: 'exercises/dead-bug.gif',
-        description: 'Rückenlage, Arme nach oben, Beine im 90° Winkel. Gegengleiche Bewegung von Arm und Bein.',
-        tips: 'Rücken fest am Boden halten, LWS nicht durchhängen lassen.'
-    },
-    'Bird Dog': {
-        emoji: '🐕',
-        image: 'exercises/bird-dog.gif',
-        description: 'Vierfüßlerstand, diagonal Arm und Bein strecken, 5 Sek. halten.',
-        tips: 'Rumpf stabil halten, Becken nicht kippen.'
-    },
-    'Glute Bridge': {
-        emoji: '🍑',
-        image: 'exercises/glute-bridge.gif',
-        description: 'Rückenlage, Füße nah am Gesäß, Becken anheben.',
-        tips: 'Nur so hoch anheben, dass eine gerade Linie entsteht. Nicht überstrecken.'
-    },
-    'Side Plank': {
-        emoji: '📐',
-        image: 'exercises/side-plank.jpg',
-        description: 'Seitstütz, Körper in einer Linie, Hüfte stabil.',
-        tips: 'Bei modifizierter Version: Unteres Knie am Boden ablegen.'
-    },
-    'Pallof Press': {
-        emoji: '🏋️',
-        image: 'exercises/torso-rotation.gif',
-        description: 'Kabel oder Band auf Bauchhöhe, nach vorne drücken ohne zu rotieren.',
-        tips: 'Rumpf stabil, Anti-Rotation-Kraft trainieren.'
-    },
-    'Front Plank': {
-        emoji: '📋',
-        image: 'exercises/plank.jpg',
-        description: 'Unterarmstütz, Körper in einer Linie.',
-        tips: 'Hüfte nicht zu hoch oder zu tief. Core anspannen.'
-    },
-    'Glute March': {
-        emoji: '🚶',
-        description: 'Brückenposition, Beine abwechselnd anheben.',
-        tips: 'Becken stabil halten, nicht kippen.'
-    },
-    'Copenhagen Plank': {
-        emoji: '🇩🇰',
-        description: 'Seitstütz, oberes Bein auf Erhöhung. Adduktoren-Training.',
-        tips: 'Leichte Version: mit unterem Knie am Boden beginnen.'
-    },
-    'Kindhaltung': {
-        emoji: '🧒',
-        image: 'exercises/child-pose.jpg',
-        description: 'Kniebeuge, Po auf Fersen, Arme nach vorne, Stirn zum Boden.',
-        tips: 'Entspannte Wirbelsäule, tief durchatmen.'
-    },
-    'Katze-Kuh': {
-        emoji: '🐱',
-        image: 'exercises/cat-cow.gif',
-        description: 'Vierfüßlerstand, abwechselnd Rücken rund und hohl.',
-        tips: 'Mit der Atmung synchronisieren: Einatmen = Hohl, Ausatmen = Rund'
-    },
-    'Kniestand Hüftbeuger': {
-        emoji: '🙏',
-        image: 'exercises/hip-stretch.gif',
-        description: 'Ein Knie steht, anderes Bein nach hinten, Becken vor schieben.',
-        tips: 'Oberkörper aufrecht, leichter Zug im Hüftbeuger spürbar.'
-    },
-    '90/90 Hip Stretch': {
-        emoji: '9️⃣',
-        description: 'Sitzen mit 90° im vorderen und hinteren Bein, nach vorne lehnen.',
-        tips: 'Langsam in die Dehnung gehen, bei Schmerzen aufhören.'
-    },
-    'Piriformis-Dehnung': {
-        emoji: '🦵',
-        description: 'Schere-Sitz, vorderes Bein über das andere, nach vorne drehen.',
-        tips: 'Hüfte bleibt am Boden, Oberkörper zum Knie drehen.'
-    },
-    'Schmetterling': {
-        emoji: '🦋',
-        image: 'exercises/butterfly-stretch.gif',
-        description: 'Sitzen, Fußsohlen zusammen, Knie nach außen sinken lassen.',
-        tips: 'Entspannt halten, nicht mit Gewicht auf die Knie drücken.'
-    },
-    'ADIM': {
-        emoji: '🫁',
-        description: 'Bauchnabel Richtung Wirbelsäule einziehen, tief atmen.',
-        tips: '10 Sekunden halten, fließend atmen. 3x täglich üben.'
-    },
-    'Hip Circles': {
-        emoji: '⭕',
-        description: 'Hüftkreisen, große Bewegung.',
-        tips: 'Langsam und kontrolliert, beide Richtungen.'
-    },
-    'Schulterkreisen': {
-        emoji: '🔃',
-        description: 'Schultern kreisförmig bewegen.',
-        tips: 'Zuerst rückwärts (korrigierend), dann vorwärts.'
-    },
-    'Tiefe Atmung': {
-        emoji: '🌬️',
-        description: 'Bauchatmung, langsam ein- und ausatmen.',
-        tips: 'Hand auf Bauch, diese sollte sich heben.'
-    },
-    'Hüftbeuger-Dehnung': {
-        emoji: '🤸',
-        image: 'exercises/hip-stretch.gif',
-        description: 'Lunge-Position, Hüfte nach vorne schieben.',
-        tips: 'Oberkörper aufrecht, Beinstreckung spürbar.'
-    },
-    'Brust-Dehnung': {
-        emoji: '🚪',
-        description: 'Arm an Türrahmen, nach vorne lehnen.',
-        tips: '90° Winkel am Arm, Brust öffnen.'
-    },
-    'Lat-Dehnung': {
-        emoji: '👐',
-        description: 'Arm über Kopf, zur Seite lehnen.',
-        tips: 'Oberkörper seitlich neigen, nicht nach vorne oder hinten.'
-    },
-    'Nacken-Dehnung': {
-        emoji: '🙆',
-        description: 'Kopf sanft zur Seite neigen, Hand kann unterstützen.',
-        tips: 'Nicht zwingen, sanfter Druck, beide Seiten.'
-    },
-    'LWS-Rotation': {
-        emoji: '🔄',
-        description: 'Rückenlage, Knie zur Seite lassen, Oberkörper stabil.',
-        tips: 'Nur so weit, wie es angenehm ist.'
-    }
-};
-    'Dead Bug': {
-        emoji: '🐛',
         description: 'Rückenlage, Arme nach oben, Beine im 90° Winkel. Gegengleiche Bewegung von Arm und Bein.',
         tips: 'Rücken fest am Boden halten, LWS nicht durchhängen lassen.'
     },
@@ -1559,8 +1389,6 @@ function showExerciseImageModal(exerciseName) {
         description: `${exerciseName} - Übung aus dem Trainingsplan.`,
         tips: 'Technik beachten, bei Schmerzen aufhören.'
     };
-    
-    const hasImage = exerciseData.image && exerciseData.image.length > 0;
     
     const modal = document.createElement('div');
     modal.className = 'exercise-image-modal';

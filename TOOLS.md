@@ -22,90 +22,9 @@
 - **Nutzen:** Wissenschaftliche Studien, Fitness-Artikel
 - **Beispiel:** `web_fetch url="https://pubmed.ncbi.nlm.nih.gov/..."`
 
-### `browser` ⭐ WICHTIG
-- **Nutzen:** Fitness-Apps, Tracking-Plattformen
-- **Profil verwenden:** `profile="openclaw"` (NICHT "user"!)
-
-#### Browser-Befehle:
-
-**1. URL öffnen:**
-```
-browser(
-  action="open",
-  url="https://www.myfitnesspal.com",
-  profile="openclaw",
-  timeoutMs=20000
-)
-```
-
-**2. Screenshot machen:**
-```
-browser(
-  action="screenshot",
-  profile="openclaw",
-  fullPage=true
-)
-```
-
-**3. Seiten-Struktur sehen (Snapshot):**
-```
-browser(
-  action="snapshot",
-  profile="openclaw"
-)
-```
-- Zeigt alle klickbaren Elemente mit Nummern (ref)
-
-**4. Auf Element klicken:**
-```
-browser(
-  action="click",
-  ref="5",  ← Nummer aus dem Snapshot
-  profile="openclaw"
-)
-```
-
-**5. Text eingeben:**
-```
-browser(
-  action="type",
-  ref="3",
-  text="Benutzername",
-  profile="openclaw"
-)
-```
-
-**6. Warten:**
-```
-browser(action="wait", timeMs=3000, profile="openclaw")
-```
-
-#### Beispiel-Workflow (Fitness-App Recherche):
-
-```
-# Schritt 1: App öffnen
-browser(action="open", url="https://www.hevy.com", profile="openclaw")
-
-# Schritt 2: Snapshot machen um Elemente zu sehen
-browser(action="snapshot", profile="openclaw")
-
-# Schritt 3: Menü klicken (ref Nummer aus Snapshot)
-browser(action="click", ref="3", profile="openclaw")
-
-# Schritt 4: Warten auf Ladung
-browser(action="wait", timeMs=2000, profile="openclaw")
-
-# Schritt 5: Screenshot für Analyse
-browser(action="screenshot", profile="openclaw", fullPage=true)
-```
-
-#### WICHTIGE REGELN:
-
-- ✅ IMMER `profile="openclaw"` verwenden
-- ❌ NIE `profile="user"` oder `profile="chrome-relay"` verwenden
-- ⏱️ Timeout auf 15000-30000ms setzen
-- 📸 Screenshots bei wichtigen Ergebnissen machen
-- 🔗 Quellen immer notieren
+### `browser`
+- **Nutzen:** Tracking-Apps, Fitness-Plattformen
+- **Beispiel:** `browser action=open url="https://www.myfitnesspal.com"`
 
 ## 📊 Analyse & Reports
 
@@ -133,7 +52,7 @@ message(
 ```
 
 ### `sessions_send`
-- **Nutzen:** Direkt an James
+- **Nutzen:** Direkt an James' Session
 
 ## 🗂️ Tracking-System
 
@@ -143,36 +62,20 @@ message(
 - `ziele.json` - Fitness-Ziele
 - `stats.json` - Berechnete Statistiken
 
-## 🔗 Externe Tools (im Browser nutzen)
+## 🔗 Externe Tools
 
-### Fitness-Apps
+### Fitness-Apps (Browser)
 - **Hevy** (Styrke-Training App)
-  - `browser(action="open", url="https://www.hevy.com", profile="openclaw")`
 - **Strong** (Alternative)
-  - `browser(action="open", url="https://www.strong.app", profile="openclaw")`
+- **Google Sheets** (Backup/Export)
 
 ### Ressourcen
 - **ExRx.net** - Übungs-Datenbank
-  - `browser(action="open", url="https://exrx.net", profile="openclaw")`
 - **PubMed** - Wissenschaftliche Studien
-  - `browser(action="open", url="https://pubmed.ncbi.nlm.nih.gov", profile="openclaw")`
 
 ## ⚠️ Sicherheit
 
 - **Gesundheitsdaten:** Privat behandeln, niemals teilen
-- **Browser-Nutzung:** Bei Login-Screens immer Bestätigung einholen
 - **API-Keys:** Für Fitness-Apps nicht in Chat erwähnen
 - **Ärztlicher Rat:** Bei Verletzungen oder Unklarheiten → Arzt konsultieren
-
-## 🎯 Schnell-Referenz: Browser-Schritte
-
-| Aufgabe | Befehl |
-|---------|--------|
-| Seite öffnen | `browser(action="open", url="...", profile="openclaw")` |
-| Struktur sehen | `browser(action="snapshot", profile="openclaw")` |
-| Klicken | `browser(action="click", ref="X", profile="openclaw")` |
-| Tippen | `browser(action="type", ref="X", text="...", profile="openclaw")` |
-| Warten | `browser(action="wait", timeMs=3000, profile="openclaw")` |
-| Screenshot | `browser(action="screenshot", profile="openclaw", fullPage=true)` |
-
-**Merke:** `profile="openclaw"` ist bei JEDEM Browser-Befehl Pflicht!
+- **Progress:** Niemals übermäßig pushen (Verletzungsgefahr)
