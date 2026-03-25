@@ -1244,11 +1244,28 @@ function autoAddExerciseThumbnails() {
                 const exerciseName = checkbox.dataset.exercise;
                 const exerciseData = exerciseImages[exerciseName];
                 const emoji = exerciseData?.emoji || '💪';
+                const imagePath = exerciseData?.image; // GIF oder Bild Pfad
                 
                 // Erstelle Thumbnail
                 const thumb = document.createElement('div');
                 thumb.className = 'exercise-thumb';
-                thumb.textContent = emoji;
+                
+                // Wenn ein Bild/GIF vorhanden ist, zeige es an
+                if (imagePath) {
+                    const img = document.createElement('img');
+                    img.src = imagePath;
+                    img.alt = exerciseName;
+                    img.loading = 'lazy'; // Lazy loading für Performance
+                    img.onerror = () => {
+                        // Fallback zu Emoji wenn Bild nicht geladen werden kann
+                        thumb.textContent = emoji;
+                    };
+                    thumb.appendChild(img);
+                } else {
+                    // Zeige Emoji als Platzhalter
+                    thumb.textContent = emoji;
+                    thumb.title = 'Klick für Details';
+                }
                 
                 // Füge vor dem Text ein
                 if (textSpan) {

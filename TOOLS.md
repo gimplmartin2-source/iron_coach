@@ -25,6 +25,8 @@
 ### `browser`
 - **Nutzen:** Tracking-Apps, Fitness-Plattformen
 - **Beispiel:** `browser action=open url="https://www.myfitnesspal.com"`
+- **Profil:** Immer `profile="openclaw"` verwenden!
+- **Click-Wichtig:** Nur klicken, KEINE neuen Tabs öffnen!
 
 ## 📊 Analyse & Reports
 
