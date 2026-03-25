@@ -1280,35 +1280,41 @@ function autoAddExerciseThumbnails() {
     });
 }
 
-// Übungsbilder-Datenbank (kann später mit echten Bildern erweitert werden)
+// Übungsbilder-Datenbank (mit lokalen Bildern/GIFs)
 const exerciseImages = {
     'Dead Bug': {
         emoji: '🐛',
+        image: 'exercises/dead-bug.gif',
         description: 'Rückenlage, Arme nach oben, Beine im 90° Winkel. Gegengleiche Bewegung von Arm und Bein.',
         tips: 'Rücken fest am Boden halten, LWS nicht durchhängen lassen.'
     },
     'Bird Dog': {
         emoji: '🐕',
+        image: 'exercises/bird-dog.gif',
         description: 'Vierfüßlerstand, diagonal Arm und Bein strecken, 5 Sek. halten.',
         tips: 'Rumpf stabil halten, Becken nicht kippen.'
     },
     'Glute Bridge': {
         emoji: '🍑',
+        image: 'exercises/glute-bridge.gif',
         description: 'Rückenlage, Füße nah am Gesäß, Becken anheben.',
         tips: 'Nur so hoch anheben, dass eine gerade Linie entsteht. Nicht überstrecken.'
     },
     'Side Plank': {
         emoji: '📐',
+        image: 'exercises/side-plank.jpg',
         description: 'Seitstütz, Körper in einer Linie, Hüfte stabil.',
         tips: 'Bei modifizierter Version: Unteres Knie am Boden ablegen.'
     },
     'Pallof Press': {
         emoji: '🏋️',
+        image: 'exercises/torso-rotation.gif',
         description: 'Kabel oder Band auf Bauchhöhe, nach vorne drücken ohne zu rotieren.',
         tips: 'Rumpf stabil, Anti-Rotation-Kraft trainieren.'
     },
     'Front Plank': {
         emoji: '📋',
+        image: 'exercises/plank.jpg',
         description: 'Unterarmstütz, Körper in einer Linie.',
         tips: 'Hüfte nicht zu hoch oder zu tief. Core anspannen.'
     },
@@ -1324,16 +1330,19 @@ const exerciseImages = {
     },
     'Kindhaltung': {
         emoji: '🧒',
+        image: 'exercises/child-pose.jpg',
         description: 'Kniebeuge, Po auf Fersen, Arme nach vorne, Stirn zum Boden.',
         tips: 'Entspannte Wirbelsäule, tief durchatmen.'
     },
     'Katze-Kuh': {
         emoji: '🐱',
+        image: 'exercises/cat-cow.gif',
         description: 'Vierfüßlerstand, abwechselnd Rücken rund und hohl.',
         tips: 'Mit der Atmung synchronisieren: Einatmen = Hohl, Ausatmen = Rund'
     },
     'Kniestand Hüftbeuger': {
         emoji: '🙏',
+        image: 'exercises/hip-stretch.gif',
         description: 'Ein Knie steht, anderes Bein nach hinten, Becken vor schieben.',
         tips: 'Oberkörper aufrecht, leichter Zug im Hüftbeuger spürbar.'
     },
@@ -1349,6 +1358,7 @@ const exerciseImages = {
     },
     'Schmetterling': {
         emoji: '🦋',
+        image: 'exercises/butterfly-stretch.gif',
         description: 'Sitzen, Fußsohlen zusammen, Knie nach außen sinken lassen.',
         tips: 'Entspannt halten, nicht mit Gewicht auf die Knie drücken.'
     },
@@ -1374,6 +1384,7 @@ const exerciseImages = {
     },
     'Hüftbeuger-Dehnung': {
         emoji: '🤸',
+        image: 'exercises/hip-stretch.gif',
         description: 'Lunge-Position, Hüfte nach vorne schieben.',
         tips: 'Oberkörper aufrecht, Beinstreckung spürbar.'
     },
