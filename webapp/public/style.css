@@ -368,6 +368,136 @@ header p {
     color: #88dd88;
 }
 
+/* Interactive Checkboxes */
+.checkbox-container {
+    display: inline-flex;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.checkbox-container input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    width: 0;
+    height: 0;
+}
+
+.checkmark {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.checkbox-container:hover .checkmark {
+    border-color: #00d4ff;
+    background: rgba(0,212,255,0.1);
+}
+
+.checkbox-container input:checked ~ .checkmark {
+    background: linear-gradient(45deg, #00d4ff, #7b2cbf);
+    border-color: transparent;
+}
+
+.checkbox-container input:checked ~ .checkmark::after {
+    content: "✓";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.checkbox-container input:disabled ~ .checkmark {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.plan-exercise {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+}
+
+.plan-exercise:hover {
+    background: rgba(255,255,255,0.05);
+    padding-left: 8px;
+}
+
+.plan-exercise.completed {
+    opacity: 0.6;
+    text-decoration: line-through;
+}
+
+.interactive-plan-table tr.plan-exercise-row {
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.interactive-plan-table tr.plan-exercise-row:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.interactive-plan-table tr.plan-exercise-row td:first-child {
+    width: 40px;
+    text-align: center;
+}
+
+.interactive-plan-table tr.plan-exercise-row.completed {
+    opacity: 0.6;
+}
+
+.interactive-plan-table tr.plan-exercise-row.completed td:not(:first-child) {
+    text-decoration: line-through;
+}
+
+/* Quick Add Modal */
+.plan-quick-input {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(0,212,255,0.3);
+    border-radius: 8px;
+    padding: 15px;
+    margin: 8px 0;
+}
+
+.plan-quick-input .form-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.plan-quick-input input {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #fff;
+    width: 80px;
+}
+
+.plan-quick-input input:focus {
+    outline: none;
+    border-color: #00d4ff;
+}
+
+.plan-quick-input .btn-primary {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+}
+
 .plan-content {
     background: rgba(0,0,0,0.2);
     border-radius: 8px;
@@ -506,4 +636,25 @@ header p {
 
 .btn-edit:hover {
     background: rgba(255,200,100,0.3);
+}
+
+/* Animationen für Toast */
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 20px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
 }

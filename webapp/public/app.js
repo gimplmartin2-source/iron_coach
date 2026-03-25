@@ -103,6 +103,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('exercise-form').addEventListener('submit', addExercise);
     document.getElementById('workout-form').addEventListener('submit', addWorkout);
     
+    // Plan-Checkboxes initialisieren
+    initPlanCheckboxes();
+    
     // Logout Button
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
@@ -751,6 +754,186 @@ async function loadVolumeChart() {
     });
 }
 
+// ===================== INTERAKTIVER TRAININGSPLAN =====================
+
+// Init checkbox handlers
+function initPlanCheckboxes() {
+    // Plan-übergreifend: Checkbox-Überwachung
+    document.addEventListener('change', async (e) => {
+        if (e.target.classList.contains('plan-check')) {
+            const checkbox = e.target;
+            
+            // Finde übergeordnetes Element (li oder tr)
+            const exerciseRow = checkbox.closest('.plan-exercise') || checkbox.closest('.plan-exercise-row');
+            
+            if (checkbox.checked) {
+                // Übung abgeschlossen - Dialog für Gewicht
+                const exerciseName = checkbox.dataset.exercise || 
+                                    (exerciseRow?.dataset.exercise);
+                const sets = checkbox.dataset.sets || 1;
+                const reps = checkbox.dataset.reps || 1;
+                const duration = checkbox.dataset.duration || '';
+                
+                // Suche oder erstelle Übung
+                let exercise = exercises.find(e => e.name === exerciseName);
+                
+                if (!exercise) {
+                    // Übung existiert noch nicht - erstelle sie automatisch
+                    // Bestimme Muskelgruppe
+                    let muscleGroup = 'Ganzkörper';
+                    if (exerciseName.toLowerCase().includes('judo')) muscleGroup = 'Judo';
+                    else if (exerciseName.toLowerCase().includes('bug') || exerciseName.toLowerCase().includes('plank') || exerciseName.toLowerCase().includes('bridge')) muscleGroup = 'Core';
+                    else if (exerciseName.toLowerCase().includes('dehn') || exerciseName.toLowerCase().includes('dehnung') || exerciseName.toLowerCase().includes('stretch')) muscleGroup = 'Dehnen';
+                    else if (exerciseName.toLowerCase().includes('atmung') || exerciseName.toLowerCase().includes('kindhaltung') || exerciseName.toLowerCase().includes('katze')) muscleGroup = 'Mobilität';
+                    
+                    const newExercise = await createExerciseIfNotExists(exerciseName, muscleGroup);
+                    if (newExercise) {
+                        exercise = newExercise;
+                        await loadExercises(); // Liste neu laden
+                    }
+                }
+                
+                if (exercise) {
+                    // Stelle das Gewicht-Input bereit
+                    const weight = await askForWeight(exerciseName, sets, reps, duration);
+                    
+                    if (weight !== null) {
+                        // Workout speichern
+                        await addPlanWorkout(exercise.id, weight, parseInt(sets), parseInt(reps));
+                        exerciseRow?.classList.add('completed');
+                        
+                        // Visuelle Bestätigung
+                        showToast(`✅ ${exerciseName} gespeichert`);
+                        
+                        // Stats aktualisieren
+                        await autoBackup();
+                        await loadStats();
+                    } else {
+                        // Abgebrochen - Checkbox zurücksetzen
+                        checkbox.checked = false;
+                        exerciseRow?.classList.remove('completed');
+                    }
+                } else {
+                    checkbox.checked = false;
+                    exerciseRow?.classList.remove('completed');
+                }
+            } else {
+                exerciseRow?.classList.remove('completed');
+            }
+        }
+    });
+    
+    // Klick auf Tabellenzeilen zum Toggle
+    document.addEventListener('click', (e) => {
+        const row = e.target.closest('.plan-exercise-row');
+        if (row && !e.target.closest('.checkbox-container')) {
+            // Klick auf Zeile (nicht auf Checkbox) toggelt Checkbox
+            const checkbox = row.querySelector('.plan-check');
+            if (checkbox && !checkbox.disabled) {
+                checkbox.click();
+            }
+        }
+    });
+}
+
+// Async Prompt für Gewicht
+function askForWeight(exerciseName, sets, reps, duration) {
+    return new Promise((resolve) => {
+        const isDuration = duration && duration.includes('Sek') || duration.includes('Min');
+        const labelText = isDuration ? 'Gewicht/Zusatz (kg, optional):' : 'Gewicht (kg):';
+        
+        const weight = prompt(
+            `Trainiert: ${exerciseName}\n\n` +
+            `Sätze: ${sets}${reps ? ` | Wdh: ${reps}` : ''}${duration ? ` | Dauer: ${duration}` : ''}\n\n` +
+            `${labelText}`,
+            isDuration ? '0' : '20'
+        );
+        
+        if (weight === null) {
+            resolve(null);
+        } else {
+            const parsed = parseFloat(weight);
+            resolve(isNaN(parsed) ? 0 : Math.max(0, parsed));
+        }
+    });
+}
+
+// Übung erstellen falls nicht existiert
+async function createExerciseIfNotExists(name, muscleGroup) {
+    try {
+        const res = await apiFetch('/api/exercises', {
+            method: 'POST',
+            body: JSON.stringify({ name, muscle_group: muscleGroup })
+        });
+        
+        if (res && res.ok) {
+            const data = await res.json();
+            console.log(`✅ Übung erstellt: ${name}`);
+            return data;
+        }
+        return null;
+    } catch (err) {
+        console.error('❌ Fehler beim Erstellen der Übung:', err);
+        return null;
+    }
+}
+
+// Workout aus Plan hinzufügen
+async function addPlanWorkout(exerciseId, weight, sets, reps) {
+    try {
+        const data = {
+            exercise_id: exerciseId,
+            weight: weight,
+            sets: sets,
+            reps: reps,
+            rest_seconds: 60,
+            feeling: 7,
+            date: new Date().toISOString().split('T')[0] // Heute
+        };
+        
+        const res = await apiFetch('/api/workouts', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        
+        if (res && res.ok) {
+            // Lade Workouts neu
+            await loadWorkouts();
+            return true;
+        }
+        return false;
+    } catch (err) {
+        console.error('❌ Fehler beim Speichern:', err);
+        return false;
+    }
+}
+
+// Toast Notification
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(45deg, #00d4ff, #7b2cbf);
+        color: #fff;
+        padding: 12px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        z-index: 1000;
+        animation: slideUp 0.3s ease-out;
+        font-weight: 500;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'fadeOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 2500);
+}
+
 // Helper: Format date
 function formatDate(dateStr) {
     const d = new Date(dateStr);
@@ -785,7 +968,8 @@ function showTab(tabName) {
     }
 }
 
-// Backup to Google Drive
+// Backup to Google Drive - deaktiviert
+/*
 async function backupToDrive() {
     const statusEl = document.getElementById('backup-status');
     statusEl.textContent = '🔄 Backup wird erstellt...';
@@ -807,6 +991,7 @@ async function backupToDrive() {
         statusEl.style.color = '#ff4444';
     }
 }
+*/
 
 // ===================== TRAININGSPLAN =====================
 
