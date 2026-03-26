@@ -151,6 +151,23 @@ db.serialize(() => {
     FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
   )`);
 
+  // Migration: duration_seconds zu workouts hinzufügen
+  db.all(`PRAGMA table_info(workouts)`, [], (err, columns) => {
+    if (!err && columns) {
+      const hasDuration = columns.some(col => col.name === 'duration_seconds');
+      if (!hasDuration) {
+        console.log('⚠️ Migration: duration_seconds Spalte fehlt in workouts, füge hinzu...');
+        db.run(`ALTER TABLE workouts ADD COLUMN duration_seconds INTEGER`, (alterErr) => {
+          if (alterErr) {
+            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
+          } else {
+            console.log('✅ duration_seconds Spalte zu workouts hinzugefügt');
+          }
+        });
+      }
+    }
+  });
+
   // Migration: Prüfe ob user_id Spalte in workouts existiert
   db.all(`PRAGMA table_info(workouts)`, [], (err, columns) => {
     if (!err && columns) {
