@@ -556,9 +556,9 @@ function toggleWorkoutFields(isTimeBased) {
     if (strengthFields && timeFields) {
         if (isTimeBased) {
             strengthFields.style.display = 'none';
-            timeFields.style.display = 'flex';
+            timeFields.style.display = 'grid'; // NICHT flex!
         } else {
-            strengthFields.style.display = 'flex';
+            strengthFields.style.display = 'grid'; // NICHT flex!
             timeFields.style.display = 'none';
         }
     }
