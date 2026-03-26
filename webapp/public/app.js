@@ -572,11 +572,21 @@ async function loadWorkouts() {
             console.log('⚠ Keine Response');
             return;
         }
-        workouts = await res.json();
-        console.log('✅ Workouts geladen:', workouts.length, workouts);
+        const data = await res.json();
+        console.log('✅ Workouts geladen:', data);
+        
+        // SICHERHEIT: Prüfe ob Array
+        if (!Array.isArray(data)) {
+            console.error('❌ API hat kein Array zurückgegeben:', data);
+            workouts = []; // Fallback
+        } else {
+            workouts = data;
+        }
+        
         renderWorkoutsList();
     } catch (err) {
         console.error('❌ Fehler beim Laden der Workouts:', err);
+        workouts = []; // Fallback
     }
 }
 
