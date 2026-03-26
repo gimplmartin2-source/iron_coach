@@ -922,6 +922,22 @@ app.get('/api/analytics/key-info', (req, res) => {
   });
 });
 
+// DEBUG: Check exercises schema
+app.get('/api/debug/exercises-schema', (req, res) => {
+  db.all(`PRAGMA table_info(exercises)`, [], (err, columns) => {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    // Also get a sample exercise
+    db.get(`SELECT * FROM exercises LIMIT 1`, [], (err2, row) => {
+      res.json({
+        columns: columns,
+        sampleExercise: row || null,
+        hasExerciseType: columns.some(c => c.name === 'exercise_type')
+      });
+    });
+  });
+});
+
 // Static Files
 const publicPath = path.join(__dirname, 'public');
 console.log('📁 Serving static files from:', publicPath);
