@@ -641,6 +641,42 @@ app.delete('/api/workouts/:id', authenticateJWT, (req, res) => {
   });
 });
 
+// Stats für Dashboard
+app.get('/api/stats', authenticateJWT, (req, res) => {
+  const userId = req.user.userId;
+  
+  // Gesamtvolumen
+  db.get(`SELECT COALESCE(SUM(weight * sets * reps), 0) as total_volume FROM workouts WHERE user_id = ?`, [userId], (err, volume) => {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    // Anzahl Workouts
+    db.get(`SELECT COUNT(*) as count FROM workouts WHERE user_id = ?`, [userId], (err, count) => {
+      if (err) return res.status(500).json({ error: err.message });
+      
+      // Anzahl Übungen
+      db.get(`SELECT COUNT(*) as count FROM exercises WHERE user_id = ?`, [userId], (err, exercises) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Diese Woche
+        const weekStart = new Date();
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+        const weekStartStr = weekStart.toISOString().split('T')[0];
+        
+        db.get(`SELECT COALESCE(SUM(weight * sets * reps), 0) as week_volume FROM workouts WHERE user_id = ? AND date >= ?`, [userId, weekStartStr], (err, week) => {
+          if (err) return res.status(500).json({ error: err.message });
+          
+          res.json({
+            total_volume: volume.total_volume,
+            workouts_count: count.count,
+            exercises_count: exercises.count,
+            week_volume: week.week_volume
+          });
+        });
+      });
+    });
+  });
+});
+
 // Backup erstellen
 app.post('/api/backup', authenticateJWT, async (req, res) => {
   try {
