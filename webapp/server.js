@@ -915,6 +915,24 @@ app.get('/api/analytics/summary', authenticateApiKey, (req, res) => {
   });
 });
 
+// Debug-Endpunkt: Zeigt Workouts für User 1 (Martin) ohne Auth
+app.get('/api/debug/workouts', (req, res) => {
+  const query = `
+    SELECT w.*, e.name as exercise_name, e.muscle_group, e.exercise_type 
+    FROM workouts w 
+    JOIN exercises e ON w.exercise_id = e.id 
+    WHERE w.user_id = 1
+    ORDER BY w.date DESC, w.created_at DESC
+  `;
+  db.all(query, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ 
+      count: rows.length,
+      workouts: rows
+    });
+  });
+});
+
 // API Key Info
 app.get('/api/analytics/key-info', (req, res) => {
   res.json({ 
