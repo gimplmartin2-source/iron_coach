@@ -722,9 +722,6 @@ function editWorkout(id) {
             document.getElementById('workout-duration').value = '';
         }
     }
-    document.getElementById('workout-reps').value = workout.reps;
-    document.getElementById('workout-rest').value = workout.rest_seconds || '';
-    document.getElementById('workout-feeling').value = workout.feeling || '';
     
     // Button-Text ändern
     const submitBtn = document.querySelector('#workout-form button[type="submit"]');
