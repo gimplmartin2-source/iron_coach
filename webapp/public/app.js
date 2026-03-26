@@ -28,7 +28,9 @@ async function apiFetch(url, options = {}) {
             }
         });
         
-        if (res.status === 401) {
+        // Bei 401 oder 403 ausloggen (ungültiger Token)
+        if (res.status === 401 || res.status === 403) {
+            console.log('🔒 Token ungültig, melde ab...');
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = '/login.html';
