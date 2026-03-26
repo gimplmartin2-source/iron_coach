@@ -326,10 +326,63 @@ function selectCategory(category) {
 }
 
 function selectExerciseForWorkout(exerciseId, exerciseName) {
+    const exercise = exercises.find(e => e.id === exerciseId);
+    
     document.getElementById('workout-exercise').value = exerciseId;
     document.getElementById('selected-exercise-display').textContent = exerciseName;
     document.getElementById('selected-exercise-display').style.color = '#00d4ff';
+    
+    // Formular-Felder je nach Übungstyp anpassen
+    const isTimeBased = exercise && exercise.exercise_type === 'time';
+    toggleWorkoutFields(isTimeBased);
+    
     closeExerciseSelector();
+}
+
+// Toggle zwischen Kraft- und Zeit-basierten Workout-Feldern
+function toggleWorkoutFields(isTimeBased) {
+    const strengthFields = document.getElementById('strength-fields');
+    const timeFields = document.getElementById('time-fields');
+    const weightInput = document.getElementById('workout-weight');
+    const setsInput = document.getElementById('workout-sets');
+    const repsInput = document.getElementById('workout-reps');
+    const durationInput = document.getElementById('workout-duration');
+    
+    if (!strengthFields || !timeFields) return;
+    
+    if (isTimeBased) {
+        strengthFields.style.display = 'none';
+        timeFields.style.display = 'flex';
+        if (weightInput) weightInput.removeAttribute('required');
+        if (setsInput) setsInput.removeAttribute('required');
+        if (repsInput) repsInput.removeAttribute('required');
+        if (durationInput) durationInput.setAttribute('required', 'true');
+    } else {
+        strengthFields.style.display = 'flex';
+        timeFields.style.display = 'none';
+        if (weightInput) weightInput.setAttribute('required', 'true');
+        if (setsInput) setsInput.setAttribute('required', 'true');
+        if (repsInput) repsInput.setAttribute('required', 'true');
+        if (durationInput) durationInput.removeAttribute('required');
+    }
+}
+
+// Parse duration string (e.g., "1:30" or "90") to seconds
+function parseDuration(str) {
+    if (!str) return null;
+    str = str.trim();
+    
+    // Format: "1:30" -> 90 seconds
+    if (str.includes(':')) {
+        const parts = str.split(':');
+        const minutes = parseInt(parts[0]) || 0;
+        const seconds = parseInt(parts[1]) || 0;
+        return minutes * 60 + seconds;
+    }
+    
+    // Plain number -> assume seconds
+    const seconds = parseInt(str);
+    return isNaN(seconds) ? null : seconds;
 }
 
 function closeExerciseSelector() {
@@ -422,6 +475,8 @@ async function addExercise(e) {
     
     const name = document.getElementById('exercise-name').value;
     const muscle = document.getElementById('exercise-muscle').value;
+    const typeEl = document.getElementById('exercise-type');
+    const type = typeEl ? typeEl.value : 'strength';
     
     if (!name || !muscle) {
         alert('Bitte Name und Muskelgruppe auswählen');
@@ -436,7 +491,7 @@ async function addExercise(e) {
     try {
         const res = await apiFetch('/api/exercises', {
             method: 'POST',
-            body: JSON.stringify({ name, muscle_group: muscle })
+            body: JSON.stringify({ name, muscle_group: muscle, exercise_type: type })
         });
         
         if (res && res.ok) {
@@ -530,15 +585,34 @@ async function addWorkout(e) {
         return;
     }
     
+    const exercise = exercises.find(e => e.id === parseInt(exerciseId));
+    const isTimeBased = exercise && exercise.exercise_type === 'time';
+    
     const data = {
         exercise_id: parseInt(exerciseId),
-        weight: parseFloat(document.getElementById('workout-weight').value),
-        sets: parseInt(document.getElementById('workout-sets').value),
-        reps: parseInt(document.getElementById('workout-reps').value),
         rest_seconds: parseInt(document.getElementById('workout-rest').value) || 60,
         feeling: parseInt(document.getElementById('workout-feeling').value) || 5,
         date: document.getElementById('workout-date').value
     };
+    
+    // Je nach Übungstyp unterschiedliche Felder verwenden
+    if (isTimeBased) {
+        const durationStr = document.getElementById('workout-duration').value;
+        const durationSeconds = parseDuration(durationStr);
+        if (!durationSeconds) {
+            alert('Bitte eine gültige Dauer eingeben (z.B. 1:30 oder 90)');
+            return;
+        }
+        data.duration_seconds = durationSeconds;
+        data.weight = null;
+        data.sets = null;
+        data.reps = null;
+    } else {
+        data.weight = parseFloat(document.getElementById('workout-weight').value);
+        data.sets = parseInt(document.getElementById('workout-sets').value);
+        data.reps = parseInt(document.getElementById('workout-reps').value);
+        data.duration_seconds = null;
+    }
     
     const btn = e.target.querySelector('button[type="submit"]');
     const originalText = btn.textContent;
@@ -598,11 +672,56 @@ function editWorkout(id) {
     
     editingWorkoutId = id;
     
+    // Übungstyp bestimmen
+    const exercise = exercises.find(e => e.id === workout.exercise_id);
+    const isTimeBased = exercise?.exercise_type === 'time' || workout.duration_seconds;
+    
+    // Formular-Typ umschalten
+    toggleWorkoutFields(isTimeBased);
+    
     // Formular mit Daten füllen
     document.getElementById('workout-exercise').value = workout.exercise_id;
     document.getElementById('workout-date').value = workout.date;
-    document.getElementById('workout-weight').value = workout.weight;
-    document.getElementById('workout-sets').value = workout.sets;
+    if (document.getElementById('workout-rest')) {
+        document.getElementById('workout-rest').value = workout.rest_seconds || '';
+    }
+    if (document.getElementById('workout-feeling')) {
+        document.getElementById('workout-feeling').value = workout.feeling || '';
+    }
+    
+    if (isTimeBased) {
+        // Zeit-basierte Übung
+        const durationSec = workout.duration_seconds || 0;
+        const mins = Math.floor(durationSec / 60);
+        const secs = durationSec % 60;
+        const durationStr = mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}`;
+        if (document.getElementById('workout-duration')) {
+            document.getElementById('workout-duration').value = durationStr;
+        }
+        if (document.getElementById('workout-weight')) {
+            document.getElementById('workout-weight').value = '';
+        }
+        if (document.getElementById('workout-sets')) {
+            document.getElementById('workout-sets').value = '';
+        }
+        if (document.getElementById('workout-reps')) {
+            document.getElementById('workout-reps').value = '';
+        }
+    } else {
+        // Kraft-Übung
+        if (document.getElementById('workout-weight')) {
+            document.getElementById('workout-weight').value = workout.weight || '';
+        }
+        if (document.getElementById('workout-sets')) {
+            document.getElementById('workout-sets').value = workout.sets || '';
+        }
+        if (document.getElementById('workout-reps')) {
+            document.getElementById('workout-reps').value = workout.reps || '';
+        }
+        if (document.getElementById('workout-duration')) {
+            document.getElementById('workout-duration').value = '';
+        }
+    }
     document.getElementById('workout-reps').value = workout.reps;
     document.getElementById('workout-rest').value = workout.rest_seconds || '';
     document.getElementById('workout-feeling').value = workout.feeling || '';
