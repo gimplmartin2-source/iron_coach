@@ -117,22 +117,27 @@ db.serialize(() => {
     }
   });
 
-  // Migration: exercise_type zu exercises hinzufügen
-  db.all(`PRAGMA table_info(exercises)`, [], (err, columns) => {
-    if (!err && columns) {
-      const hasExerciseType = columns.some(col => col.name === 'exercise_type');
-      if (!hasExerciseType) {
-        console.log('⚠️ Migration: exercise_type Spalte fehlt in exercises, füge hinzu...');
-        db.run(`ALTER TABLE exercises ADD COLUMN exercise_type TEXT DEFAULT 'strength'`, (alterErr) => {
-          if (alterErr) {
-            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
-          } else {
-            console.log('✅ exercise_type Spalte zu exercises hinzugefügt');
-          }
-        });
+  // Migration: exercise_type zu exercises hinzufügen mit Tabelle-Reparatur
+  setTimeout(() => {
+    db.all(`PRAGMA table_info(exercises)`, [], (err, columns) => {
+      if (!err && columns) {
+        const hasExerciseType = columns.some(col => col.name === 'exercise_type');
+        
+        if (!hasExerciseType) {
+          console.log('⚠️ Migration: exercise_type fehlt, füge hinzu...');
+          db.run(`ALTER TABLE exercises ADD COLUMN exercise_type TEXT DEFAULT 'strength'`, (alterErr) => {
+            if (alterErr) {
+              console.error('❌ Migration exercise_type fehlgeschlagen:', alterErr.message);
+            } else {
+              console.log('✅ exercise_type Spalte zu exercises hinzugefügt');
+            }
+          });
+        } else {
+          console.log('✅ exercise_type Spalte existiert bereits');
+        }
       }
-    }
-  });
+    });
+  }, 1000); // Verzögert ausführen damit DB bereit ist
 
   // Workouts Tabelle - ALLE Felder optional außer user_id und date
   db.run(`CREATE TABLE IF NOT EXISTS workouts (
