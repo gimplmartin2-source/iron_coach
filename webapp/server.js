@@ -290,65 +290,73 @@ function seedDefaultExercises(userId) {
     }
     
     const defaultExercises = [
-      // 🥋 Judo - Als eigene Kategorie
-      { name: 'Uchi-Komi (Wurfübungen)', muscle_group: 'Judo' },
-      { name: 'Nage-Komi (Wurftraining)', muscle_group: 'Judo' },
-      { name: 'Randori (Freikampf)', muscle_group: 'Judo' },
-      { name: 'Kata (Formen)', muscle_group: 'Judo' },
-      { name: 'Sprungsukomikomi', muscle_group: 'Judo' },
-      { name: 'Explosive Beinarbeit', muscle_group: 'Judo' },
-      { name: 'Grip Fighting', muscle_group: 'Judo' },
-      { name: 'Ne-waza (Bodenkampf)', muscle_group: 'Judo' },
-      { name: 'Turn-Uchikomi', muscle_group: 'Judo' },
+      // 🥋 Judo - Als eigene Kategorie (Zeit-basiert, da Techniktraining)
+      { name: 'Uchi-Komi (Wurfübungen)', muscle_group: 'Judo', exercise_type: 'strength' },
+      { name: 'Nage-Komi (Wurftraining)', muscle_group: 'Judo', exercise_type: 'strength' },
+      { name: 'Randori (Freikampf)', muscle_group: 'Judo', exercise_type: 'time' },
+      { name: 'Kata (Formen)', muscle_group: 'Judo', exercise_type: 'time' },
+      { name: 'Sprungsukomikomi', muscle_group: 'Judo', exercise_type: 'strength' },
+      { name: 'Explosive Beinarbeit', muscle_group: 'Judo', exercise_type: 'strength' },
+      { name: 'Grip Fighting', muscle_group: 'Judo', exercise_type: 'strength' },
+      { name: 'Ne-waza (Bodenkampf)', muscle_group: 'Judo', exercise_type: 'time' },
+      { name: 'Turn-Uchikomi', muscle_group: 'Judo', exercise_type: 'strength' },
       
-      // Gym - Brust
-      { name: 'Bankdrücken (Langhantel)', muscle_group: 'Brust' },
-      { name: 'Schrägbankdrücken', muscle_group: 'Brust' },
-      { name: 'Fliegende (Butterfly)', muscle_group: 'Brust' },
-      { name: 'Dips', muscle_group: 'Brust' },
+      // Gym - Brust (Kraft)
+      { name: 'Bankdrücken (Langhantel)', muscle_group: 'Brust', exercise_type: 'strength' },
+      { name: 'Schrägbankdrücken', muscle_group: 'Brust', exercise_type: 'strength' },
+      { name: 'Fliegende (Butterfly)', muscle_group: 'Brust', exercise_type: 'strength' },
+      { name: 'Dips', muscle_group: 'Brust', exercise_type: 'strength' },
       
-      // Gym - Rücken
-      { name: 'Kreuzheben', muscle_group: 'Rücken' },
-      { name: 'Klimmzüge', muscle_group: 'Rücken' },
-      { name: 'Rudern (Langhantel)', muscle_group: 'Rücken' },
-      { name: 'Latzug', muscle_group: 'Rücken' },
-      { name: 'T-Bar Rudern', muscle_group: 'Rücken' },
+      // Gym - Rücken (Kraft)
+      { name: 'Kreuzheben', muscle_group: 'Rücken', exercise_type: 'strength' },
+      { name: 'Klimmzüge', muscle_group: 'Rücken', exercise_type: 'strength' },
+      { name: 'Rudern (Langhantel)', muscle_group: 'Rücken', exercise_type: 'strength' },
+      { name: 'Latzug', muscle_group: 'Rücken', exercise_type: 'strength' },
+      { name: 'T-Bar Rudern', muscle_group: 'Rücken', exercise_type: 'strength' },
       
-      // Gym - Beine
-      { name: 'Kniebeugen', muscle_group: 'Beine' },
-      { name: 'Beinpresse', muscle_group: 'Beine' },
-      { name: 'Beinstrecker', muscle_group: 'Beine' },
-      { name: 'Beinbeuger', muscle_group: 'Beine' },
-      { name: 'Wadenheben', muscle_group: 'Beine' },
-      { name: 'Ausfallschritte', muscle_group: 'Beine' },
+      // Gym - Beine (Kraft)
+      { name: 'Kniebeugen', muscle_group: 'Beine', exercise_type: 'strength' },
+      { name: 'Beinpresse', muscle_group: 'Beine', exercise_type: 'strength' },
+      { name: 'Beinstrecker', muscle_group: 'Beine', exercise_type: 'strength' },
+      { name: 'Beinbeuger', muscle_group: 'Beine', exercise_type: 'strength' },
+      { name: 'Wadenheben', muscle_group: 'Beine', exercise_type: 'strength' },
+      { name: 'Ausfallschritte', muscle_group: 'Beine', exercise_type: 'strength' },
       
-      // Gym - Schultern
-      { name: 'Schulterdrücken', muscle_group: 'Schultern' },
-      { name: 'Seitheben', muscle_group: 'Schultern' },
-      { name: 'Frontheben', muscle_group: 'Schultern' },
-      { name: 'Face Pulls', muscle_group: 'Schultern' },
+      // Gym - Schultern (Kraft)
+      { name: 'Schulterdrücken', muscle_group: 'Schultern', exercise_type: 'strength' },
+      { name: 'Seitheben', muscle_group: 'Schultern', exercise_type: 'strength' },
+      { name: 'Frontheben', muscle_group: 'Schultern', exercise_type: 'strength' },
+      { name: 'Face Pulls', muscle_group: 'Schultern', exercise_type: 'strength' },
       
-      // Gym - Arme
-      { name: 'Bizeps-Curls', muscle_group: 'Arme' },
-      { name: 'Trizeps-Drücken', muscle_group: 'Arme' },
-      { name: 'Hammer Curls', muscle_group: 'Arme' },
-      { name: 'Französisches Trizeps', muscle_group: 'Arme' },
+      // Gym - Arme (Kraft)
+      { name: 'Bizeps-Curls', muscle_group: 'Arme', exercise_type: 'strength' },
+      { name: 'Trizeps-Drücken', muscle_group: 'Arme', exercise_type: 'strength' },
+      { name: 'Hammer Curls', muscle_group: 'Arme', exercise_type: 'strength' },
+      { name: 'Französisches Trizeps', muscle_group: 'Arme', exercise_type: 'strength' },
       
-      // Gym - Bauch
-      { name: 'Plank (Unterarmstütz)', muscle_group: 'Bauch' },
-      { name: 'Crunches', muscle_group: 'Bauch' },
-      { name: 'Beinheben', muscle_group: 'Bauch' },
-      { name: 'Russische Twist', muscle_group: 'Bauch' },
-      { name: 'ADIM-Core (für Gleitwirbel)', muscle_group: 'Bauch' },
+      // Gym - Bauch (Mix - Core-Übungen sind Zeit, Crunches sind Kraft)
+      { name: 'Plank (Unterarmstütz)', muscle_group: 'Bauch', exercise_type: 'time' },
+      { name: 'Crunches', muscle_group: 'Bauch', exercise_type: 'strength' },
+      { name: 'Beinheben', muscle_group: 'Bauch', exercise_type: 'strength' },
+      { name: 'Russische Twist', muscle_group: 'Bauch', exercise_type: 'strength' },
+      { name: 'ADIM-Core (für Gleitwirbel)', muscle_group: 'Bauch', exercise_type: 'time' },
     ];
     
     let insertedCount = 0;
     defaultExercises.forEach(exercise => {
-      db.run('INSERT INTO exercises (user_id, name, muscle_group) VALUES (?, ?, ?)',
-        [userId, exercise.name, exercise.muscle_group],
+      // Versuche mit exercise_type, falls nicht vorhanden Fallback
+      db.run('INSERT INTO exercises (user_id, name, muscle_group, exercise_type) VALUES (?, ?, ?, ?)',
+        [userId, exercise.name, exercise.muscle_group, exercise.exercise_type],
         (err) => {
-          if (err) console.error('❌ Fehler beim Erstellen der Übung:', err.message);
-          else insertedCount++;
+          if (err && err.message.includes('no column named exercise_type')) {
+            // Fallback ohne exercise_type
+            db.run('INSERT INTO exercises (user_id, name, muscle_group) VALUES (?, ?, ?)',
+              [userId, exercise.name, exercise.muscle_group]);
+          } else if (err) {
+            console.error('❌ Fehler beim Erstellen der Übung:', err.message);
+          } else {
+            insertedCount++;
+          }
         }
       );
     });
@@ -504,6 +512,35 @@ app.post('/api/exercises', authenticateJWT, (req, res) => {
     }
     console.log('✅ Übung gespeichert, ID:', this.lastID);
     res.json({ id: this.lastID, name, muscle_group, exercise_type: type });
+  });
+});
+
+// Übung aktualisieren (PUT)
+app.put('/api/exercises/:id', authenticateJWT, (req, res) => {
+  const { name, muscle_group, exercise_type } = req.body;
+  
+  if (!name || !muscle_group) {
+    return res.status(400).json({ error: 'Name und Muskelgruppe erforderlich' });
+  }
+  
+  const type = exercise_type || 'strength';
+  
+  db.run('UPDATE exercises SET name = ?, muscle_group = ?, exercise_type = ? WHERE id = ? AND user_id = ?',
+    [name, muscle_group, type, req.params.id, req.user.userId], function(err) {
+    if (err) {
+      // Fallback wenn exercise_type Spalte fehlt
+      if (err.message.includes('no column named exercise_type')) {
+        db.run('UPDATE exercises SET name = ?, muscle_group = ? WHERE id = ? AND user_id = ?',
+          [name, muscle_group, req.params.id, req.user.userId], function(err2) {
+          if (err2) return res.status(500).json({ error: err2.message });
+          res.json({ message: 'Übung aktualisiert', id: req.params.id, name, muscle_group, exercise_type: 'strength' });
+        });
+        return;
+      }
+      return res.status(500).json({ error: err.message });
+    }
+    if (this.changes === 0) return res.status(404).json({ error: 'Übung nicht gefunden' });
+    res.json({ message: 'Übung aktualisiert', id: req.params.id, name, muscle_group, exercise_type: type });
   });
 });
 

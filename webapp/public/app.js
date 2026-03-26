@@ -517,6 +517,120 @@ async function deleteExercise(id) {
     }
 }
 
+// Übung bearbeiten - Öffnet Modal
+let editingExerciseId = null;
+
+function editExerciseForm(exerciseId) {
+    const exercise = exercises.find(e => e.id === exerciseId);
+    if (!exercise) return;
+    
+    editingExerciseId = exerciseId;
+    
+    // Modal erstellen
+    const modal = document.createElement('div');
+    modal.id = 'edit-exercise-modal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+    `;
+    
+    const typeOptions = `
+        <option value="strength" ${exercise.exercise_type === 'strength' ? 'selected' : ''}>💪 Kraft (Sätze/Wdh)</option>
+        <option value="time" ${exercise.exercise_type === 'time' ? 'selected' : ''}>⏱️ Zeit (Dauer)</option>
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 1px solid rgba(0,212,255,0.3); border-radius: 16px; padding: 24px; width: 90%; max-width: 400px;">
+            <h3 style="color: #00d4ff; margin-bottom: 20px; text-align: center;">✏️ Übung bearbeiten</h3>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="color: #888; display: block; margin-bottom: 5px;">Name</label>
+                <input type="text" id="edit-exercise-name" value="${exercise.name}" 
+                    style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff;">
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="color: #888; display: block; margin-bottom: 5px;">Muskelgruppe</label>
+                <select id="edit-exercise-muscle" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff;">
+                    <option value="Judo" ${exercise.muscle_group === 'Judo' ? 'selected' : ''}>🥋 Judo</option>
+                    <option value="Brust" ${exercise.muscle_group === 'Brust' ? 'selected' : ''}>Brust</option>
+                    <option value="Rücken" ${exercise.muscle_group === 'Rücken' ? 'selected' : ''}>Rücken</option>
+                    <option value="Schultern" ${exercise.muscle_group === 'Schultern' ? 'selected' : ''}>Schultern</option>
+                    <option value="Beine" ${exercise.muscle_group === 'Beine' ? 'selected' : ''}>Beine</option>
+                    <option value="Arme" ${exercise.muscle_group === 'Arme' ? 'selected' : ''}>Arme</option>
+                    <option value="Bauch" ${exercise.muscle_group === 'Bauch' ? 'selected' : ''}>Bauch</option>
+                    <option value="Ganzkörper" ${exercise.muscle_group === 'Ganzkörper' ? 'selected' : ''}>Ganzkörper</option>
+                    <option value="Dehnen" ${exercise.muscle_group === 'Dehnen' ? 'selected' : ''}>Dehnen</option>
+                    <option value="Mobilität" ${exercise.muscle_group === 'Mobilität' ? 'selected' : ''}>Mobilität</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="color: #888; display: block; margin-bottom: 5px;">Typ</label>
+                <select id="edit-exercise-type" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff;">
+                    ${typeOptions}
+                </select>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closeEditModal()" style="flex: 1; padding: 12px; background: rgba(255,100,100,0.2); border: 1px solid rgba(255,100,100,0.5); border-radius: 8px; color: #f66; cursor: pointer;">❌ Abbrechen</button>
+                <button onclick="saveExerciseEdit()" style="flex: 1; padding: 12px; background: linear-gradient(45deg, #00d4ff, #7b2cbf); border: none; border-radius: 8px; color: #fff; cursor: pointer; font-weight: bold;">💾 Speichern</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+function closeEditModal() {
+    const modal = document.getElementById('edit-exercise-modal');
+    if (modal) {
+        modal.remove();
+        editingExerciseId = null;
+    }
+}
+
+async function saveExerciseEdit() {
+    if (!editingExerciseId) return;
+    
+    const name = document.getElementById('edit-exercise-name').value;
+    const muscle_group = document.getElementById('edit-exercise-muscle').value;
+    const exercise_type = document.getElementById('edit-exercise-type').value;
+    
+    if (!name || !muscle_group) {
+        alert('Bitte Name und Muskelgruppe ausfüllen');
+        return;
+    }
+    
+    try {
+        const res = await apiFetch(`/api/exercises/${editingExerciseId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ name, muscle_group, exercise_type })
+        });
+        
+        if (res && res.ok) {
+            closeEditModal();
+            await loadExercises();
+            await autoBackup();
+            alert('✅ Übung aktualisiert!');
+        } else {
+            const err = await res.json();
+            alert('Fehler: ' + (err.error || 'Konnte nicht speichern'));
+        }
+    } catch (err) {
+        console.error('❌ Fehler beim Speichern:', err);
+        alert('Fehler beim Speichern');
+    }
+}
+
 // Render exercises list
 function renderExercisesList() {
     const container = document.getElementById('exercises-list');
@@ -526,15 +640,35 @@ function renderExercisesList() {
         return;
     }
     
-    container.innerHTML = exercises.map(e => `
-        <div class="list-item">
-            <div class="list-item-info">
-                <h4>${e.name}</h4>
-                <p>${e.muscle_group}</p>
-            </div>
-            <button class="btn-delete" onclick="deleteExercise(${e.id})">🗑️</button>
-        </div>
-    `).join('');
+    // Gruppiere nach Muskelgruppe
+    const grouped = {};
+    exercises.forEach(e => {
+        if (!grouped[e.muscle_group]) {
+            grouped[e.muscle_group] = [];
+        }
+        grouped[e.muscle_group].push(e);
+    });
+    
+    let html = '';
+    Object.entries(grouped).forEach(([muscleGroup, exerciseList]) => {
+        html += `<div style="margin-bottom: 20px;"></h3>${muscleGroup}</h3></div>`;
+        html += exerciseList.map(e => {
+            const typeIcon = e.exercise_type === 'time' ? '⏱️' : '💪';
+            return `
+            <div class="list-item" style="margin-bottom: 10px;">
+                <div class="list-item-info">
+                    <h4>${e.name} <span style="color: #666; font-size: 0.8rem;">${typeIcon}</span></h4>
+                    <p style="color: #888; font-size: 0.85rem;">${e.muscle_group}</p>
+                </div>
+                <div class="workout-actions" style="display: flex; gap: 8px;">
+                    <button class="btn-edit" onclick="editExerciseForm(${e.id})" title="Bearbeiten">✏️</button>
+                    <button class="btn-delete" onclick="deleteExercise(${e.id})" title="Löschen">🗑️</button>
+                </div>
+            </div>`;
+        }).join('');
+    });
+    
+    container.innerHTML = html;
 }
 
 // Load workouts

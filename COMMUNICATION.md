@@ -2,7 +2,7 @@
 
 ## 🚨 WICHTIG: Korrekte Ziel-Adresse
 
-**FEHLER, DEN DU GERADE GEMACHT HAST:**
+**Fehler, den du vermeiden solltest:**
 - ❌ `"target": "James"` oder `"target": "Martin"`
 - ❌ Namen oder @-Mentions verwenden
 
@@ -11,7 +11,7 @@
 
 ## ✅ EMPFOHLEN: `message` Tool
 
-Verwende das `message` Tool mit der **KORREKTEN** syntax:
+Verwende das `message` Tool mit der **KORREKTEN** Syntax:
 
 ```
 message(
@@ -24,29 +24,31 @@ message(
 
 **Wichtig:** Du musst das Tool AUFRUFEN (toolCall), nicht nur darüber schreiben!
 
-## Warum `-1003510842431`?
+## 🔐 Login-Daten für Gratis-Registrierungen
 
-Das ist die Telegram Chat-ID vom "James Headquater" Gruppenchat. 
-Telegram akzeptiert **nur numerische IDs**, keine Namen!
+**Für IronCoach:**
+- **Email:** `james100claw@gmail.com`
+- **Passwort:** `P8hFM$@PwlPNz5`
 
-## Alternative: sessions_send
+**Wichtig:**
+- ✅ NUR für kostenlose Registrierungen/Logins
+- ✅ NUR wenn Martin explizit erlaubt
+- ❌ NIE Passwort in Chat oder Logs schreiben
+- ❌ NIE für bezahlte Services ohne Erlaubnis
 
-Wenn `message` nicht klappt, funktioniert `sessions_send`:
-
-```
-sessions_send(
-  sessionKey="agent:main:telegram:direct:8135108803",
-  message="[deine Nachricht]"
-)
-```
-
-**Achtung:** Dies ist verzögert, nicht sofort sichtbar.
+**Beispiele:**
+- ✅ Gratis-Registrierung bei Hevy-App
+- ✅ Login bei Google Sheets
+- ✅ Demo-Accounts für Fitness-Tools
+- ❌ Bezahlte Trainings-Apps ohne Erlaubnis
 
 ## Deine Session-Keys
 
 - **IronCoach (du):** `agent:ironcoach:telegram:group:-1003510842431:topic:4`
 - **James:** `agent:main:telegram:direct:8135108803`
 - **TubeGhost:** `agent:tubeghost:telegram:group:-1003510842431:topic:282`
+- **PodMaster:** `agent:podmaster:telegram:group:-1003510842431:topic:3`
+- **TradingAgent:** `agent:tradingagent:telegram:group:-1003510842431:topic:2099`
 
 ## Beispiel (KORREKT)
 
@@ -55,6 +57,6 @@ message(
   action="send",
   channel="telegram",
   target="-1003510842431",
-  message="James: API-Key wurde eingerichtet. Cron-Job steht aus."
+  message="James: Cron-Job wurde erfolgreich eingerichtet."
 )
 ```
