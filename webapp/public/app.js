@@ -326,14 +326,28 @@ function selectCategory(category) {
 }
 
 function selectExerciseForWorkout(exerciseId, exerciseName) {
+    console.log('🎯 Übung ausgewählt:', exerciseId, exerciseName);
+    
     const exercise = exercises.find(e => e.id === parseInt(exerciseId));
+    console.log('📋 Exercise Objekt:', exercise);
+    console.log('⏱️ exercise_type:', exercise?.exercise_type);
     
     document.getElementById('workout-exercise').value = exerciseId;
     document.getElementById('selected-exercise-display').textContent = exerciseName;
     document.getElementById('selected-exercise-display').style.color = '#00d4ff';
     
     // Felder umschalten je nach Übungstyp
-    const isTimeBased = exercise && exercise.exercise_type === 'time';
+    // Fallback: Wenn exercise_type nicht gesetzt ist, prüfe den Namen
+    let isTimeBased = false;
+    if (exercise && exercise.exercise_type === 'time') {
+        isTimeBased = true;
+    } else if (exercise) {
+        // Fallback: Prüfe Übungsname auf Zeit-Keywords
+        const timeKeywords = ['plank', 'haltung', 'atmung', 'dehn', 'stretch', 'hold', 'vacuum', 'kindhaltung', 'katze'];
+        isTimeBased = timeKeywords.some(kw => exercise.name.toLowerCase().includes(kw));
+    }
+    
+    console.log('🔄 isTimeBased:', isTimeBased);
     toggleWorkoutFields(isTimeBased);
     
     closeExerciseSelector();
@@ -550,17 +564,26 @@ function parseDuration(str) {
 
 // Toggle zwischen Kraft- und Zeit-basierten Workout-Feldern
 function toggleWorkoutFields(isTimeBased) {
+    console.log('🔄 toggleWorkoutFields:', isTimeBased);
+    
     const strengthFields = document.getElementById('strength-fields');
     const timeFields = document.getElementById('time-fields');
     
-    if (strengthFields && timeFields) {
-        if (isTimeBased) {
-            strengthFields.style.display = 'none';
-            timeFields.style.display = 'grid'; // NICHT flex!
-        } else {
-            strengthFields.style.display = 'grid'; // NICHT flex!
-            timeFields.style.display = 'none';
-        }
+    console.log('📍 strengthFields:', !!strengthFields, '| timeFields:', !!timeFields);
+    
+    if (!strengthFields || !timeFields) {
+        console.log('❌ Felder nicht gefunden!');
+        return;
+    }
+    
+    if (isTimeBased) {
+        console.log('⏱️ Zeige Zeit-Felder');
+        strengthFields.style.display = 'none';
+        timeFields.style.display = 'flex'; // Für einzelnes Feld
+    } else {
+        console.log('💪 Zeige Kraft-Felder');
+        strengthFields.style.display = 'grid';
+        timeFields.style.display = 'none';
     }
 }
 
