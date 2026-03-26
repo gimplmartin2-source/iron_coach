@@ -1163,12 +1163,7 @@ function initPlanCheckboxes() {
                     
                     if (input !== null) {
                         // Workout speichern mit den bearbeiteten Werten
-                        await addPlanWorkout(
-                            exercise.id, 
-                            input.weight, 
-                            input.sets, 
-                            input.reps
-                        );
+                        await addPlanWorkout(exercise.id, input);
                         exerciseRow?.classList.add('completed');
                         
                         // Visuelle Bestätigung
@@ -1205,20 +1200,32 @@ function initPlanCheckboxes() {
     });
 }
 
-// Modal für Trainingseintrag
+// Modal für Trainingseintrag - mit Pause und Gefühl
 function showTrainingModal(exerciseName, defaultSets, defaultReps, duration) {
     return new Promise((resolve) => {
         const isDuration = duration && (duration.includes('Sek') || duration.includes('Min'));
         const isStretch = exerciseName.toLowerCase().includes('dehn') || 
                          exerciseName.toLowerCase().includes('stretch') ||
                          exerciseName.toLowerCase().includes('haltung') ||
-                         exerciseName.toLowerCase().includes('atmung');
+                         exerciseName.toLowerCase().includes('atmung') ||
+                         exerciseName.toLowerCase().includes('kindhaltung') ||
+                         exerciseName.toLowerCase().includes('katze') ||
+                         exerciseName.toLowerCase().includes('hüftbeuger');
         
-        // Parse Duration für default Reps
-        let defaultRepsFromDuration = defaultReps;
+        // Parse Duration für default
+        let defaultDuration = 60;
+        let defaultDurationUnit = 'seconds';
         if (duration) {
-            const match = duration.match(/(\d+)/);
-            if (match) defaultRepsFromDuration = parseInt(match[1]);
+            if (duration.includes('Min')) {
+                const match = duration.match(/(\d+)/);
+                if (match) {
+                    defaultDuration = parseInt(match[1]);
+                    defaultDurationUnit = 'minutes';
+                }
+            } else {
+                const match = duration.match(/(\d+)/);
+                if (match) defaultDuration = parseInt(match[1]);
+            }
         }
         
         // Modal erstellen
@@ -1263,9 +1270,164 @@ function showTrainingModal(exerciseName, defaultSets, defaultReps, duration) {
         const form = document.createElement('div');
         form.style.cssText = 'display: flex; flex-direction: column; gap: 15px;';
         
-        // Gewicht Feld
-        const weightGroup = document.createElement('div');
-        weightGroup.style.cssText = 'display: flex; flex-direction: column; gap: 5px;';
+        // Felder je nach Übungstyp
+        let weightInput, setsInput, repsInput, durationInput, durationUnit, restInput, feelingInput;
+        
+        if (isStretch) {
+            // 🧘 Dehnübung - nur Zeit und Gefühl
+            form.innerHTML = `
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <label style="color: #888; font-size: 0.9rem;">⏱️ Dauer</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="plan-duration" value="${defaultDuration}" min="1" 
+                            style="flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); 
+                            border-radius: 8px; padding: 12px; color: #fff; font-size: 1rem;">
+                        <select id="plan-duration-unit" 
+                            style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); 
+                            border-radius: 8px; padding: 12px; color: #fff; font-size: 1rem;">
+                            <option value="seconds" ${defaultDurationUnit === 'seconds' ? 'selected' : ''}>Sekunden</option>
+                            <option value="minutes" ${defaultDurationUnit === 'minutes' ? 'selected' : ''}>Minuten</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+        } else {
+            // 💪 Kraftübung - Gewicht, Sätze, Wdh
+            form.innerHTML += `
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <label style="color: #888; font-size: 0.9rem;">🏋️ Gewicht (kg)</label>
+                    <input type="number" id="plan-weight" value="20" step="0.5" min="0"
+                        style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); 
+                        border-radius: 8px; padding: 12px; color: #fff; font-size: 1rem;">
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
+                        <label style="color: #888; font-size: 0.9rem;">🔄 Sätze</label>
+                        <input type="number" id="plan-sets" value="${defaultSets}" min="1"
+                            style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); 
+                            border-radius: 8px; padding: 12px; color: #fff; font-size: 1rem;">
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
+                        <label style="color: #888; font-size: 0.9rem;">💪 Wdh./Satz</label>
+                        <input type="number" id="plan-reps" value="${defaultReps}" min="1"
+                            style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); 
+                            border-radius: 8px; padding: 12px; color: #fff; font-size: 1rem;">
+                    </div>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <label style="color: #888; font-size: 0.9rem;">😴 Pause (Sekunden)</label>
+                    <input type="number" id="plan-rest" value="60" min="0" step="15"
+                        style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); 
+                        border-radius: 8px; padding: 12px; color: #fff; font-size: 1rem;">
+                </div>
+            `;
+        }
+        
+        // Gefühl für alle Übungstypen
+        form.innerHTML += `
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+                <label style="color: #888; font-size: 0.9rem;">🔥 Gefühl (1-10) <span style="color: #666; font-size: 0.8rem;">1 = müde, 10 = super</span></label>
+                <input type="range" id="plan-feeling" min="1" max="10" value="7"
+                    style="width: 100%; margin: 10px 0;" oninput="document.getElementById('feeling-value').textContent = this.value">
+                <div style="text-align: center; color: #00d4ff; font-size: 1.2rem; font-weight: bold;">
+                    <span id="feeling-value">7</span>/10
+                </div>
+            </div>
+        `;
+        
+        // Buttons
+        const buttonGroup = document.createElement('div');
+        buttonGroup.style.cssText = 'display: flex; gap: 10px; margin-top: 20px;';
+        
+        const saveBtn = document.createElement('button');
+        saveBtn.textContent = '💾 Speichern';
+        saveBtn.style.cssText = `
+            flex: 1;
+            padding: 12px;
+            background: linear-gradient(45deg, #00d4ff, #7b2cbf);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        `;
+        saveBtn.onmouseover = () => saveBtn.style.transform = 'scale(1.02)';
+        saveBtn.onmouseout = () => saveBtn.style.transform = 'scale(1)';
+        
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = '❌ Abbrechen';
+        cancelBtn.style.cssText = `
+            flex: 1;
+            padding: 12px;
+            background: rgba(255,100,100,0.2);
+            border: 1px solid rgba(255,100,100,0.5);
+            border-radius: 8px;
+            color: #f66;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        `;
+        cancelBtn.onmouseover = () => cancelBtn.style.background = 'rgba(255,100,100,0.3)';
+        cancelBtn.onmouseout = () => cancelBtn.style.background = 'rgba(255,100,100,0.2)';
+        
+        buttonGroup.appendChild(cancelBtn);
+        buttonGroup.appendChild(saveBtn);
+        
+        // Zusammenbauen
+        content.appendChild(title);
+        content.appendChild(form);
+        content.appendChild(buttonGroup);
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+        
+        // Event Handlers
+        const handleSave = () => {
+            const feeling = parseInt(document.getElementById('plan-feeling').value) || 7;
+            
+            if (isStretch) {
+                // 🧘 Dehnübung - nur Dauer
+                const durationVal = parseInt(document.getElementById('plan-duration').value) || 60;
+                const durationUnit = document.getElementById('plan-duration-unit').value;
+                const durationSec = durationUnit === 'minutes' ? durationVal * 60 : durationVal;
+                
+                document.body.removeChild(modal);
+                resolve({
+                    isStretch: true,
+                    duration_seconds: durationSec,
+                    feeling: feeling,
+                    weight: 0,
+                    sets: 1,
+                    reps: durationSec
+                });
+            } else {
+                // 💪 Kraftübung
+                const weight = parseFloat(document.getElementById('plan-weight').value) || 0;
+                const sets = parseInt(document.getElementById('plan-sets').value) || defaultSets;
+                const reps = parseInt(document.getElementById('plan-reps').value) || defaultReps;
+                const rest = parseInt(document.getElementById('plan-rest').value) || 60;
+                
+                document.body.removeChild(modal);
+                resolve({
+                    isStretch: false,
+                    weight: weight,
+                    sets: sets,
+                    reps: reps,
+                    rest_seconds: rest,
+                    feeling: feeling
+                });
+            }
+        };
+        
+        const handleCancel = () => {
+            document.body.removeChild(modal);
+            resolve(null);
+        };
+        
+        saveBtn.addEventListener('click', handleSave);
+        cancelBtn.addEventListener('click', handleCancel);
         
         const weightLabel = document.createElement('label');
         weightLabel.textContent = isStretch ? 'Gewicht (optional, für extra Widerstand)' : 'Gewicht (kg)';
@@ -1765,15 +1927,15 @@ function initExerciseImages() {
         }
     });
 }
-async function addPlanWorkout(exerciseId, weight, sets, reps) {
+async function addPlanWorkout(exerciseId, input) {
     try {
         const data = {
             exercise_id: exerciseId,
-            weight: weight,
-            sets: sets,
-            reps: reps,
-            rest_seconds: 60,
-            feeling: 7,
+            weight: input.isStretch ? 0 : input.weight,
+            sets: input.isStretch ? 1 : input.sets,
+            reps: input.isStretch ? input.duration_seconds : input.reps,
+            rest_seconds: input.rest_seconds || 60,
+            feeling: input.feeling || 7,
             date: new Date().toISOString().split('T')[0] // Heute
         };
         
