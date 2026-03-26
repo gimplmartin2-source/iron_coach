@@ -431,6 +431,10 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   app.get('/auth/google/callback', 
     passport.authenticate('google', { failureRedirect: '/login.html' }),
     (req, res) => {
+      // Debug: Log was wir haben
+      console.log('🔑 GOOGLE CALLBACK - req.user:', req.user?.id);
+      console.log('🔑 GOOGLE CALLBACK - req.authInfo:', req.authInfo);
+      
       // Google Tokens für Drive-Backup in JWT speichern
       const tokenPayload = { 
         userId: req.user.id, 
@@ -438,11 +442,24 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       };
       
       // Wenn Google OAuth, zusätzliche Tokens speichern
-      if (req.authInfo && req.authInfo.accessToken) {
-        tokenPayload.googleAccessToken = req.authInfo.accessToken;
+      // Passport speichert das nicht automatisch in req.authInfo, wir müssen es aus der Session holen oder anders speichern
+      if (req.authInfo) {
+        if (req.authInfo.accessToken) {
+          tokenPayload.googleAccessToken = req.authInfo.accessToken;
+          console.log('✅ Google Access Token hinzugefügt zum JWT');
+        } else {
+          console.log('⚠️ KEIN Access Token in req.authInfo');
+        }
+      } else {
+        console.log('⚠️ KEIN req.authInfo vorhanden');
       }
       
       const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '24h' });
+      
+      // Debug: Token decodieren und prüfen
+      const decoded = jwt.decode(token);
+      console.log('🔑 JWT Payload (googleToken vorhanden?):', !!decoded.googleAccessToken);
+      
       res.redirect(`/?token=${token}`);
     }
   );
@@ -727,8 +744,10 @@ app.post('/api/backup/drive', authenticateJWT, async (req, res) => {
 // Restore von Google Drive
 app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
   try {
-    // Prüfe ob Google OAuth vorhanden
+    // Debug: Zeige was im Token ist
     console.log('🔄 RESTORE-REQUEST für User:', req.user.userId || req.user.id);
+    console.log('🔄 JWT Payload keys:', Object.keys(req.user));
+    console.log('🔄 Google Token vorhanden?:', !!req.user.googleAccessToken);
     
     const accessToken = req.user.googleAccessToken;
     
