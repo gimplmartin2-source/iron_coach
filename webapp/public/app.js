@@ -775,6 +775,10 @@ function cancelEdit() {
 // Gruppierte Workouts nach Datum
 function groupWorkoutsByDate() {
     const grouped = {};
+    if (!Array.isArray(workouts)) {
+        console.error('❌ workouts ist kein Array:', workouts);
+        return grouped;
+    }
     workouts.forEach(w => {
         if (!grouped[w.date]) {
             grouped[w.date] = [];
