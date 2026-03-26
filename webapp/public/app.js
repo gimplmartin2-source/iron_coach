@@ -51,6 +51,69 @@ let currentUser = null;
 let progressChart = null;
 let volumeChart = null;
 
+// GIF Zuordnung für Übungen
+const exerciseGifs = {
+    'Bankdrücken (Langhantel)': 'bankdruecken_langhantel_flachbank.gif',
+    'Bankdrücken Kurzhantel': 'bankdruecken_ausfuehrung_mit_kurzhanteln.gif',
+    'Schrägbankdrücken': 'bankdruecken_schraeg_mit_langhantel-1.gif',
+    'Fliegende (Butterfly)': 'butterfly_uebung_mit_kurzhanteln-2.gif',
+    'Dips': 'dips_ausfuehrung-trizeps_dips_geraet-1.gif',
+    'Kreuzheben': 'rumenian_deadlift-1.gif',
+    'Klimmzüge': 'klimmzugstange_uebungen-enge_klimmzuege_untergriff-1.gif',
+    'Rudern (Langhantel)': 'rudern_mit_kurzhantel-einarmig-1.gif',
+    'Latzug': 'latzuggeraet_uebungen-latzuggeraet_kabelzug_obergriff.gif',
+    'T-Bar Rudern': 't_bar_rudern-beidarmig.gif',
+    'Kniebeugen': 'kniebeugen_ausfuehrung-1.gif',
+    'Beinpresse': 'beinpresse_muskeln-45_grad_beinpresse_breit.gif',
+    'Beinstrecker': 'beinstrecker_maschine-1.gif',
+    'Beinbeuger': 'beinbeuger_trainieren-beckenheben-1.gif',
+    'Wadenheben': 'calf_raises-1.gif',
+    'Ausfallschritte': 'ausfallschritte_kurzhantel_nach_vorne.gif',
+    'Schulterdrücken': 'schulterdruecken_mit_kurzhanteln-stehend-1.gif',
+    'Seitheben': 'kurzhantel_seitheben-sitzend-1.gif',
+    'Frontheben': 'frontheben_kurzhantel_stehend_einarmig.gif',
+    'Face Pulls': 'face-pulls-kabelzug.gif',
+    'Bizeps-Curls': 'bizeps_curls_kurzhanteln_abwechselnd.gif',
+    'Trizeps-Drücken': 'trizeps_uebungen_fitnessstudio-trizepsdruecken_am_kabelzug-1.gif',
+    'Hammer Curls': 'hammercurl_kurzhanteln_abwechselnd.gif',
+    'Französisches Trizeps': 'trizepstraining_zuhause-kurzhandell_trizepsdruecken_beidarmig.gif',
+    'Plank (Unterarmstütz)': 'plank.gif',
+    'Crunches': 'bauchmuskeluebungen_zu_hause-crunches.gif',
+    'Beinheben': 'liegendes_beinheben-1.gif',
+    'Russische Twist': 'russian_twist.gif',
+    'ADIM-Core (für Gleitwirbel)': 'adim-core.gif',
+    'Dead Bug': 'dead-bug.gif',
+    'Bird-Dog': 'bird-dog.gif',
+    'Glute Bridge': 'glute-bridge.gif',
+    'Butterfly Stretch': 'butterfly-stretch.gif',
+    'Cat-Cow': 'cat-cow.gif',
+    'Hip Stretch': 'hip-stretch.gif',
+    'Torso Rotation': 'torso-rotation.gif',
+    'Judo': 'judo.gif',
+    'Rückenstrecker': 'rueckenstrecker_uebungen_gym-rueckenstrecker_geraet_zusatzgewicht.gif',
+    'Rudern (Kabelzug)': 'rudern_am_kabelzug-einarmig-1.gif'
+};
+
+// Hilfsfunktion: Finde passendes GIF für Übung
+function getExerciseGif(exerciseName) {
+    if (!exerciseName) return null;
+    
+    // Direkte Übereinstimmung
+    if (exerciseGifs[exerciseName]) {
+        return `/exercises/${exerciseGifs[exerciseName]}`;
+    }
+    
+    // Suche nach Teilübereinstimmung
+    for (const [key, value] of Object.entries(exerciseGifs)) {
+        if (exerciseName.toLowerCase().includes(key.toLowerCase()) || 
+            key.toLowerCase().includes(exerciseName.toLowerCase())) {
+            return `/exercises/${value}`;
+        }
+    }
+    
+    return null;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     // User Info laden
     const userStr = localStorage.getItem('user');
@@ -680,9 +743,12 @@ function renderExercisesList() {
         html += `<div style="margin-bottom: 20px;"></h3>${muscleGroup}</h3></div>`;
         html += exerciseList.map(e => {
             const typeIcon = e.exercise_type === 'time' ? '⏱️' : '💪';
+            const gifPath = getExerciseGif(e.name);
+            const gifHtml = gifPath ? `<img src="${gifPath}" alt="${e.name}" style="width: 80px; height: 60px; object-fit: cover; border-radius: 8px; margin-right: 12px; cursor: pointer;" onclick="showGifModal('${gifPath}', '${e.name}')" title="Klicken zum Vergrößern">` : '';
             return `
-            <div class="list-item" style="margin-bottom: 10px;">
-                <div class="list-item-info">
+            <div class="list-item" style="margin-bottom: 10px; display: flex; align-items: center;">
+                ${gifHtml}
+                <div class="list-item-info" style="flex: 1;">
                     <h4>${e.name} <span style="color: #666; font-size: 0.8rem;">${typeIcon}</span></h4>
                     <p style="color: #888; font-size: 0.85rem;">${e.muscle_group}</p>
                 </div>
@@ -695,6 +761,33 @@ function renderExercisesList() {
     });
     
     container.innerHTML = html;
+}
+
+// Modal für GIF Anzeige
+function showGifModal(gifPath, exerciseName) {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        cursor: pointer;
+    `;
+    modal.innerHTML = `
+        <div style="text-align: center;" onclick="event.stopPropagation()">
+            <h3 style="color: #00d4ff; margin-bottom: 20px;">${exerciseName}</h3>
+            <img src="${gifPath}" style="max-width: 90vw; max-height: 70vh; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+            <p style="color: #888; margin-top: 20px; font-size: 0.9rem;">Klicke außerhalb zum Schließen</p>
+        </div>
+    `;
+    modal.onclick = () => modal.remove();
+    document.body.appendChild(modal);
 }
 
 // Load workouts
