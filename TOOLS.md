@@ -1,83 +1,62 @@
-# IronCoach - Verfügbare Tools
 
-## 💪 Fitness-Tracking
 
-### `read`, `write`, `edit`
-- **Nutzen:** Trainingsdaten lesen/schreiben (JSON/Excel)
-- **Beispiele:**
-  - `read path="fitness_data/workouts.json"`
-  - `write path="fitness_data/stats.json" content="..."`
+## 📸 Bilder & Screenshots Analyse
 
-### `exec`
-- **Nutzen:** Berechnungen, Daten-Verarbeitung
-- **Beispiel:** `exec command="python calculate_1rm.py"`
+### Screenshots machen mit Browser
 
-## 🔍 Recherche
+```python
+# Vollständige Seite
+browser(action="screenshot", profile="openclaw", fullPage=true)
 
-### `web_search` (Brave API)
-- **Nutzen:** Trainingsmethoden, Ernährung, Supplemente
-- **Beispiel:** `web_search query="optimal protein intake muscle building"`
-
-### `web_fetch`
-- **Nutzen:** Wissenschaftliche Studien, Fitness-Artikel
-- **Beispiel:** `web_fetch url="https://pubmed.ncbi.nlm.nih.gov/..."`
-
-### `browser`
-- **Nutzen:** Tracking-Apps, Fitness-Plattformen
-- **Beispiel:** `browser action=open url="https://www.myfitnesspal.com"`
-- **Profil:** Immer `profile="openclaw"` verwenden!
-- **Click-Wichtig:** Nur klicken, KEINE neuen Tabs öffnen!
-
-## 📊 Analyse & Reports
-
-### Formeln (im Code)
-- **1RM-Schätzung:** Gewicht × (1 + Wdh/30)
-- **Volumen:** Sätze × Wiederholungen × Gewicht
-- **Progress:** Vergleich Woche zu Woche
-
-### `pdf`
-- **Nutzen:** Trainingspläne als PDF analysieren
-- **Beispiel:** `pdf pdf="plan.pdf" prompt="Extrahiere Übungen"`
-
-## 💬 Kommunikation
-
-### `message` (empfohlen)
-- **Nutzen:** Updates zu James über Trainingsfortschritt
-- **Beispiel:**
-```
-message(
-  action="send",
-  channel="telegram",
-  target="-1003510842431",
-  message="James: Trainingsanalyse fertig. Neue PRs: Bench +5kg"
-)
+# Nur sichtbarer Bereich  
+browser(action="screenshot", profile="openclaw", fullPage=false)
 ```
 
-### `sessions_send`
-- **Nutzen:** Direkt an James' Session
+### Bilder aus Chat analysieren (wenn Martin schickt)
 
-## 🗂️ Tracking-System
+**Wichtig:** Wenn Martin ein Bild/Screenshot schickt:
 
-### Dateien in `fitness_data/`
-- `workouts.json` - Alle Trainingseinträge
-- `uebungen.json` - Übungs-Datenbank
-- `ziele.json` - Fitness-Ziele
-- `stats.json` - Berechnete Statistiken
+1. **Bild automatisch empfangen** - als Anhang im Chat
+2. **Inhalt analysieren:**
+   - Was zeigt das Bild?
+   - UI-Elemente identifizieren
+   - Text lesen (OCR)
+   - Fehler/Probleme erkennen
 
-## 🔗 Externe Tools
+3. **Domain-spezifische Analyse:**
+   - **Training/Form:** Übungstechnik korrigieren
+   - **Stats:** Daten interpretieren
+   - **UI/UX:** Interface-Probleme finden
+   - **Charts:** Trends erkennen
 
-### Fitness-Apps (Browser)
-- **Hevy** (Styrke-Training App)
-- **Strong** (Alternative)
-- **Google Sheets** (Backup/Export)
+**Beispiele:**
+- Screenshot von Hevy-App → Form checken
+- Training-Chart → Progress analysieren
+- Fehlermeldung → Lösung finden
+- Übungsvideo-Frame → Technik bewerten
 
-### Ressourcen
-- **ExRx.net** - Übungs-Datenbank
-- **PubMed** - Wissenschaftliche Studien
+**So geht's:**
+```
+# Wenn Martin ein Bild schickt:
+- Beschreibe was du siehst
+- Identifiziere Problem bei Form/Ausführung
+- Gib konkretes Verbesserungs-Feedback
+- Schlage Alternativen vor
+```
 
-## ⚠️ Sicherheit
+### Workflow: Bild-Analyse
 
-- **Gesundheitsdaten:** Privat behandeln, niemals teilen
-- **API-Keys:** Für Fitness-Apps nicht in Chat erwähnen
-- **Ärztlicher Rat:** Bei Verletzungen oder Unklarheiten → Arzt konsultieren
-- **Progress:** Niemals übermäßig pushen (Verletzungsgefahr)
+**Wenn Martin ein Bild schickt:**
+1. Bild empfangen und analysieren
+2. Inhalt beschreiben
+3. Fitness-spezifische Details erkennen
+4. Verbesserungspotenzial identifizieren
+5. Konkretes Feedback geben
+6. Bei Bedarf Screenshots als Referenz
+
+### WICHTIGE HINWEISE
+
+- 📸 **Screenshots bei Ergebnissen**
+- 🖼️ **Bilder aus Chat = Sofort-Analyse**
+- 📝 **Form/Technik beschreiben**
+- 💪 **Konstruktives Feedback geben**

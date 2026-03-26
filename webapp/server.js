@@ -95,7 +95,6 @@ db.serialize(() => {
     user_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     muscle_group TEXT NOT NULL,
-    exercise_type TEXT DEFAULT 'strength',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`);
@@ -117,32 +116,14 @@ db.serialize(() => {
     }
   });
 
-  // Migration: exercise_type zu exercises hinzufügen
-  db.all(`PRAGMA table_info(exercises)`, [], (err, columns) => {
-    if (!err && columns) {
-      const hasExerciseType = columns.some(col => col.name === 'exercise_type');
-      if (!hasExerciseType) {
-        console.log('⚠️ Migration: exercise_type Spalte fehlt in exercises, füge hinzu...');
-        db.run(`ALTER TABLE exercises ADD COLUMN exercise_type TEXT DEFAULT 'strength'`, (alterErr) => {
-          if (alterErr) {
-            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
-          } else {
-            console.log('✅ exercise_type Spalte zu exercises hinzugefügt');
-          }
-        });
-      }
-    }
-  });
-
   // Workouts Tabelle
   db.run(`CREATE TABLE IF NOT EXISTS workouts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     exercise_id INTEGER,
-    weight REAL,
-    sets INTEGER,
-    reps INTEGER,
-    duration_seconds INTEGER,
+    weight REAL NOT NULL,
+    sets INTEGER NOT NULL,
+    reps INTEGER NOT NULL,
     rest_seconds INTEGER,
     feeling INTEGER CHECK(feeling >= 1 AND feeling <= 10),
     date TEXT NOT NULL,
@@ -162,23 +143,6 @@ db.serialize(() => {
             console.error('❌ Migration fehlgeschlagen:', alterErr.message);
           } else {
             console.log('✅ user_id Spalte zu workouts hinzugefügt');
-          }
-        });
-      }
-    }
-  });
-
-  // Migration: duration_seconds zu workouts hinzufügen
-  db.all(`PRAGMA table_info(workouts)`, [], (err, columns) => {
-    if (!err && columns) {
-      const hasDuration = columns.some(col => col.name === 'duration_seconds');
-      if (!hasDuration) {
-        console.log('⚠️ Migration: duration_seconds Spalte fehlt in workouts, füge hinzu...');
-        db.run(`ALTER TABLE workouts ADD COLUMN duration_seconds INTEGER`, (alterErr) => {
-          if (alterErr) {
-            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
-          } else {
-            console.log('✅ duration_seconds Spalte zu workouts hinzugefügt');
           }
         });
       }
@@ -431,10 +395,6 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   app.get('/auth/google/callback', 
     passport.authenticate('google', { failureRedirect: '/login.html' }),
     (req, res) => {
-      // Debug: Log was wir haben
-      console.log('🔑 GOOGLE CALLBACK - req.user:', req.user?.id);
-      console.log('🔑 GOOGLE CALLBACK - req.authInfo:', req.authInfo);
-      
       // Google Tokens für Drive-Backup in JWT speichern
       const tokenPayload = { 
         userId: req.user.id, 
@@ -442,24 +402,11 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       };
       
       // Wenn Google OAuth, zusätzliche Tokens speichern
-      // Passport speichert das nicht automatisch in req.authInfo, wir müssen es aus der Session holen oder anders speichern
-      if (req.authInfo) {
-        if (req.authInfo.accessToken) {
-          tokenPayload.googleAccessToken = req.authInfo.accessToken;
-          console.log('✅ Google Access Token hinzugefügt zum JWT');
-        } else {
-          console.log('⚠️ KEIN Access Token in req.authInfo');
-        }
-      } else {
-        console.log('⚠️ KEIN req.authInfo vorhanden');
+      if (req.authInfo && req.authInfo.accessToken) {
+        tokenPayload.googleAccessToken = req.authInfo.accessToken;
       }
       
       const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '24h' });
-      
-      // Debug: Token decodieren und prüfen
-      const decoded = jwt.decode(token);
-      console.log('🔑 JWT Payload (googleToken vorhanden?):', !!decoded.googleAccessToken);
-      
       res.redirect(`/?token=${token}`);
     }
   );
@@ -500,9 +447,9 @@ app.get('/api/exercises', authenticateJWT, (req, res) => {
 
 // Neue Übung hinzufügen
 app.post('/api/exercises', authenticateJWT, (req, res) => {
-  const { name, muscle_group, exercise_type } = req.body;
+  const { name, muscle_group } = req.body;
   
-  console.log('📝 Übung hinzufügen:', { name, muscle_group, exercise_type, userId: req.user.userId });
+  console.log('📝 Übung hinzufügen:', { name, muscle_group, userId: req.user.userId });
   
   if (!name || !muscle_group) {
     return res.status(400).json({ error: 'Name und Muskelgruppe erforderlich' });
@@ -513,31 +460,14 @@ app.post('/api/exercises', authenticateJWT, (req, res) => {
     return res.status(401).json({ error: 'Nicht authentifiziert' });
   }
   
-  const type = exercise_type || 'strength';
-  
-  // Versuche mit exercise_type - falls Spalte fehlt, Fallback auf Basis-INSERT
-  db.run('INSERT INTO exercises (user_id, name, muscle_group, exercise_type) VALUES (?, ?, ?, ?)', 
-    [req.user.userId, name, muscle_group, type], function(err) {
+  db.run('INSERT INTO exercises (user_id, name, muscle_group) VALUES (?, ?, ?)', 
+    [req.user.userId, name, muscle_group], function(err) {
     if (err) {
-      if (err.message.includes('no column named exercise_type')) {
-        // Fallback: Ohne exercise_type einfügen
-        console.log('⚠️ exercise_type Spalte fehlt, füge ohne hinzu');
-        db.run('INSERT INTO exercises (user_id, name, muscle_group) VALUES (?, ?, ?)', 
-          [req.user.userId, name, muscle_group], function(err2) {
-          if (err2) {
-            console.error('❌ DB Fehler (Fallback):', err2);
-            return res.status(500).json({ error: 'Datenbankfehler: ' + err2.message });
-          }
-          console.log('✅ Übung gespeichert (ohne exercise_type), ID:', this.lastID);
-          res.json({ id: this.lastID, name, muscle_group, exercise_type: 'strength' });
-        });
-        return;
-      }
       console.error('❌ DB Fehler:', err);
       return res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
     }
     console.log('✅ Übung gespeichert, ID:', this.lastID);
-    res.json({ id: this.lastID, name, muscle_group, exercise_type: type });
+    res.json({ id: this.lastID, name, muscle_group });
   });
 });
 
@@ -557,10 +487,8 @@ app.delete('/api/exercises/:id', authenticateJWT, (req, res) => {
 
 // Alle Workouts abrufen
 app.get('/api/workouts', authenticateJWT, (req, res) => {
-  // Explizite Spaltenauflistung - nur existierende Spalten
   const query = `
-    SELECT w.id, w.user_id, w.exercise_id, w.weight, w.sets, w.reps, w.rest_seconds, w.feeling, w.date, w.created_at,
-           e.name as exercise_name, e.muscle_group
+    SELECT w.*, e.name as exercise_name, e.muscle_group 
     FROM workouts w 
     JOIN exercises e ON w.exercise_id = e.id 
     WHERE w.user_id = ?
@@ -574,27 +502,27 @@ app.get('/api/workouts', authenticateJWT, (req, res) => {
 
 // Neues Workout hinzufügen
 app.post('/api/workouts', authenticateJWT, (req, res) => {
-  const { exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date } = req.body;
+  const { exercise_id, weight, sets, reps, rest_seconds, feeling, date } = req.body;
   db.run(
-    'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [req.user.userId, exercise_id, weight || null, sets || null, reps || null, duration_seconds || null, rest_seconds || null, feeling, date],
+    'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [req.user.userId, exercise_id, weight, sets, reps, rest_seconds, feeling, date],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
-      res.json({ id: this.lastID, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date });
+      res.json({ id: this.lastID, exercise_id, weight, sets, reps, rest_seconds, feeling, date });
     }
   );
 });
 
 // Workout aktualisieren (PUT)
 app.put('/api/workouts/:id', authenticateJWT, (req, res) => {
-  const { exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date } = req.body;
+  const { exercise_id, weight, sets, reps, rest_seconds, feeling, date } = req.body;
   db.run(
-    'UPDATE workouts SET exercise_id = ?, weight = ?, sets = ?, reps = ?, duration_seconds = ?, rest_seconds = ?, feeling = ?, date = ? WHERE id = ? AND user_id = ?',
-    [exercise_id, weight || null, sets || null, reps || null, duration_seconds || null, rest_seconds, feeling, date, req.params.id, req.user.userId],
+    'UPDATE workouts SET exercise_id = ?, weight = ?, sets = ?, reps = ?, rest_seconds = ?, feeling = ?, date = ? WHERE id = ? AND user_id = ?',
+    [exercise_id, weight, sets, reps, rest_seconds, feeling, date, req.params.id, req.user.userId],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Workout nicht gefunden' });
-      res.json({ message: 'Workout aktualisiert', id: req.params.id, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date });
+      res.json({ message: 'Workout aktualisiert', id: req.params.id, exercise_id, weight, sets, reps, rest_seconds, feeling, date });
     }
   );
 });
@@ -744,10 +672,8 @@ app.post('/api/backup/drive', authenticateJWT, async (req, res) => {
 // Restore von Google Drive
 app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
   try {
-    // Debug: Zeige was im Token ist
+    // Prüfe ob Google OAuth vorhanden
     console.log('🔄 RESTORE-REQUEST für User:', req.user.userId || req.user.id);
-    console.log('🔄 JWT Payload keys:', Object.keys(req.user));
-    console.log('🔄 Google Token vorhanden?:', !!req.user.googleAccessToken);
     
     const accessToken = req.user.googleAccessToken;
     
@@ -947,43 +873,6 @@ app.get('/api/analytics/summary', authenticateApiKey, (req, res) => {
           res.json(summary);
         });
       });
-    });
-  });
-});
-
-// Debug-Endpunkt: Zeigt Workouts für User 1 (Martin) ohne Auth
-app.get('/api/debug/workouts', (req, res) => {
-  const query = `
-    SELECT w.*, e.name as exercise_name, e.muscle_group, e.exercise_type 
-    FROM workouts w 
-    JOIN exercises e ON w.exercise_id = e.id 
-    WHERE w.user_id = 1
-    ORDER BY w.date DESC, w.created_at DESC
-  `;
-  db.all(query, [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ 
-      count: rows.length,
-      workouts: rows
-    });
-  });
-});
-
-// Debug: Alle Workouts (alle User) - ohne Auth
-app.get('/api/debug/all-workouts', (req, res) => {
-  const query = `
-    SELECT w.id, w.user_id, w.exercise_id, w.weight, w.sets, w.reps, w.duration_seconds, w.date, 
-           e.name as exercise_name, e.muscle_group, e.exercise_type 
-    FROM workouts w 
-    JOIN exercises e ON w.exercise_id = e.id 
-    ORDER BY w.date DESC
-    LIMIT 20
-  `;
-  db.all(query, [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ 
-      count: rows.length,
-      workouts: rows
     });
   });
 });
