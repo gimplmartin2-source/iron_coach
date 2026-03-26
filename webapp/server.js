@@ -712,15 +712,20 @@ app.post('/api/backup', authenticateJWT, async (req, res) => {
   }
 });
 
-// Restore
+// Restore - akzeptiert Token aus DB oder aus Request Body
 app.post('/api/restore', authenticateJWT, async (req, res) => {
   try {
-    if (!req.user.googleToken) {
-      return res.status(400).json({ error: 'Nicht mit Google verbunden' });
+    // Token aus Request Body (frisch vom Frontend) oder aus DB
+    const googleToken = req.body.googleToken || req.user.googleToken;
+    
+    if (!googleToken) {
+      return res.status(400).json({ error: 'Google Token erforderlich. Bitte neu mit Google einloggen oder Token manuell eingeben.' });
     }
     
+    console.log('🔄 Starte Restore mit Google Token...');
+    
     const oauth2Client = new google.auth.OAuth2();
-    oauth2Client.setCredentials({ access_token: req.user.googleToken });
+    oauth2Client.setCredentials({ access_token: googleToken });
     const drive = google.drive({ version: 'v3', auth: oauth2Client });
     
     // Backup suchen
