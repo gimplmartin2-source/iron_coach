@@ -806,17 +806,39 @@ function renderWorkoutsList() {
             <div class="workouts-in-date" id="workouts-${date}">`;
         
         dateWorkouts.forEach(w => {
-            const volume = (w.weight * w.sets * w.reps).toLocaleString();
+            // Prüfe ob Zeit-basierte Übung (entweder explizit als 'time' markiert oder hat duration_seconds)
+            const isTimeBased = w.exercise_type === 'time' || (w.duration_seconds && !w.weight);
+            
+            let detailsText;
+            let statsValue;
             const feelingEmoji = w.feeling >= 8 ? '🔥' : w.feeling >= 5 ? '👍' : '😤';
+            
+            if (isTimeBased) {
+                // Zeit-basierte Übung
+                const durationSec = w.duration_seconds || 0;
+                const mins = Math.floor(durationSec / 60);
+                const secs = durationSec % 60;
+                const durationStr = mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')} min` : `${secs} Sek`;
+                detailsText = `${durationStr} | Ruhe: ${w.rest_seconds || '-'}s | Gefühl: ${w.feeling || '-'}/10`;
+                statsValue = durationStr;
+            } else {
+                // Kraft-Übung
+                const weight = w.weight || 0;
+                const sets = w.sets || 0;
+                const reps = w.reps || 0;
+                const volume = weight * sets * reps;
+                detailsText = `${weight}kg × ${sets} × ${reps} | Ruhe: ${w.rest_seconds || '-'}s | Gefühl: ${w.feeling || '-'}/10 ${feelingEmoji}`;
+                statsValue = volume > 0 ? `${volume.toLocaleString()} kg` : '-';
+            }
             
             html += `
             <div class="list-item workout-item" data-workout-id="${w.id}">
                 <div class="list-item-info">
-                    <h4>${w.exercise_name} <span style="color: #888; font-size: 0.85rem;">(${w.muscle_group})</span></h4>
-                    <p>${w.weight}kg × ${w.sets} × ${w.reps} | Ruhe: ${w.rest_seconds || '-'}s | Gefühl: ${w.feeling || '-'}/10 ${feelingEmoji}</p>
+                    <h4>${w.exercise_name || 'Unbekannte Übung'} <span style="color: #888; font-size: 0.85rem;">(${w.muscle_group || '-'})</span></h4>
+                    <p>${detailsText}</p>
                 </div>
                 <div class="list-item-stats">
-                    <div class="volume">${volume} kg</div>
+                    <div class="volume">${statsValue}</div>
                     <div class="workout-actions">
                         <button class="btn-edit" onclick="editWorkout(${w.id})" title="Bearbeiten">✏️</button>
                         <button class="btn-delete" onclick="deleteWorkout(${w.id})" title="Löschen">🗑️</button>
