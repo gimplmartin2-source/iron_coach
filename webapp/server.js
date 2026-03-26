@@ -116,14 +116,32 @@ db.serialize(() => {
     }
   });
 
+  // Migration: exercise_type zu exercises hinzufügen
+  db.all(`PRAGMA table_info(exercises)`, [], (err, columns) => {
+    if (!err && columns) {
+      const hasExerciseType = columns.some(col => col.name === 'exercise_type');
+      if (!hasExerciseType) {
+        console.log('⚠️ Migration: exercise_type Spalte fehlt in exercises, füge hinzu...');
+        db.run(`ALTER TABLE exercises ADD COLUMN exercise_type TEXT DEFAULT 'strength'`, (alterErr) => {
+          if (alterErr) {
+            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
+          } else {
+            console.log('✅ exercise_type Spalte zu exercises hinzugefügt');
+          }
+        });
+      }
+    }
+  });
+
   // Workouts Tabelle
   db.run(`CREATE TABLE IF NOT EXISTS workouts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     exercise_id INTEGER,
-    weight REAL NOT NULL,
-    sets INTEGER NOT NULL,
-    reps INTEGER NOT NULL,
+    weight REAL,
+    sets INTEGER,
+    reps INTEGER,
+    duration_seconds INTEGER,
     rest_seconds INTEGER,
     feeling INTEGER CHECK(feeling >= 1 AND feeling <= 10),
     date TEXT NOT NULL,
@@ -447,9 +465,9 @@ app.get('/api/exercises', authenticateJWT, (req, res) => {
 
 // Neue Übung hinzufügen
 app.post('/api/exercises', authenticateJWT, (req, res) => {
-  const { name, muscle_group } = req.body;
+  const { name, muscle_group, exercise_type } = req.body;
   
-  console.log('📝 Übung hinzufügen:', { name, muscle_group, userId: req.user.userId });
+  console.log('📝 Übung hinzufügen:', { name, muscle_group, exercise_type, userId: req.user.userId });
   
   if (!name || !muscle_group) {
     return res.status(400).json({ error: 'Name und Muskelgruppe erforderlich' });
@@ -460,14 +478,16 @@ app.post('/api/exercises', authenticateJWT, (req, res) => {
     return res.status(401).json({ error: 'Nicht authentifiziert' });
   }
   
-  db.run('INSERT INTO exercises (user_id, name, muscle_group) VALUES (?, ?, ?)', 
-    [req.user.userId, name, muscle_group], function(err) {
+  const type = exercise_type || 'strength';
+  
+  db.run('INSERT INTO exercises (user_id, name, muscle_group, exercise_type) VALUES (?, ?, ?, ?)', 
+    [req.user.userId, name, muscle_group, type], function(err) {
     if (err) {
       console.error('❌ DB Fehler:', err);
       return res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
     }
     console.log('✅ Übung gespeichert, ID:', this.lastID);
-    res.json({ id: this.lastID, name, muscle_group });
+    res.json({ id: this.lastID, name, muscle_group, exercise_type: type });
   });
 });
 
@@ -502,27 +522,27 @@ app.get('/api/workouts', authenticateJWT, (req, res) => {
 
 // Neues Workout hinzufügen
 app.post('/api/workouts', authenticateJWT, (req, res) => {
-  const { exercise_id, weight, sets, reps, rest_seconds, feeling, date } = req.body;
+  const { exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date } = req.body;
   db.run(
-    'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [req.user.userId, exercise_id, weight, sets, reps, rest_seconds, feeling, date],
+    'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [req.user.userId, exercise_id, weight || null, sets || null, reps || null, duration_seconds || null, rest_seconds, feeling, date],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
-      res.json({ id: this.lastID, exercise_id, weight, sets, reps, rest_seconds, feeling, date });
+      res.json({ id: this.lastID, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date });
     }
   );
 });
 
 // Workout aktualisieren (PUT)
 app.put('/api/workouts/:id', authenticateJWT, (req, res) => {
-  const { exercise_id, weight, sets, reps, rest_seconds, feeling, date } = req.body;
+  const { exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date } = req.body;
   db.run(
-    'UPDATE workouts SET exercise_id = ?, weight = ?, sets = ?, reps = ?, rest_seconds = ?, feeling = ?, date = ? WHERE id = ? AND user_id = ?',
-    [exercise_id, weight, sets, reps, rest_seconds, feeling, date, req.params.id, req.user.userId],
+    'UPDATE workouts SET exercise_id = ?, weight = ?, sets = ?, reps = ?, duration_seconds = ?, rest_seconds = ?, feeling = ?, date = ? WHERE id = ? AND user_id = ?',
+    [exercise_id, weight || null, sets || null, reps || null, duration_seconds || null, rest_seconds, feeling, date, req.params.id, req.user.userId],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Workout nicht gefunden' });
-      res.json({ message: 'Workout aktualisiert', id: req.params.id, exercise_id, weight, sets, reps, rest_seconds, feeling, date });
+      res.json({ message: 'Workout aktualisiert', id: req.params.id, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date });
     }
   );
 });
