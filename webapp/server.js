@@ -89,12 +89,13 @@ db.serialize(() => {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  // Exercises Tabelle - immer neu erstellen falls nicht existiert
+  // Exercises Tabelle - IMMER mit exercise_type für neue DBs
   db.run(`CREATE TABLE IF NOT EXISTS exercises (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     muscle_group TEXT NOT NULL,
+    exercise_type TEXT DEFAULT 'strength',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`);
