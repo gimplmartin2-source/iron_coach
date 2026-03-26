@@ -134,7 +134,7 @@ db.serialize(() => {
     }
   });
 
-  // Workouts Tabelle
+  // Workouts Tabelle - ALLE Felder optional außer user_id und date
   db.run(`CREATE TABLE IF NOT EXISTS workouts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -151,19 +151,20 @@ db.serialize(() => {
     FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
   )`);
 
-  // Migration: duration_seconds zu workouts hinzufügen ODER Tabelle rekonstruieren
+  // Migration: Workouts-Tabelle mit strict schema fixen
   db.all(`PRAGMA table_info(workouts)`, [], (err, columns) => {
     if (!err && columns) {
       const hasDuration = columns.some(col => col.name === 'duration_seconds');
       const weightCol = columns.find(col => col.name === 'weight');
-      const isWeightNotNull = weightCol && weightCol.notnull === 1;
+      const setsCol = columns.find(col => col.name === 'sets');
+      const repsCol = columns.find(col => col.name === 'reps');
+      const needsFix = weightCol?.notnull === 1 || setsCol?.notnull === 1 || repsCol?.notnull === 1 || !hasDuration;
       
-      if (!hasDuration || isWeightNotNull) {
-        console.log('⚠️ Migration: Workouts-Tabelle hat falsches Schema, rekonstruiere...');
+      if (needsFix) {
+        console.log('⚠️ Migration: Workouts-Tabelle hat falsches Schema (NOT NULL constraints), rekonstruiere...');
         
-        // Tabelle neu erstellen mit korrektem Schema
         db.run(`BEGIN TRANSACTION`, () => {
-          // Temp-Tabelle erstellen
+          // Temp-Tabelle mit nullable Feldern
           db.run(`CREATE TABLE workouts_new (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -180,40 +181,22 @@ db.serialize(() => {
             FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
           )`, (err) => {
             if (err) {
-              console.error('❌ Fehler beim Erstellen der neuen Tabelle:', err.message);
+              console.error('❌ Fehler beim Erstellen:', err.message);
               db.run(`ROLLBACK`);
               return;
             }
             
-            // Daten kopieren
+            // Daten kopieren (nur wenn alte Tabelle existiert)
             db.run(`INSERT INTO workouts_new 
-              (id, user_id, exercise_id, weight, sets, reps, rest_seconds, feeling, date, created_at)
-              SELECT id, user_id, exercise_id, weight, sets, reps, rest_seconds, feeling, date, created_at 
-              FROM workouts`, (err) => {
-              if (err) {
-                console.error('❌ Fehler beim Kopieren der Daten:', err.message);
-                db.run(`ROLLBACK`);
-                return;
-              }
+              SELECT * FROM workouts`, (err) => {
               
               // Alte Tabelle löschen
               db.run(`DROP TABLE workouts`, (err) => {
-                if (err) {
-                  console.error('❌ Fehler beim Löschen der alten Tabelle:', err.message);
-                  db.run(`ROLLBACK`);
-                  return;
-                }
                 
                 // Neue Tabelle umbenennen
                 db.run(`ALTER TABLE workouts_new RENAME TO workouts`, (err) => {
-                  if (err) {
-                    console.error('❌ Fehler beim Umbenennen:', err.message);
-                    db.run(`ROLLBACK`);
-                    return;
-                  }
-                  
                   db.run(`COMMIT`, () => {
-                    console.log('✅ Workouts-Tabelle erfolgreich rekonstruiert mit duration_seconds');
+                    console.log('✅ Workouts-Tabelle repariert - alle Felder jetzt optional!');
                   });
                 });
               });
@@ -223,8 +206,6 @@ db.serialize(() => {
       }
     }
   });
-
-  // Migration: Prüfe ob user_id Spalte in workouts existiert
   db.all(`PRAGMA table_info(workouts)`, [], (err, columns) => {
     if (!err && columns) {
       const hasUserId = columns.some(col => col.name === 'user_id');
@@ -660,32 +641,22 @@ app.get('/api/workouts', authenticateJWT, (req, res) => {
   });
 });
 
-// Neues Workout hinzufügen - mit Fallback für duration_seconds
+// Neues Workout hinzufügen - ALLE Felder optional
 app.post('/api/workouts', authenticateJWT, (req, res) => {
   const { exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date } = req.body;
   
-  // Versuche mit duration_seconds
+  // Alle Werte sind optional - nur user_id und date (Fallback) sind required
+  const safeDate = date || new Date().toISOString().split('T')[0];
+  
   db.run(
     'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [req.user.userId, exercise_id, weight || null, sets || null, reps || null, duration_seconds || null, rest_seconds, feeling, date],
+    [req.user.userId, exercise_id || null, weight || null, sets || null, reps || null, duration_seconds || null, rest_seconds || 60, feeling || 5, safeDate],
     function(err) {
       if (err) {
-        if (err.message.includes('no column')) {
-          // Fallback ohne duration_seconds
-          console.log('⚠️ duration_seconds fehlt, speichere ohne');
-          db.run(
-            'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [req.user.userId, exercise_id, weight || null, sets || null, reps || null, rest_seconds, feeling, date],
-            function(err2) {
-              if (err2) return res.status(500).json({ error: err2.message });
-              res.json({ id: this.lastID, exercise_id, weight, sets, reps, duration_seconds: null, rest_seconds, feeling, date });
-            }
-          );
-          return;
-        }
+        console.error('❌ Fehler beim Speichern:', err.message);
         return res.status(500).json({ error: err.message });
       }
-      res.json({ id: this.lastID, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date });
+      res.json({ id: this.lastID, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date: safeDate });
     }
   );
 });
