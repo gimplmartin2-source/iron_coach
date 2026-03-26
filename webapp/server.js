@@ -508,7 +508,7 @@ app.delete('/api/exercises/:id', authenticateJWT, (req, res) => {
 // Alle Workouts abrufen
 app.get('/api/workouts', authenticateJWT, (req, res) => {
   const query = `
-    SELECT w.*, e.name as exercise_name, e.muscle_group 
+    SELECT w.*, e.name as exercise_name, e.muscle_group, e.exercise_type 
     FROM workouts w 
     JOIN exercises e ON w.exercise_id = e.id 
     WHERE w.user_id = ?

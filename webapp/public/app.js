@@ -730,7 +730,7 @@ function renderWorkoutsList() {
     
     sortedDates.forEach(date => {
         const dateWorkouts = grouped[date];
-        const totalVolume = dateWorkouts.reduce((sum, w) => sum + (w.weight * w.sets * w.reps), 0);
+        const totalVolume = dateWorkouts.reduce((sum, w) => sum + ((w.weight || 0) * (w.sets || 0) * (w.reps || 0)), 0);
         const dateObj = new Date(date);
         const dateStr = dateObj.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
         
