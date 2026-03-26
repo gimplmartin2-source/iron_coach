@@ -156,33 +156,57 @@ async function restoreFromDrive() {
     const token = localStorage.getItem('token');
     if (!token) return false;
     
-    // Prüfe ob Google-User
+    console.log('🔍 Versuche Restore...');
+    
+    // Versuche automatisches Restore
     try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        if (!payload.googleAccessToken) {
-            console.log('ℹ️ Kein Google-Token, überspringe Restore');
-            return false;
+        const res = await apiFetch('/api/restore', { 
+            method: 'POST',
+            body: JSON.stringify({})
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            if (data.success) {
+                console.log('✅ Restore erfolgreich');
+                window.location.reload();
+                return true;
+            }
         }
-        
-        console.log('🔍 Versuche Restore vom Server...');
-        
-        // Restore vom Server
-        const res = await apiFetch('/api/restore/drive', { method: 'POST' });
-        const data = await res.json();
-        
-        if (data.restored) {
-            console.log('✅ Daten von Drive wiederhergestellt');
-            // WICHTIG: Seite neu laden damit neue DB verwendet wird
-            window.location.reload();
-            return true;
-        } else if (data.message) {
-            console.log('ℹ️ ' + data.message);
-        }
-        return false;
     } catch (err) {
-        console.log('ℹ️ Kein Backup vorhanden oder Fehler:', err.message);
+        console.log('⚠️ Automatisches Restore fehlgeschlagen:', err.message);
+    }
+    
+    // Frage nach manuellem Token
+    console.log('🔑 Bitte Google Token eingeben...');
+    const manualToken = prompt('Google Access Token eingeben (aus der Console/App):\\n\\nHinweis: Token bekommst du von:\\n1. Google OAuth Playground\\n2. Oder neu einloggen');
+    
+    if (!manualToken) {
+        console.log('ℹ️ Kein Token eingegeben, überspringe Restore');
         return false;
     }
+    
+    // Versuche Restore mit manuellem Token
+    try {
+        const res = await apiFetch('/api/restore', { 
+            method: 'POST',
+            body: JSON.stringify({ googleToken: manualToken })
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            if (data.success) {
+                console.log('✅ Restore mit manuellem Token erfolgreich');
+                window.location.reload();
+                return true;
+            }
+        }
+    } catch (err) {
+        console.error('❌ Restore mit manuellem Token fehlgeschlagen:', err);
+        alert('Restore fehlgeschlagen: ' + err.message);
+    }
+    
+    return false;
 }
 
 // Load exercises
