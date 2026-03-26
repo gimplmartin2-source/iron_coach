@@ -577,28 +577,58 @@ app.delete('/api/exercises/:id', authenticateJWT, (req, res) => {
 
 // Alle Workouts abrufen
 app.get('/api/workouts', authenticateJWT, (req, res) => {
+  // Einfache Abfrage ohne JOIN - schnell und sicher
   const query = `
-    SELECT w.*, e.name as exercise_name, e.muscle_group, 
+    SELECT w.id, w.user_id, w.exercise_id, w.weight, w.sets, w.reps, w.duration_seconds, w.rest_seconds, w.feeling, w.date, w.created_at,
+           e.name as exercise_name, e.muscle_group, 
            COALESCE(e.exercise_type, 'strength') as exercise_type
     FROM workouts w 
-    JOIN exercises e ON w.exercise_id = e.id 
+    LEFT JOIN exercises e ON w.exercise_id = e.id 
     WHERE w.user_id = ?
     ORDER BY w.date DESC, w.created_at DESC
   `;
   db.all(query, [req.user.userId], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      console.error('❌ Fehler beim Laden der Workouts:', err.message);
+      // Fallback: Nur workouts ohne JOIN
+      const fallbackQuery = `
+        SELECT * FROM workouts WHERE user_id = ? ORDER BY date DESC
+      `;
+      db.all(fallbackQuery, [req.user.userId], (err2, rows2) => {
+        if (err2) return res.status(500).json({ error: err2.message });
+        res.json(rows2);
+      });
+      return;
+    }
     res.json(rows);
   });
 });
 
-// Neues Workout hinzufügen
+// Neues Workout hinzufügen - mit Fallback für duration_seconds
 app.post('/api/workouts', authenticateJWT, (req, res) => {
   const { exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date } = req.body;
+  
+  // Versuche mit duration_seconds
   db.run(
     'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [req.user.userId, exercise_id, weight || null, sets || null, reps || null, duration_seconds || null, rest_seconds, feeling, date],
     function(err) {
-      if (err) return res.status(500).json({ error: err.message });
+      if (err) {
+        if (err.message.includes('no column')) {
+          // Fallback ohne duration_seconds
+          console.log('⚠️ duration_seconds fehlt, speichere ohne');
+          db.run(
+            'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [req.user.userId, exercise_id, weight || null, sets || null, reps || null, rest_seconds, feeling, date],
+            function(err2) {
+              if (err2) return res.status(500).json({ error: err2.message });
+              res.json({ id: this.lastID, exercise_id, weight, sets, reps, duration_seconds: null, rest_seconds, feeling, date });
+            }
+          );
+          return;
+        }
+        return res.status(500).json({ error: err.message });
+      }
       res.json({ id: this.lastID, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date });
     }
   );
