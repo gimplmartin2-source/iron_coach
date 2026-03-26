@@ -149,6 +149,30 @@ function showTab(tabName) {
     }
 }
 
+// Force Restore (manuelles Backup-Laden)
+async function forceRestore() {
+    const btn = document.querySelector('button[onclick="forceRestore()"]');
+    if (btn) {
+        btn.textContent = '🔄 Lade...';
+        btn.disabled = true;
+    }
+    
+    console.log('🔄 Manuelles Restore gestartet...');
+    sessionStorage.removeItem('restoreAttempted'); // Flag zurücksetzen
+    const result = await restoreFromDrive();
+    
+    if (result) {
+        showToast('✅ Backup geladen! Seite wird neu geladen...');
+        setTimeout(() => window.location.reload(), 1500);
+    } else {
+        showToast('❌ Kein Backup gefunden oder Fehler beim Laden');
+        if (btn) {
+            btn.textContent = '🔄 Backup laden';
+            btn.disabled = false;
+        }
+    }
+}
+
 // Restore von Google Drive
 async function restoreFromDrive() {
     const token = localStorage.getItem('token');
