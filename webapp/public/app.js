@@ -332,11 +332,59 @@ function selectExerciseForWorkout(exerciseId, exerciseName) {
     document.getElementById('selected-exercise-display').textContent = exerciseName;
     document.getElementById('selected-exercise-display').style.color = '#00d4ff';
     
+    // 🖼️ Übungsbild anzeigen
+    showExercisePreview(exercise);
+    
     // Formular-Felder je nach Übungstyp anpassen
-    const isTimeBased = exercise && exercise.exercise_type === 'time';
+    const isTimeBased = exercise && (exercise.exercise_type === 'time' || shouldBeTimeBased(exercise));
     toggleWorkoutFields(isTimeBased);
     
     closeExerciseSelector();
+}
+
+// 🖼️ Übungsvorschau anzeigen
+function showExercisePreview(exercise) {
+    const container = document.getElementById('exercise-image-display');
+    const img = document.getElementById('exercise-preview-img');
+    const nameEl = document.getElementById('exercise-preview-name');
+    const muscleEl = document.getElementById('exercise-preview-muscle');
+    
+    if (!container || !exercise) return;
+    
+    // Bild-Pfad zusammenbauen
+    const imagePath = getExerciseImagePath(exercise.name);
+    
+    img.src = imagePath;
+    img.alt = exercise.name;
+    nameEl.textContent = exercise.name;
+    muscleEl.textContent = exercise.muscle_group || '';
+    
+    // Container anzeigen
+    container.style.display = 'block';
+    
+    // Bild-Error-Handling (falls Bild nicht existiert)
+    img.onerror = function() {
+        this.src = '/exercises/placeholder.gif';
+        this.alt = exercise.name + ' (kein Bild)';
+    };
+}
+
+// 🏃‍♂️ Hilfsfunktion: Bestimmt ob Übung zeitbasiert sein sollte (für ältere Daten)
+function shouldBeTimeBased(exercise) {
+    const timeBasedKeywords = ['plank', 'hollow', 'dead bug', 'haltung', 'atmung', 'dehnung', 'dehnen', 'stretch', 'hold', 'vacuum', 'child'];
+    const nameLower = exercise.name.toLowerCase();
+    return timeBasedKeywords.some(keyword => nameLower.includes(keyword));
+}
+
+// 🖼️ Bild-Pfad für Übung ermitteln
+function getExerciseImagePath(exerciseName) {
+    // Bereinigter Name für Datei
+    const cleanName = exerciseName.toLowerCase()
+        .replace(/[\s-]+/g, '_')
+        .replace(/[()]/g, '')
+        .replace(/[äöüß]/g, char => ({'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss'}[char]));
+    
+    return `/exercises/${cleanName}.gif`;
 }
 
 // Toggle zwischen Kraft- und Zeit-basierten Workout-Feldern
@@ -827,9 +875,9 @@ function renderWorkoutsList() {
                     <span style="font-weight: bold; font-size: 1.1rem;">${dateStr}${sessionType ? ` - ${sessionType}` : ''}</span>
                     <span style="color: #00d4ff;">${dateWorkouts.length} Workouts | ${formatWeight(totalVolume)}</span>
                 </div>
-                <span class="toggle-icon" id="toggle-${date}">▼</span>
+                <span class="toggle-icon" id="toggle-${date}">▶</span>
             </div>
-            <div class="workouts-in-date" id="workouts-${date}">`;
+            <div class="workouts-in-date" id="workouts-${date}" style="display: none;">`;
         
         dateWorkouts.forEach(w => {
             // Prüfe ob Zeit-basierte Übung (entweder explizit als 'time' markiert oder hat duration_seconds)

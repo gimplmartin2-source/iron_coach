@@ -253,6 +253,15 @@
 
         <!-- Workouts Tab -->
         <section id="workouts-tab" class="tab-content active">
+            <!-- Übungsbild-Anzeige (zwischen Trainingsplan und Formular) -->
+            <div id="exercise-image-display" class="card" style="display: none; text-align: center; padding: 20px; margin-bottom: 15px;">
+                <div id="exercise-image-container" style="max-width: 300px; margin: 0 auto;">
+                    <img id="exercise-preview-img" src="" alt="Übungsvorschau" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                    <h3 id="exercise-preview-name" style="margin-top: 15px; color: #fff;"></h3>
+                    <p id="exercise-preview-muscle" style="color: #888; font-size: 0.9rem;"></p>
+                </div>
+            </div>
+
             <div class="card">
                 <h2>Neues Workout</h2>
                 <form id="workout-form">
