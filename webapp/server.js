@@ -525,10 +525,10 @@ app.delete('/api/exercises/:id', authenticateJWT, (req, res) => {
 
 // Alle Workouts abrufen
 app.get('/api/workouts', authenticateJWT, (req, res) => {
-  // Explizite Spaltenauflistung statt w.* für Kompatibilität
+  // Explizite Spaltenauflistung - nur existierende Spalten
   const query = `
     SELECT w.id, w.user_id, w.exercise_id, w.weight, w.sets, w.reps, w.rest_seconds, w.feeling, w.date, w.created_at,
-           e.name as exercise_name, e.muscle_group, e.exercise_type 
+           e.name as exercise_name, e.muscle_group
     FROM workouts w 
     JOIN exercises e ON w.exercise_id = e.id 
     WHERE w.user_id = ?
