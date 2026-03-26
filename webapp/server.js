@@ -1035,6 +1035,17 @@ app.get('/api/debug/workouts-check', (req, res) => {
   });
 });
 
+// DEBUG: Show all workouts (no auth)
+app.get('/api/debug/all-workouts', (req, res) => {
+  db.all(`SELECT * FROM workouts LIMIT 20`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ 
+      count: rows.length,
+      workouts: rows
+    });
+  });
+});
+
 // Static Files
 const publicPath = path.join(__dirname, 'public');
 console.log('📁 Serving static files from:', publicPath);
