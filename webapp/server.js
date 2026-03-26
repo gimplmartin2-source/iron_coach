@@ -498,9 +498,24 @@ app.post('/api/exercises', authenticateJWT, (req, res) => {
   
   const type = exercise_type || 'strength';
   
+  // Versuche mit exercise_type - falls Spalte fehlt, Fallback auf Basis-INSERT
   db.run('INSERT INTO exercises (user_id, name, muscle_group, exercise_type) VALUES (?, ?, ?, ?)', 
     [req.user.userId, name, muscle_group, type], function(err) {
     if (err) {
+      if (err.message.includes('no column named exercise_type')) {
+        // Fallback: Ohne exercise_type einfügen
+        console.log('⚠️ exercise_type Spalte fehlt, füge ohne hinzu');
+        db.run('INSERT INTO exercises (user_id, name, muscle_group) VALUES (?, ?, ?)', 
+          [req.user.userId, name, muscle_group], function(err2) {
+          if (err2) {
+            console.error('❌ DB Fehler (Fallback):', err2);
+            return res.status(500).json({ error: 'Datenbankfehler: ' + err2.message });
+          }
+          console.log('✅ Übung gespeichert (ohne exercise_type), ID:', this.lastID);
+          res.json({ id: this.lastID, name, muscle_group, exercise_type: 'strength' });
+        });
+        return;
+      }
       console.error('❌ DB Fehler:', err);
       return res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
     }
