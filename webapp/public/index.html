@@ -269,18 +269,26 @@
                             <input type="date" id="workout-date" required>
                         </div>
                     </div>
-                    <div class="form-row">
+                    <!-- Dynamische Felder je nach Übungstyp -->
+                    <div class="form-row" id="strength-fields">
                         <div class="form-group">
                             <label>Gewicht (kg)</label>
-                            <input type="number" id="workout-weight" step="0.5" min="0" required>
+                            <input type="number" id="workout-weight" step="0.5" min="0">
                         </div>
                         <div class="form-group">
                             <label>Sätze</label>
-                            <input type="number" id="workout-sets" min="1" required>
+                            <input type="number" id="workout-sets" min="1">
                         </div>
                         <div class="form-group">
                             <label>Wdh./Satz</label>
-                            <input type="number" id="workout-reps" min="1" required>
+                            <input type="number" id="workout-reps" min="1">
+                        </div>
+                    </div>
+                    <!-- Zeit-basierte Felder (nur für Zeit-Übungen) -->
+                    <div class="form-row" id="time-fields" style="display: none;">
+                        <div class="form-group">
+                            <label>Dauer (Min:Sek)</label>
+                            <input type="text" id="workout-duration" placeholder="z.B. 1:30">
                         </div>
                     </div>
                     <div class="form-row">
@@ -327,6 +335,13 @@
                                 <option value="Arme">Arme</option>
                                 <option value="Bauch">Bauch</option>
                                 <option value="Ganzkörper">Ganzkörper</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Typ</label>
+                            <select id="exercise-type">
+                                <option value="strength">&#128170; Kraft (Sätze/Wdh)</option>
+                                <option value="time">&#9201; Zeit (Dauer)</option>
                             </select>
                         </div>
                     </div>
