@@ -1022,6 +1022,19 @@ app.get('/api/debug/exercises-schema', (req, res) => {
   });
 });
 
+// DEBUG: Check workouts table
+app.get('/api/debug/workouts-check', (req, res) => {
+  db.all(`PRAGMA table_info(workouts)`, [], (err, columns) => {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    res.json({
+      columns: columns,
+      hasDurationSeconds: columns.some(c => c.name === 'duration_seconds'),
+      columnNames: columns.map(c => c.name)
+    });
+  });
+});
+
 // Static Files
 const publicPath = path.join(__dirname, 'public');
 console.log('📁 Serving static files from:', publicPath);
