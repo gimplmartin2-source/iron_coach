@@ -667,9 +667,9 @@ app.get('/api/stats', authenticateJWT, (req, res) => {
           
           res.json({
             total_volume: volume.total_volume,
-            workouts_count: count.count,
-            exercises_count: exercises.count,
-            week_volume: week.week_volume
+            total_workouts: count.count,
+            total_exercises: exercises.count,
+            weekly_volume: week.week_volume
           });
         });
       });
