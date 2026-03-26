@@ -566,12 +566,17 @@ function renderExercisesList() {
 // Load workouts
 async function loadWorkouts() {
     try {
+        console.log('🔄 Lade Workouts...');
         const res = await apiFetch('/api/workouts');
-        if (!res) return;
+        if (!res) {
+            console.log('⚠ Keine Response');
+            return;
+        }
         workouts = await res.json();
+        console.log('✅ Workouts geladen:', workouts.length, workouts);
         renderWorkoutsList();
     } catch (err) {
-        console.error('Fehler beim Laden der Workouts:', err);
+        console.error('❌ Fehler beim Laden der Workouts:', err);
     }
 }
 
@@ -771,9 +776,16 @@ function groupWorkoutsByDate() {
 
 // Render workouts list mit Gruppierung und Bearbeiten
 function renderWorkoutsList() {
+    console.log('🎨 renderWorkoutsList aufgerufen, workouts:', workouts?.length);
     const container = document.getElementById('workouts-list');
     
-    if (workouts.length === 0) {
+    if (!container) {
+        console.error('❌ Container #workouts-list nicht gefunden');
+        return;
+    }
+    
+    if (!workouts || workouts.length === 0) {
+        console.log('ℹ Keine Workouts zum Anzeigen');
         container.innerHTML = '<p class="empty-state">Noch keine Workouts eingetragen.</p>';
         return;
     }
