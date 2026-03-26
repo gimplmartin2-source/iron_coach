@@ -746,7 +746,7 @@ async function addWorkout(e) {
         exercise_id: parseInt(exerciseId),
         rest_seconds: parseInt(document.getElementById('workout-rest').value) || 60,
         feeling: parseInt(document.getElementById('workout-feeling').value) || 5,
-        date: document.getElementById('workout-date').value
+        date: document.getElementById('workout-date').value || new Date().toISOString().split('T')[0]
     };
     
     if (isTimeBased) {
