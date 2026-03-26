@@ -151,18 +151,74 @@ db.serialize(() => {
     FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
   )`);
 
-  // Migration: duration_seconds zu workouts hinzufügen
+  // Migration: duration_seconds zu workouts hinzufügen ODER Tabelle rekonstruieren
   db.all(`PRAGMA table_info(workouts)`, [], (err, columns) => {
     if (!err && columns) {
       const hasDuration = columns.some(col => col.name === 'duration_seconds');
-      if (!hasDuration) {
-        console.log('⚠️ Migration: duration_seconds Spalte fehlt in workouts, füge hinzu...');
-        db.run(`ALTER TABLE workouts ADD COLUMN duration_seconds INTEGER`, (alterErr) => {
-          if (alterErr) {
-            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
-          } else {
-            console.log('✅ duration_seconds Spalte zu workouts hinzugefügt');
-          }
+      const weightCol = columns.find(col => col.name === 'weight');
+      const isWeightNotNull = weightCol && weightCol.notnull === 1;
+      
+      if (!hasDuration || isWeightNotNull) {
+        console.log('⚠️ Migration: Workouts-Tabelle hat falsches Schema, rekonstruiere...');
+        
+        // Tabelle neu erstellen mit korrektem Schema
+        db.run(`BEGIN TRANSACTION`, () => {
+          // Temp-Tabelle erstellen
+          db.run(`CREATE TABLE workouts_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            exercise_id INTEGER,
+            weight REAL,
+            sets INTEGER,
+            reps INTEGER,
+            duration_seconds INTEGER,
+            rest_seconds INTEGER,
+            feeling INTEGER CHECK(feeling >= 1 AND feeling <= 10),
+            date TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
+          )`, (err) => {
+            if (err) {
+              console.error('❌ Fehler beim Erstellen der neuen Tabelle:', err.message);
+              db.run(`ROLLBACK`);
+              return;
+            }
+            
+            // Daten kopieren
+            db.run(`INSERT INTO workouts_new 
+              (id, user_id, exercise_id, weight, sets, reps, rest_seconds, feeling, date, created_at)
+              SELECT id, user_id, exercise_id, weight, sets, reps, rest_seconds, feeling, date, created_at 
+              FROM workouts`, (err) => {
+              if (err) {
+                console.error('❌ Fehler beim Kopieren der Daten:', err.message);
+                db.run(`ROLLBACK`);
+                return;
+              }
+              
+              // Alte Tabelle löschen
+              db.run(`DROP TABLE workouts`, (err) => {
+                if (err) {
+                  console.error('❌ Fehler beim Löschen der alten Tabelle:', err.message);
+                  db.run(`ROLLBACK`);
+                  return;
+                }
+                
+                // Neue Tabelle umbenennen
+                db.run(`ALTER TABLE workouts_new RENAME TO workouts`, (err) => {
+                  if (err) {
+                    console.error('❌ Fehler beim Umbenennen:', err.message);
+                    db.run(`ROLLBACK`);
+                    return;
+                  }
+                  
+                  db.run(`COMMIT`, () => {
+                    console.log('✅ Workouts-Tabelle erfolgreich rekonstruiert mit duration_seconds');
+                  });
+                });
+              });
+            });
+          });
         });
       }
     }
