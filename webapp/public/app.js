@@ -326,9 +326,16 @@ function selectCategory(category) {
 }
 
 function selectExerciseForWorkout(exerciseId, exerciseName) {
+    const exercise = exercises.find(e => e.id === parseInt(exerciseId));
+    
     document.getElementById('workout-exercise').value = exerciseId;
     document.getElementById('selected-exercise-display').textContent = exerciseName;
     document.getElementById('selected-exercise-display').style.color = '#00d4ff';
+    
+    // Felder umschalten je nach Übungstyp
+    const isTimeBased = exercise && exercise.exercise_type === 'time';
+    toggleWorkoutFields(isTimeBased);
+    
     closeExerciseSelector();
 }
 
@@ -422,6 +429,7 @@ async function addExercise(e) {
     
     const name = document.getElementById('exercise-name').value;
     const muscle = document.getElementById('exercise-muscle').value;
+    const type = document.getElementById('exercise-type')?.value || 'strength';
     
     if (!name || !muscle) {
         alert('Bitte Name und Muskelgruppe auswählen');
@@ -436,7 +444,7 @@ async function addExercise(e) {
     try {
         const res = await apiFetch('/api/exercises', {
             method: 'POST',
-            body: JSON.stringify({ name, muscle_group: muscle })
+            body: JSON.stringify({ name, muscle_group: muscle, exercise_type: type })
         });
         
         if (res && res.ok) {
@@ -520,6 +528,42 @@ async function loadWorkouts() {
     }
 }
 
+// Hilfsfunktion: Dauer-String zu Sekunden parsen (z.B. "1:30" -> 90)
+function parseDuration(str) {
+    if (!str) return 0;
+    
+    // Einfache Sekunden (nur Zahl)
+    if (/^\d+$/.test(str)) {
+        return parseInt(str);
+    }
+    
+    // Format Min:Sek (z.B. "1:30")
+    const match = str.match(/^(\d+):(\d+)$/);
+    if (match) {
+        const mins = parseInt(match[1]);
+        const secs = parseInt(match[2]);
+        return mins * 60 + secs;
+    }
+    
+    return 0;
+}
+
+// Toggle zwischen Kraft- und Zeit-basierten Workout-Feldern
+function toggleWorkoutFields(isTimeBased) {
+    const strengthFields = document.getElementById('strength-fields');
+    const timeFields = document.getElementById('time-fields');
+    
+    if (strengthFields && timeFields) {
+        if (isTimeBased) {
+            strengthFields.style.display = 'none';
+            timeFields.style.display = 'flex';
+        } else {
+            strengthFields.style.display = 'flex';
+            timeFields.style.display = 'none';
+        }
+    }
+}
+
 // Add workout
 async function addWorkout(e) {
     e.preventDefault();
@@ -530,15 +574,31 @@ async function addWorkout(e) {
         return;
     }
     
+    // Prüfe ob Zeit-basierte Übung
+    const exercise = exercises.find(e => e.id === parseInt(exerciseId));
+    const isTimeBased = exercise && exercise.exercise_type === 'time';
+    
     const data = {
         exercise_id: parseInt(exerciseId),
-        weight: parseFloat(document.getElementById('workout-weight').value),
-        sets: parseInt(document.getElementById('workout-sets').value),
-        reps: parseInt(document.getElementById('workout-reps').value),
         rest_seconds: parseInt(document.getElementById('workout-rest').value) || 60,
         feeling: parseInt(document.getElementById('workout-feeling').value) || 5,
         date: document.getElementById('workout-date').value
     };
+    
+    if (isTimeBased) {
+        // Zeit-basierte Übung - Dauer parsen
+        const durationStr = document.getElementById('workout-duration').value;
+        const durationSec = parseDuration(durationStr);
+        data.duration_seconds = durationSec;
+        data.weight = 0;
+        data.sets = 1;
+        data.reps = durationSec;
+    } else {
+        // Kraft-Übung
+        data.weight = parseFloat(document.getElementById('workout-weight').value) || 0;
+        data.sets = parseInt(document.getElementById('workout-sets').value) || 0;
+        data.reps = parseInt(document.getElementById('workout-reps').value) || 0;
+    }
     
     const btn = e.target.querySelector('button[type="submit"]');
     const originalText = btn.textContent;
@@ -690,17 +750,34 @@ function renderWorkoutsList() {
             <div class="workouts-in-date" id="workouts-${date}">`;
         
         dateWorkouts.forEach(w => {
-            const volume = (w.weight * w.sets * w.reps).toLocaleString();
+            // Prüfe ob Zeit-basierte Übung
+            const isTimeBased = w.exercise_type === 'time' || (w.duration_seconds && !w.weight);
+            
+            let detailsText, statsValue;
             const feelingEmoji = w.feeling >= 8 ? '🔥' : w.feeling >= 5 ? '👍' : '😤';
+            
+            if (isTimeBased) {
+                // Zeit-basierte Übung
+                const mins = Math.floor((w.duration_seconds || 0) / 60);
+                const secs = (w.duration_seconds || 0) % 60;
+                const durationStr = mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')} min` : `${secs} Sek`;
+                detailsText = `${durationStr} | Ruhe: ${w.rest_seconds || '-'}s | Gefühl: ${w.feeling || '-'}/10`;
+                statsValue = durationStr;
+            } else {
+                // Kraft-Übung
+                const volume = (w.weight || 0) * (w.sets || 0) * (w.reps || 0);
+                detailsText = `${w.weight || 0}kg × ${w.sets || 0} × ${w.reps || 0} | Ruhe: ${w.rest_seconds || '-'}s | Gefühl: ${w.feeling || '-'}/10 ${feelingEmoji}`;
+                statsValue = volume > 0 ? `${volume.toLocaleString()} kg` : '-';
+            }
             
             html += `
             <div class="list-item workout-item" data-workout-id="${w.id}">
                 <div class="list-item-info">
-                    <h4>${w.exercise_name} <span style="color: #888; font-size: 0.85rem;">(${w.muscle_group})</span></h4>
-                    <p>${w.weight}kg × ${w.sets} × ${w.reps} | Ruhe: ${w.rest_seconds || '-'}s | Gefühl: ${w.feeling || '-'}/10 ${feelingEmoji}</p>
+                    <h4>${w.exercise_name || 'Unbekannte Übung'} <span style="color: #888; font-size: 0.85rem;">(${w.muscle_group || '-'})</span></h4>
+                    <p>${detailsText}</p>
                 </div>
                 <div class="list-item-stats">
-                    <div class="volume">${volume} kg</div>
+                    <div class="volume">${statsValue}</div>
                     <div class="workout-actions">
                         <button class="btn-edit" onclick="editWorkout(${w.id})" title="Bearbeiten">✏️</button>
                         <button class="btn-delete" onclick="deleteWorkout(${w.id})" title="Löschen">🗑️</button>
