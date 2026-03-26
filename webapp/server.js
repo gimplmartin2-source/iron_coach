@@ -311,16 +311,17 @@ const authenticateJWT = (req, res, next) => {
         return res.status(403).json({ error: 'Token ungültig' });
       }
       
-      // Lade user mit Google Token aus DB
-      db.get('SELECT id, email, google_access_token FROM users WHERE id = ?', [decoded.userId], (err, user) => {
-        if (err || !user) {
-          return res.status(403).json({ error: 'Benutzer nicht gefunden' });
+      // User aus Token - vertraue dem Token!
+      req.user = {
+        userId: decoded.userId,
+        email: decoded.email
+      };
+      
+      // Versuche Google Token zu laden (optional)
+      db.get('SELECT google_access_token FROM users WHERE id = ?', [decoded.userId], (err, row) => {
+        if (!err && row) {
+          req.user.googleToken = row.google_access_token;
         }
-        req.user = {
-          userId: user.id,
-          email: user.email,
-          googleToken: user.google_access_token
-        };
         next();
       });
     });
