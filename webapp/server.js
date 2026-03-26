@@ -146,9 +146,22 @@ async function initDatabase() {
     email TEXT UNIQUE NOT NULL,
     password TEXT,
     google_id TEXT UNIQUE,
+    google_access_token TEXT,
     display_name TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`, 'Users Tabelle');
+  
+  // Migration: google_access_token hinzufügen
+  const hasGoogleToken = await new Promise((resolve) => {
+    db.all(`PRAGMA table_info(users)`, [], (err, cols) => {
+      resolve(cols && cols.some(c => c.name === 'google_access_token'));
+    });
+  });
+  
+  if (!hasGoogleToken) {
+    await runMigration(`ALTER TABLE users ADD COLUMN google_access_token TEXT`,
+      'Migration: google_access_token zu users');
+  }
   
   // Exercises Tabelle mit exercise_type
   await runMigration(`CREATE TABLE IF NOT EXISTS exercises (
@@ -236,12 +249,17 @@ passport.use(new GoogleStrategy({
       if (err) return done(err);
       
       if (user) {
-        return done(null, user);
+        // Update access token
+        db.run('UPDATE users SET google_access_token = ? WHERE id = ?', [accessToken, user.id], () => {
+          user.google_access_token = accessToken;
+          done(null, user);
+        });
+        return;
       }
       
       const email = profile.emails[0].value;
-      db.run('INSERT INTO users (email, google_id, display_name) VALUES (?, ?, ?)',
-        [email, profile.id, profile.displayName],
+      db.run('INSERT INTO users (email, google_id, display_name, google_access_token) VALUES (?, ?, ?, ?)',
+        [email, profile.id, profile.displayName, accessToken],
         function(err) {
           if (err) return done(err);
           
@@ -288,12 +306,23 @@ const authenticateJWT = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader) {
     const token = authHeader.split(' ')[1];
-    jwt.verify(token, JWT_SECRET, (err, user) => {
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
       if (err) {
         return res.status(403).json({ error: 'Token ungültig' });
       }
-      req.user = user;
-      next();
+      
+      // Lade user mit Google Token aus DB
+      db.get('SELECT id, email, google_access_token FROM users WHERE id = ?', [decoded.userId], (err, user) => {
+        if (err || !user) {
+          return res.status(403).json({ error: 'Benutzer nicht gefunden' });
+        }
+        req.user = {
+          userId: user.id,
+          email: user.email,
+          googleToken: user.google_access_token
+        };
+        next();
+      });
     });
   } else {
     res.status(401).json({ error: 'Nicht autorisiert' });
