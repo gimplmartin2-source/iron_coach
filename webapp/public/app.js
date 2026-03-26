@@ -337,14 +337,22 @@ function selectExerciseForWorkout(exerciseId, exerciseName) {
     document.getElementById('selected-exercise-display').style.color = '#00d4ff';
     
     // Felder umschalten je nach Übungstyp
-    // Fallback: Wenn exercise_type nicht gesetzt ist, prüfe den Namen
+    // WICHTIG: Prüfe auch auf undefined/null
     let isTimeBased = false;
     if (exercise && exercise.exercise_type === 'time') {
         isTimeBased = true;
+        console.log('✅ exercise_type ist "time"');
+    } else if (exercise && exercise.exercise_type && exercise.exercise_type !== 'strength') {
+        // Fallback für ungültige Werte
+        console.log('⚠️ Ungültiger exercise_type:', exercise.exercise_type);
     } else if (exercise) {
-        // Fallback: Prüfe Übungsname auf Zeit-Keywords
-        const timeKeywords = ['plank', 'haltung', 'atmung', 'dehn', 'stretch', 'hold', 'vacuum', 'kindhaltung', 'katze'];
-        isTimeBased = timeKeywords.some(kw => exercise.name.toLowerCase().includes(kw));
+        // Prüfe Übungsname auf Zeit-Keywords (Fallback)
+        const timeKeywords = ['plank', 'haltung', 'atmung', 'dehn', 'stretch', 'hold', 'vacuum', 'kindhaltung', 'katze', 'knie', 'kreuz', 'hüft', 'kind'];
+        const nameLower = exercise.name.toLowerCase();
+        isTimeBased = timeKeywords.some(kw => nameLower.includes(kw));
+        if (isTimeBased) {
+            console.log('🔍 Zeit-Übung erkannt per Keyword:', exercise.name);
+        }
     }
     
     console.log('🔄 isTimeBased:', isTimeBased);
@@ -739,6 +747,18 @@ function groupWorkoutsByDate() {
 // Render workouts list mit Gruppierung und Bearbeiten
 function renderWorkoutsList() {
     const container = document.getElementById('workouts-list');
+    
+    if (!container) {
+        console.error('❌ Container #workouts-list nicht gefunden');
+        return;
+    }
+    
+    // SICHERHEIT: Prüfe ob workouts ein Array ist
+    if (!Array.isArray(workouts)) {
+        console.error('❌ workouts ist kein Array:', workouts);
+        container.innerHTML = '<p class="empty-state">Fehler beim Laden der Workouts.</p>';
+        return;
+    }
     
     if (workouts.length === 0) {
         container.innerHTML = '<p class="empty-state">Noch keine Workouts eingetragen.</p>';
