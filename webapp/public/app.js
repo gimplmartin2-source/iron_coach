@@ -2626,8 +2626,8 @@ async function stopTrainingTimer() {
             exercise_id: trainingExercise.id,
             duration_seconds: trainingTimerSeconds,
             weight: 0,
-            sets: 1,
-            reps: trainingTimerSeconds,
+            sets: null,
+            reps: null,
             rest_seconds: 0,
             feeling: 5,
             date: new Date().toISOString().split('T')[0]
