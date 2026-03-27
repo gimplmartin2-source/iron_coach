@@ -2494,7 +2494,7 @@ function initStats() {
 
 // ===================== TIMER FUNKTIONEN =====================
 
-// --- Übungs-Stopuhr (für Zeit-Übungen) ---
+// --- ï¿½bungs-Stopuhr (fï¿½r Zeit-ï¿½bungen) ---
 let exerciseTimerInterval = null;
 let exerciseTimerSeconds = 0;
 let exerciseTimerRunning = false;
@@ -2527,7 +2527,7 @@ function stopExerciseTimer() {
     exerciseTimerRunning = false;
     clearInterval(exerciseTimerInterval);
     
-    // Zeit ins Feld übertragen (Format: Min:Sek)
+    // Zeit ins Feld ï¿½bertragen (Format: Min:Sek)
     const mins = Math.floor(exerciseTimerSeconds / 60);
     const secs = exerciseTimerSeconds % 60;
     const durationStr = mins + ':' + secs.toString().padStart(2, '0');
@@ -2590,21 +2590,21 @@ async function stopTrainingTimer() {
     trainingTimerRunning = false;
     clearInterval(trainingTimerInterval);
     
-    // Als Workout speichern (Generische "Training" Übung)
+    // Als Workout speichern (Generische "Training" ï¿½bung)
     const totalMinutes = Math.floor(trainingTimerSeconds / 60);
     const totalSecs = trainingTimerSeconds % 60;
     const durationStr = totalMinutes + ':' + totalSecs.toString().padStart(2, '0');
     
-    // Finde oder erstelle eine "Training" Übung
+    // Finde oder erstelle eine "Training" ï¿½bung
     let trainingExercise = exercises.find(e => e.name === 'Training (Gesamt)');
     if (!trainingExercise) {
-        // Erstelle neue Übung
+        // Erstelle neue ï¿½bung
         const newExercise = {
             name: 'Training (Gesamt)',
-            muscle_group: 'Ganzkörper',
+            muscle_group: 'Ganzkï¿½rper',
             exercise_type: 'time'
         };
-        // Speichere Übung
+        // Speichere ï¿½bung
         try {
             const res = await apiFetch('/api/exercises', {
                 method: 'POST',
@@ -2616,7 +2616,7 @@ async function stopTrainingTimer() {
                 exercises.push(trainingExercise);
             }
         } catch (err) {
-            console.error('Fehler beim Erstellen der Übung:', err);
+            console.error('Fehler beim Erstellen der ï¿½bung:', err);
         }
     }
     
@@ -2639,7 +2639,7 @@ async function stopTrainingTimer() {
                 body: JSON.stringify(data)
             });
             if (res && res.ok) {
-                showNotification(? Training gespeichert: );
+                showNotification('Training gespeichert: ' + durationStr);
                 loadWorkouts();
                 loadStats();
             }
@@ -2657,7 +2657,7 @@ async function stopTrainingTimer() {
     document.getElementById('training-timer-pause').style.display = 'none';
     document.getElementById('training-timer-stop').style.display = 'none';
     document.getElementById('training-timer-status').style.display = 'none';
-    document.getElementById('training-timer-status').textContent = '?? Training läuft... Gesamtdauer wird aufgezeichnet';
+    document.getElementById('training-timer-status').textContent = '?? Training lï¿½uft... Gesamtdauer wird aufgezeichnet';
 }
 
 function updateTrainingTimerDisplay() {
@@ -2670,12 +2670,20 @@ function updateTrainingTimerDisplay() {
     }
 }
 
-// Hilfsfunktion für Notification
+// Hilfsfunktion fï¿½r Notification
 function showNotification(message, type = 'success') {
-    // Prüfe ob Notification Funktion existiert
+    // Prï¿½fe ob Notification Funktion existiert
     if (typeof showNotificationInternal === 'function') {
         showNotificationInternal(message, type);
     } else {
         alert(message);
     }
 }
+
+// Timer-Funktionen global verfï¿½gbar machen
+window.startExerciseTimer = startExerciseTimer;
+window.pauseExerciseTimer = pauseExerciseTimer;
+window.stopExerciseTimer = stopExerciseTimer;
+window.startTrainingTimer = startTrainingTimer;
+window.pauseTrainingTimer = pauseTrainingTimer;
+window.stopTrainingTimer = stopTrainingTimer;
