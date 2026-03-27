@@ -1086,8 +1086,12 @@ function renderWorkoutsList() {
             <div class="workouts-in-date" id="workouts-${date}">`;
         
         dateWorkouts.forEach(w => {
-            // Prüfe ob Zeit-basierte Übung
-            const isTimeBased = w.exercise_type === 'time' || (w.duration_seconds && !w.weight);
+            // Prüfe ob Zeit-basierte Übung (robust)
+            const duration = parseInt(w.duration_seconds) || 0;
+            const weight = parseFloat(w.weight) || 0;
+            const isTimeBased = (w.exercise_type === 'time') || (duration > 0 && weight === 0);
+            
+            console.log('Workout:', w.exercise_name, 'type:', w.exercise_type, 'duration:', duration, 'weight:', weight, 'isTime:', isTimeBased);
             
             let detailsText, statsValue;
             const feelingEmoji = w.feeling >= 8 ? '🔥' : w.feeling >= 5 ? '👍' : '😤';
