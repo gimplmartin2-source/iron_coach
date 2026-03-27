@@ -356,12 +356,15 @@ function openExerciseSelector() {
         exercisesHtml += `<div class="exercise-grid" id="exercises-${cat}" style="display: ${display}; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 15px;">`;
         
         grouped[cat].forEach(e => {
+            const gifPath = getExerciseGif(e.name);
+            const gifHtml = gifPath ? `<img src="${gifPath}" alt="${e.name}" style="width: 100%; height: 80px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;" onerror="this.style.display='none'">` : '';
             exercisesHtml += `
-                <button type="button" class="exercise-option" onclick="selectExerciseForWorkout(${e.id}, '${e.name.replace(/'/g, "\\'")}')" style="padding: 15px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; cursor: pointer; transition: all 0.2s; text-align: left;"
+                <button type="button" class="exercise-option" onclick="selectExerciseForWorkout(${e.id}, '${e.name.replace(/'/g, "\\'")}')" style="padding: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; cursor: pointer; transition: all 0.2s; text-align: left;"
                 onmouseover="this.style.background='rgba(0,212,255,0.2)'; this.style.borderColor='#00d4ff';" 
                 onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.2)';">
-                    <div style="font-weight: bold; margin-bottom: 5px;">${e.name}</div>
-                    <div style="font-size: 0.8rem; color: #888;">${e.muscle_group}</div>
+                    ${gifHtml}
+                    <div style="font-weight: bold; margin-bottom: 5px; font-size: 0.9rem;">${e.name}</div>
+                    <div style="font-size: 0.75rem; color: #888;">${e.muscle_group}</div>
                 </button>`;
         });
         
