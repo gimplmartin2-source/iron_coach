@@ -579,7 +579,7 @@ app.post('/api/workouts', authenticateJWT, async (req, res) => {
   if (schemaStatus.workoutsHasDuration) {
     db.run(
       'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [req.user.userId, exercise_id || null, weight || null, sets || null, reps || null, duration_seconds || null, rest_seconds || 60, feeling || 5, safeDate],
+      [req.user.userId, exercise_id || null, weight !== undefined ? weight : null, sets !== undefined ? sets : null, reps !== undefined ? reps : null, duration_seconds !== undefined ? duration_seconds : null, rest_seconds || 60, feeling || 5, safeDate],
       function(err) {
         if (err) {
           console.error('❌ Fehler:', err.message);
@@ -592,7 +592,7 @@ app.post('/api/workouts', authenticateJWT, async (req, res) => {
     // Altes Schema ohne duration_seconds
     db.run(
       'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [req.user.userId, exercise_id || null, weight || null, sets || null, reps || null, rest_seconds || 60, feeling || 5, safeDate],
+      [req.user.userId, exercise_id || null, weight !== undefined ? weight : null, sets !== undefined ? sets : null, reps !== undefined ? reps : null, rest_seconds || 60, feeling || 5, safeDate],
       function(err) {
         if (err) {
           console.error('❌ Fehler:', err.message);
@@ -613,7 +613,7 @@ app.put('/api/workouts/:id', authenticateJWT, async (req, res) => {
   if (schemaStatus.workoutsHasDuration) {
     db.run(
       'UPDATE workouts SET exercise_id = ?, weight = ?, sets = ?, reps = ?, duration_seconds = ?, rest_seconds = ?, feeling = ?, date = ? WHERE id = ? AND user_id = ?',
-      [exercise_id || null, weight || null, sets || null, reps || null, duration_seconds || null, rest_seconds, feeling, date, req.params.id, req.user.userId],
+      [exercise_id || null, weight !== undefined ? weight : null, sets !== undefined ? sets : null, reps !== undefined ? reps : null, duration_seconds !== undefined ? duration_seconds : null, rest_seconds, feeling, date, req.params.id, req.user.userId],
       function(err) {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'Workout nicht gefunden' });
@@ -623,7 +623,7 @@ app.put('/api/workouts/:id', authenticateJWT, async (req, res) => {
   } else {
     db.run(
       'UPDATE workouts SET exercise_id = ?, weight = ?, sets = ?, reps = ?, rest_seconds = ?, feeling = ?, date = ? WHERE id = ? AND user_id = ?',
-      [exercise_id || null, weight || null, sets || null, reps || null, rest_seconds, feeling, date, req.params.id, req.user.userId],
+      [exercise_id || null, weight !== undefined ? weight : null, sets !== undefined ? sets : null, reps !== undefined ? reps : null, rest_seconds, feeling, date, req.params.id, req.user.userId],
       function(err) {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'Workout nicht gefunden' });
