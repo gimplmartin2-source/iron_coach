@@ -2491,3 +2491,191 @@ function initStats() {
     updateExerciseSelects();
     resetToCurrentWeek();
 }
+
+// ===================== TIMER FUNKTIONEN =====================
+
+// --- Übungs-Stopuhr (für Zeit-Übungen) ---
+let exerciseTimerInterval = null;
+let exerciseTimerSeconds = 0;
+let exerciseTimerRunning = false;
+
+function startExerciseTimer() {
+    if (exerciseTimerRunning) return;
+    
+    exerciseTimerRunning = true;
+    document.getElementById('exercise-timer-start').style.display = 'none';
+    document.getElementById('exercise-timer-pause').style.display = 'inline-block';
+    document.getElementById('exercise-timer-stop').style.display = 'inline-block';
+    
+    exerciseTimerInterval = setInterval(() => {
+        exerciseTimerSeconds++;
+        updateExerciseTimerDisplay();
+    }, 1000);
+}
+
+function pauseExerciseTimer() {
+    if (!exerciseTimerRunning) return;
+    
+    exerciseTimerRunning = false;
+    clearInterval(exerciseTimerInterval);
+    
+    document.getElementById('exercise-timer-start').style.display = 'inline-block';
+    document.getElementById('exercise-timer-pause').style.display = 'none';
+}
+
+function stopExerciseTimer() {
+    exerciseTimerRunning = false;
+    clearInterval(exerciseTimerInterval);
+    
+    // Zeit ins Feld übertragen (Format: Min:Sek)
+    const mins = Math.floor(exerciseTimerSeconds / 60);
+    const secs = exerciseTimerSeconds % 60;
+    const durationStr = mins + ':' + secs.toString().padStart(2, '0');
+    
+    const durationInput = document.getElementById('workout-duration');
+    if (durationInput) {
+        durationInput.value = durationStr;
+    }
+    
+    // Reset
+    exerciseTimerSeconds = 0;
+    updateExerciseTimerDisplay();
+    
+    document.getElementById('exercise-timer-start').style.display = 'inline-block';
+    document.getElementById('exercise-timer-pause').style.display = 'none';
+    document.getElementById('exercise-timer-stop').style.display = 'inline-block';
+}
+
+function updateExerciseTimerDisplay() {
+    const mins = Math.floor(exerciseTimerSeconds / 60);
+    const secs = exerciseTimerSeconds % 60;
+    const display = document.getElementById('exercise-timer-display');
+    if (display) {
+        display.textContent = mins.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0');
+    }
+}
+
+// --- Globaler Trainings-Timer ---
+let trainingTimerInterval = null;
+let trainingTimerSeconds = 0;
+let trainingTimerRunning = false;
+
+function startTrainingTimer() {
+    if (trainingTimerRunning) return;
+    
+    trainingTimerRunning = true;
+    document.getElementById('training-timer-start').style.display = 'none';
+    document.getElementById('training-timer-pause').style.display = 'inline-block';
+    document.getElementById('training-timer-stop').style.display = 'inline-block';
+    document.getElementById('training-timer-status').style.display = 'block';
+    
+    trainingTimerInterval = setInterval(() => {
+        trainingTimerSeconds++;
+        updateTrainingTimerDisplay();
+    }, 1000);
+}
+
+function pauseTrainingTimer() {
+    if (!trainingTimerRunning) return;
+    
+    trainingTimerRunning = false;
+    clearInterval(trainingTimerInterval);
+    
+    document.getElementById('training-timer-start').style.display = 'inline-block';
+    document.getElementById('training-timer-pause').style.display = 'none';
+    document.getElementById('training-timer-status').textContent = '?? Timer pausiert';
+}
+
+async function stopTrainingTimer() {
+    trainingTimerRunning = false;
+    clearInterval(trainingTimerInterval);
+    
+    // Als Workout speichern (Generische "Training" Übung)
+    const totalMinutes = Math.floor(trainingTimerSeconds / 60);
+    const totalSecs = trainingTimerSeconds % 60;
+    const durationStr = totalMinutes + ':' + totalSecs.toString().padStart(2, '0');
+    
+    // Finde oder erstelle eine "Training" Übung
+    let trainingExercise = exercises.find(e => e.name === 'Training (Gesamt)');
+    if (!trainingExercise) {
+        // Erstelle neue Übung
+        const newExercise = {
+            name: 'Training (Gesamt)',
+            muscle_group: 'Ganzkörper',
+            exercise_type: 'time'
+        };
+        // Speichere Übung
+        try {
+            const res = await apiFetch('/api/exercises', {
+                method: 'POST',
+                body: JSON.stringify(newExercise)
+            });
+            if (res && res.ok) {
+                const data = await res.json();
+                trainingExercise = { id: data.id, ...newExercise };
+                exercises.push(trainingExercise);
+            }
+        } catch (err) {
+            console.error('Fehler beim Erstellen der Übung:', err);
+        }
+    }
+    
+    // Speichere Workout
+    if (trainingExercise) {
+        const data = {
+            exercise_id: trainingExercise.id,
+            duration_seconds: trainingTimerSeconds,
+            weight: 0,
+            sets: 1,
+            reps: trainingTimerSeconds,
+            rest_seconds: 0,
+            feeling: 5,
+            date: new Date().toISOString().split('T')[0]
+        };
+        
+        try {
+            const res = await apiFetch('/api/workouts', {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+            if (res && res.ok) {
+                showNotification(? Training gespeichert: );
+                loadWorkouts();
+                loadStats();
+            }
+        } catch (err) {
+            console.error('Fehler beim Speichern:', err);
+            showNotification('? Fehler beim Speichern', 'error');
+        }
+    }
+    
+    // Reset
+    trainingTimerSeconds = 0;
+    updateTrainingTimerDisplay();
+    
+    document.getElementById('training-timer-start').style.display = 'inline-block';
+    document.getElementById('training-timer-pause').style.display = 'none';
+    document.getElementById('training-timer-stop').style.display = 'none';
+    document.getElementById('training-timer-status').style.display = 'none';
+    document.getElementById('training-timer-status').textContent = '?? Training läuft... Gesamtdauer wird aufgezeichnet';
+}
+
+function updateTrainingTimerDisplay() {
+    const hours = Math.floor(trainingTimerSeconds / 3600);
+    const mins = Math.floor((trainingTimerSeconds % 3600) / 60);
+    const secs = trainingTimerSeconds % 60;
+    const display = document.getElementById('training-timer-display');
+    if (display) {
+        display.textContent = hours.toString().padStart(2, '0') + ':' + mins.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0');
+    }
+}
+
+// Hilfsfunktion für Notification
+function showNotification(message, type = 'success') {
+    // Prüfe ob Notification Funktion existiert
+    if (typeof showNotificationInternal === 'function') {
+        showNotificationInternal(message, type);
+    } else {
+        alert(message);
+    }
+}
