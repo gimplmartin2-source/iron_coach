@@ -461,33 +461,19 @@ function showExercisePreview(exercise) {
     
     const previewContainer = document.getElementById('exercise-preview');
     const gifImg = document.getElementById('preview-gif');
-    const nameEl = document.getElementById('preview-name');
-    const muscleEl = document.getElementById('preview-muscle');
-    const typeEl = document.getElementById('preview-type');
     
     if (!previewContainer) return;
     
-    // GIF laden
+    // GIF laden und anzeigen
     const gifPath = getExerciseGif(exercise.name);
     if (gifPath) {
         gifImg.src = gifPath;
         gifImg.style.display = 'block';
+        previewContainer.style.display = 'block';
     } else {
         gifImg.style.display = 'none';
+        previewContainer.style.display = 'none';
     }
-    
-    // Text aktualisieren
-    nameEl.textContent = exercise.name;
-    muscleEl.textContent = exercise.muscle_group || 'Allgemein';
-    
-    // Typ-Label
-    const isTimeBased = exercise.exercise_type === 'time';
-    typeEl.textContent = isTimeBased ? '⏱️ Zeit-basiert' : '💪 Kraft-Übung';
-    typeEl.style.background = isTimeBased ? 'rgba(255,100,100,0.2)' : 'rgba(0,212,255,0.2)';
-    typeEl.style.color = isTimeBased ? '#f66' : '#00d4ff';
-    
-    // Container anzeigen
-    previewContainer.style.display = 'block';
 }
 
 function closeExerciseSelector() {

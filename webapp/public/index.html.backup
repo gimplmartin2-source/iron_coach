@@ -2,12 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#1a1a2e">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="description" content="IronCoach - Dein persönlicher Trainings-Tracker für Judo und Fitness">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IronCoach 💪 Trainings-Tracker</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -287,9 +282,16 @@
                 <h2>Neues Workout</h2>
                 
                 <!-- Übungs-Vorschau mit GIF -->
-                <div id="exercise-preview" style="display: none; margin-bottom: 20px; background: rgba(0,0,0,0.3); border-radius: 12px; border: 1px solid rgba(0,212,255,0.3); overflow: hidden;">
-                    <div id="preview-gif-container" style="width: 100%; height: 220px; background: rgba(0,0,0,0.5);">
-                        <img id="preview-gif" src="" alt="Übungs-Vorschau" style="width: 100%; height: 100%; object-fit: cover;">
+                <div id="exercise-preview" style="display: none; margin-bottom: 20px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 12px; border: 1px solid rgba(0,212,255,0.3);">
+                    <div style="display: flex; gap: 20px; align-items: flex-start;">
+                        <div id="preview-gif-container" style="flex-shrink: 0; width: 200px; height: 150px; border-radius: 8px; overflow: hidden; background: rgba(0,0,0,0.5);">
+                            <img id="preview-gif" src="" alt="Übungs-Vorschau" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 id="preview-name" style="color: #00d4ff; margin: 0 0 8px 0; font-size: 1.3rem;"></h3>
+                            <p id="preview-muscle" style="color: #888; margin: 0 0 8px 0; font-size: 0.9rem;"></p>
+                            <span id="preview-type" style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; background: rgba(0,212,255,0.2); color: #00d4ff;"></span>
+                        </div>
                     </div>
                 </div>
                 
