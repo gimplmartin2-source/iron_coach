@@ -1067,9 +1067,9 @@ function renderWorkoutsList() {
                     <span style="font-weight: bold; font-size: 1.1rem;">${dateStr}${sessionType ? ` - ${sessionType}` : ''}</span>
                     <span style="color: #00d4ff;">${dateWorkouts.length} Workouts | ${formatWeight(totalVolume)}</span>
                 </div>
-                <span class="toggle-icon" id="toggle-${date}">▼</span>
+                <span class="toggle-icon" id="toggle-${date}">▶</span>
             </div>
-            <div class="workouts-in-date" id="workouts-${date}">`;
+            <div class="workouts-in-date" id="workouts-${date}" style="display: none;">`;
         
         dateWorkouts.forEach(w => {
             // Prüfe ob Zeit-basierte Übung (robust)
@@ -2571,9 +2571,10 @@ function pauseTrainingTimer() {
     trainingTimerRunning = false;
     clearInterval(trainingTimerInterval);
     
+    // Nur Start zeigen, Pause ausblenden, Stop bleibt für Speichern sichtbar
     document.getElementById('training-timer-start').style.display = 'inline-block';
     document.getElementById('training-timer-pause').style.display = 'none';
-    document.getElementById('training-timer-status').textContent = '?? Timer pausiert';
+    // Stop bleibt sichtbar damit man speichern kann
 }
 
 async function stopTrainingTimer() {
