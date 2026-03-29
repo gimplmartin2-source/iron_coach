@@ -52,11 +52,11 @@
                 </div>
                 
                 <div style="display: flex; gap: 8px; flex-shrink: 0;">
-                    <button type="button" id="training-timer-start" onclick="startTrainingTimer()" class="btn-primary" style="padding: 10px 16px; font-size: 0.9rem; min-height: 44px;">▶️</button>
+                    <button type="button" id="training-timer-start" onclick="startTrainingTimer()" class="btn-primary" style="padding: 8px 12px; font-size: 1.2rem; min-height: 40px; min-width: 40px;">▶️</button>
                     
-                    <button type="button" id="training-timer-pause" onclick="pauseTrainingTimer()" class="btn-secondary" style="padding: 10px 16px; font-size: 0.9rem; display: none; background: rgba(255,180,0,0.2); border-color: #ffb400; color: #ffb400; min-height: 44px;">⏸️</button>
+                    <button type="button" id="training-timer-pause" onclick="pauseTrainingTimer()" class="btn-secondary" style="padding: 8px 12px; font-size: 1.2rem; display: none; background: rgba(255,180,0,0.2); border-color: #ffb400; color: #ffb400; min-height: 40px; min-width: 40px;">⏸️</button>
                     
-                    <button type="button" id="training-timer-stop" onclick="stopTrainingTimer()" class="btn-secondary" style="padding: 10px 16px; font-size: 0.9rem; display: none; background: rgba(255,100,100,0.2); border-color: #f66; color: #f66; min-height: 44px;">⏹️</button>
+                    <button type="button" id="training-timer-stop" onclick="stopTrainingTimer()" class="btn-secondary" style="padding: 8px 12px; font-size: 1.2rem; display: none; background: rgba(255,100,100,0.2); border-color: #f66; color: #f66; min-height: 40px; min-width: 40px;">⏹️</button>
                 </div>
             </div>
             
@@ -292,19 +292,19 @@
                 
                 <form id="workout-form">
                     <div class="form-row">
-                        <div class="form-group" style="flex: 2;">
+                        <div class="form-group">
                             <label>Übung</label>
                             <button type="button" id="exercise-select-btn" class="btn-secondary" onclick="openExerciseSelector()" style="width: 100%; text-align: left; padding: 12px;">
                                 <span id="selected-exercise-display">➕ Übung auswählen...</span>
                             </button>
                             <input type="hidden" id="workout-exercise" required>
                         </div>
-                        <div class="form-group" style="flex: 0 0 140px; max-width: 140px;">
+                    </div>
+                    <div class="form-row" id="strength-fields">
+                        <div class="form-group">
                             <label>Datum</label>
                             <input type="date" id="workout-date" required>
                         </div>
-                    </div>
-                    <div class="form-row" id="strength-fields">
                         <div class="form-group">
                             <label>Gewicht (kg)</label>
                             <input type="number" id="workout-weight" step="0.5" min="0">

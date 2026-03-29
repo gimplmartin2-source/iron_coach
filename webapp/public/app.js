@@ -2571,10 +2571,11 @@ function pauseTrainingTimer() {
     trainingTimerRunning = false;
     clearInterval(trainingTimerInterval);
     
-    // Nur Start zeigen, Pause ausblenden, Stop bleibt für Speichern sichtbar
+    // Bei Pause: Start zeigen (zum Fortsetzen), Pause ausblenden, Stop ausblenden (nicht mehr nötig)
+    // Stattdessen einen "Speichern" Button zeigen oder erst nach Stoppen
     document.getElementById('training-timer-start').style.display = 'inline-block';
     document.getElementById('training-timer-pause').style.display = 'none';
-    // Stop bleibt sichtbar damit man speichern kann
+    document.getElementById('training-timer-stop').style.display = 'inline-block'; // Speichern-Button
 }
 
 async function stopTrainingTimer() {
