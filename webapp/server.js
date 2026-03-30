@@ -415,6 +415,78 @@ function createDefaultExercises(userId) {
   }); // Schließend für db.get Prüfung
 }
 
+// Fehlende Standard-Übungen nach Restore ergänzen (Merge-Modus)
+function syncDefaultExercises(userId) {
+  const defaultExercises = [
+    { name: 'Uchi-Komi (Wurfübungen)', muscle_group: 'Judo', exercise_type: 'strength' },
+    { name: 'Nage-Komi (Wurftraining)', muscle_group: 'Judo', exercise_type: 'strength' },
+    { name: 'Randori (Freikampf)', muscle_group: 'Judo', exercise_type: 'time' },
+    { name: 'Kata (Formen)', muscle_group: 'Judo', exercise_type: 'time' },
+    { name: 'Sprungsukomikomi', muscle_group: 'Judo', exercise_type: 'strength' },
+    { name: 'Explosive Beinarbeit', muscle_group: 'Judo', exercise_type: 'strength' },
+    { name: 'Grip Fighting', muscle_group: 'Judo', exercise_type: 'strength' },
+    { name: 'Ne-waza (Bodenkampf)', muscle_group: 'Judo', exercise_type: 'time' },
+    { name: 'Turn-Uchikomi', muscle_group: 'Judo', exercise_type: 'strength' },
+    { name: 'Bankdrücken (Langhantel)', muscle_group: 'Brust', exercise_type: 'strength' },
+    { name: 'Bankdrücken Kurzhantel', muscle_group: 'Brust', exercise_type: 'strength' },
+    { name: 'Schrägbankdrücken', muscle_group: 'Brust', exercise_type: 'strength' },
+    { name: 'Fliegende (Butterfly)', muscle_group: 'Brust', exercise_type: 'strength' },
+    { name: 'Dips', muscle_group: 'Brust', exercise_type: 'strength' },
+    { name: 'Kreuzheben', muscle_group: 'Rücken', exercise_type: 'strength' },
+    { name: 'Klimmzüge', muscle_group: 'Rücken', exercise_type: 'strength' },
+    { name: 'Rudern (Langhantel)', muscle_group: 'Rücken', exercise_type: 'strength' },
+    { name: 'Rudern Kabelzug', muscle_group: 'Rücken', exercise_type: 'strength' },
+    { name: 'Rudern Kurzhantel', muscle_group: 'Rücken', exercise_type: 'strength' },
+    { name: 'Latzug', muscle_group: 'Rücken', exercise_type: 'strength' },
+    { name: 'T-Bar Rudern', muscle_group: 'Rücken', exercise_type: 'strength' },
+    { name: 'Rückenstrecker', muscle_group: 'Rücken', exercise_type: 'strength' },
+    { name: 'Kniebeugen', muscle_group: 'Beine', exercise_type: 'strength' },
+    { name: 'Beinpresse', muscle_group: 'Beine', exercise_type: 'strength' },
+    { name: 'Beinstrecker', muscle_group: 'Beine', exercise_type: 'strength' },
+    { name: 'Beinbeuger', muscle_group: 'Beine', exercise_type: 'strength' },
+    { name: 'Wadenheben', muscle_group: 'Beine', exercise_type: 'strength' },
+    { name: 'Ausfallschritte', muscle_group: 'Beine', exercise_type: 'strength' },
+    { name: 'Beckenheben', muscle_group: 'Beine', exercise_type: 'strength' },
+    { name: 'Schulterdrücken', muscle_group: 'Schultern', exercise_type: 'strength' },
+    { name: 'Seitheben', muscle_group: 'Schultern', exercise_type: 'strength' },
+    { name: 'Frontheben', muscle_group: 'Schultern', exercise_type: 'strength' },
+    { name: 'Face Pulls', muscle_group: 'Schultern', exercise_type: 'strength' },
+    { name: 'Bizeps-Curls', muscle_group: 'Arme', exercise_type: 'strength' },
+    { name: 'Hammer Curls', muscle_group: 'Arme', exercise_type: 'strength' },
+    { name: 'Trizeps-Drücken Kabel', muscle_group: 'Arme', exercise_type: 'strength' },
+    { name: 'Französisches Trizeps', muscle_group: 'Arme', exercise_type: 'strength' },
+    { name: 'Plank (Unterarmstütz)', muscle_group: 'Bauch', exercise_type: 'time' },
+    { name: 'Side Plank', muscle_group: 'Bauch', exercise_type: 'time' },
+    { name: 'Crunches', muscle_group: 'Bauch', exercise_type: 'strength' },
+    { name: 'Beinheben', muscle_group: 'Bauch', exercise_type: 'strength' },
+    { name: 'Russische Twist', muscle_group: 'Bauch', exercise_type: 'strength' },
+    { name: 'Dead Bug', muscle_group: 'Bauch', exercise_type: 'strength' },
+    { name: 'Bird Dog', muscle_group: 'Bauch', exercise_type: 'strength' },
+    { name: 'Glute Bridge', muscle_group: 'Bauch', exercise_type: 'strength' },
+    { name: 'Pallof Press', muscle_group: 'Bauch', exercise_type: 'strength' },
+    { name: 'Torso Rotation', muscle_group: 'Bauch', exercise_type: 'strength' },
+    { name: 'ADIM-Core (für Gleitwirbel)', muscle_group: 'Bauch', exercise_type: 'time' },
+    { name: 'Katze-Kuh', muscle_group: 'Mobilität', exercise_type: 'time' },
+    { name: 'Butterfly Stretch', muscle_group: 'Dehnen', exercise_type: 'time' },
+    { name: 'Hüftdehnung', muscle_group: 'Dehnen', exercise_type: 'time' },
+    { name: 'Kindhaltung', muscle_group: 'Mobilität', exercise_type: 'time' },
+  ];
+  
+  let added = 0;
+  defaultExercises.forEach(exercise => {
+    db.run('INSERT OR IGNORE INTO exercises (user_id, name, muscle_group, exercise_type) VALUES (?, ?, ?, ?)',
+      [userId, exercise.name, exercise.muscle_group, exercise.exercise_type],
+      function(err) {
+        if (!err && this.changes > 0) {
+          added++;
+        }
+      }
+    );
+  });
+  
+  console.log(`🔄 ${added} fehlende Standardübungen für User ${userId} ergänzt`);
+}
+
 // Register
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   const { email, password, displayName } = req.body;
@@ -858,16 +930,9 @@ app.post('/api/restore', authenticateJWT, async (req, res) => {
             }
           });
         } else {
-          // ACHTUNG: Nach Restore prüfen ob Übungen existieren, sonst neu erstellen
-          console.log('🔍 Prüfe ob Übungen nach Restore existieren...');
-          db.get('SELECT COUNT(*) as count FROM exercises WHERE user_id = ?', [req.user.userId], (err, row) => {
-            if (!err && row && row.count === 0) {
-              console.log('⚠️ Keine Übungen nach Restore - erstelle Standard-Übungen...');
-              createDefaultExercises(req.user.userId);
-            } else {
-              console.log(`✅ ${row.count} Übungen nach Restore vorhanden`);
-            }
-          });
+          // ACHTUNG: Nach Restore fehlende Standard-Übungen ergänzen
+          console.log('🔄 Synchronisiere Standard-Übungen nach Restore...');
+          syncDefaultExercises(req.user.userId);
           res.json({ success: true });
         }
       });
