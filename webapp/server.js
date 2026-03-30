@@ -448,12 +448,23 @@ app.get('/auth/google/callback',
 app.get('/api/exercises', authenticateJWT, async (req, res) => {
   await checkSchema();
   
+  // Versuche echtes exercise_type zu lesen, auch wenn Flag false
   const query = schemaStatus.exercisesHasType
     ? `SELECT id, user_id, name, muscle_group, exercise_type, created_at FROM exercises WHERE user_id = ?`
-    : `SELECT id, user_id, name, muscle_group, 'strength' as exercise_type, created_at FROM exercises WHERE user_id = ?`;
+    : `SELECT id, user_id, name, muscle_group, 
+       COALESCE(exercise_type, 'strength') as exercise_type, created_at 
+       FROM exercises WHERE user_id = ?`;
   
   db.all(query, [req.user.userId], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) {
+      // Fallback ohne exercise_type
+      db.all('SELECT id, user_id, name, muscle_group, "strength" as exercise_type, created_at FROM exercises WHERE user_id = ?', 
+        [req.user.userId], (err2, rows2) => {
+        if (err2) return res.status(500).json({ error: err2.message });
+        res.json(rows2);
+      });
+      return;
+    }
     res.json(rows);
   });
 });
