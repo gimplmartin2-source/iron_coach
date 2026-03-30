@@ -500,23 +500,27 @@ app.put('/api/exercises/:id', authenticateJWT, async (req, res) => {
   const { name, muscle_group, exercise_type } = req.body;
   const type = exercise_type || 'strength';
   
-  if (schemaStatus.exercisesHasType) {
-    db.run('UPDATE exercises SET name = ?, muscle_group = ?, exercise_type = ? WHERE id = ? AND user_id = ?',
-      [name, muscle_group, type, req.params.id, req.user.userId],
-      function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        if (this.changes === 0) return res.status(404).json({ error: 'Übung nicht gefunden' });
-        res.json({ message: 'Übung aktualisiert', id: req.params.id, name, muscle_group, exercise_type: type });
-      });
-  } else {
-    db.run('UPDATE exercises SET name = ?, muscle_group = ? WHERE id = ? AND user_id = ?',
-      [name, muscle_group, req.params.id, req.user.userId],
-      function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        if (this.changes === 0) return res.status(404).json({ error: 'Übung nicht gefunden' });
-        res.json({ message: 'Übung aktualisiert', id: req.params.id, name, muscle_group, exercise_type: 'strength' });
-      });
-  }
+  // Versuche immer exercise_type zu speichern (falls Spalte existiert)
+  db.run('UPDATE exercises SET name = ?, muscle_group = ?, exercise_type = ? WHERE id = ? AND user_id = ?',
+    [name, muscle_group, type, req.params.id, req.user.userId],
+    function(err) {
+      if (err) {
+        // Falls exercise_type Spalte fehlt, ohne die Spalte updaten
+        if (err.message.includes('no such column')) {
+          db.run('UPDATE exercises SET name = ?, muscle_group = ? WHERE id = ? AND user_id = ?',
+            [name, muscle_group, req.params.id, req.user.userId],
+            function(err2) {
+              if (err2) return res.status(500).json({ error: err2.message });
+              if (this.changes === 0) return res.status(404).json({ error: 'Übung nicht gefunden' });
+              res.json({ message: 'Übung aktualisiert (ohne Typ)', id: req.params.id, name, muscle_group });
+            });
+          return;
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      if (this.changes === 0) return res.status(404).json({ error: 'Übung nicht gefunden' });
+      res.json({ message: 'Übung aktualisiert', id: req.params.id, name, muscle_group, exercise_type: type });
+    });
 });
 
 // Übung löschen
