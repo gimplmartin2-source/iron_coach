@@ -933,10 +933,10 @@ async function addWorkout(e) {
         const durationStr = document.getElementById('workout-duration').value;
         const durationSec = parseDuration(durationStr);
         data.duration_seconds = durationSec;
-        // Bei Zeit-Übungen KEINE sets/reps speichern (null oder 0)
+        // Bei Zeit-Übungen sets/reps auf 0 setzen (NOT NULL constraint!)
         data.weight = 0;
-        data.sets = null;
-        data.reps = null;
+        data.sets = 0;
+        data.reps = 0;
     } else {
         // Kraft-Übung
         data.weight = parseFloat(document.getElementById('workout-weight').value) || 0;
