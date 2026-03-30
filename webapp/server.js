@@ -963,7 +963,7 @@ app.post('/api/restore', authenticateJWT, async (req, res) => {
     
     res2.data.pipe(dest);
     
-    dest.on('finish', () => {
+    dest.on('finish', async () => {
       // Alte DB schließen, neue kopieren, neu laden
       db.close();
       fs.copyFileSync(DB_PATH + '.restore', DB_PATH);
@@ -972,10 +972,12 @@ app.post('/api/restore', authenticateJWT, async (req, res) => {
       
       // Schema neu laden und MIGRATION durchführen
       schemaStatus = { workoutsHasDuration: false, exercisesHasType: false, initialized: false };
-      checkSchema().then(() => {
-        // Migration: duration_seconds Spalte hinzufügen falls fehlt
-        if (!schemaStatus.workoutsHasDuration) {
-          console.log('🔧 Migration: Füge duration_seconds Spalte hinzu...');
+      await checkSchema();
+      
+      // Migration: duration_seconds Spalte hinzufügen falls fehlt
+      if (!schemaStatus.workoutsHasDuration) {
+        console.log('🔧 Migration: Füge duration_seconds Spalte hinzu...');
+        await new Promise((resolve) => {
           db.run('ALTER TABLE workouts ADD COLUMN duration_seconds INTEGER', (err) => {
             if (err && !err.message.includes('duplicate column')) {
               console.error('Migration Fehler:', err);
@@ -983,38 +985,30 @@ app.post('/api/restore', authenticateJWT, async (req, res) => {
               console.log('✅ Migration erfolgreich');
               schemaStatus.workoutsHasDuration = true;
             }
-            // Migration: exercise_type zur exercises Tabelle
-            if (!schemaStatus.exercisesHasType) {
-              db.run('ALTER TABLE exercises ADD COLUMN exercise_type TEXT DEFAULT "strength"', (err2) => {
-                if (err2 && !err2.message.includes('duplicate column')) {
-                  console.error('Migration Fehler:', err2);
-                } else {
-                  schemaStatus.exercisesHasType = true;
-                  // Standard-Übungen mit korrektem exercise_type aktualisieren
-                  const timeExercises = [
-                    'Plank (Unterarmstütz)', 'ADIM-Core (für Gleitwirbel)', 
-                    'Randori (Freikampf)', 'Kata (Formen)', 'Ne-waza (Bodenkampf)',
-                    'Plank', 'Side Plank', 'Side-Plank', 'Dead Bug'
-                  ];
-                  timeExercises.forEach(name => {
-                    db.run('UPDATE exercises SET exercise_type = "time" WHERE name LIKE ? AND user_id = ?', 
-                      [`%${name}%`, req.user.userId]);
-                  });
-                  console.log('✅ Standard-Übungen aktualisiert');
-                }
-                res.json({ success: true });
-              });
-            } else {
-              res.json({ success: true });
-            }
+            resolve();
           });
-        } else {
-          // ACHTUNG: Nach Restore fehlende Standard-Übungen ergänzen
-          console.log('🔄 Synchronisiere Standard-Übungen nach Restore...');
-          await syncDefaultExercisesAsync(req.user.userId);
-          res.json({ success: true });
-        }
-      });
+        });
+      }
+      
+      // Migration: exercise_type zur exercises Tabelle
+      if (!schemaStatus.exercisesHasType) {
+        console.log('🔧 Migration: Füge exercise_type Spalte hinzu...');
+        await new Promise((resolve) => {
+          db.run('ALTER TABLE exercises ADD COLUMN exercise_type TEXT DEFAULT "strength"', (err2) => {
+            if (err2 && !err2.message.includes('duplicate column')) {
+              console.error('Migration Fehler:', err2);
+            } else {
+              schemaStatus.exercisesHasType = true;
+            }
+            resolve();
+          });
+        });
+      }
+      
+      // ACHTUNG: Nach Restore fehlende Standard-Übungen ergänzen
+      console.log('🔄 Synchronisiere Standard-Übungen nach Restore...');
+      await syncDefaultExercisesAsync(req.user.userId);
+      res.json({ success: true });
     });
     
     dest.on('error', (err) => {
