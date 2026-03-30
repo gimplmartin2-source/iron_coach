@@ -556,8 +556,14 @@ app.get('/api/workouts', authenticateJWT, async (req, res) => {
     `;
   } else {
     // Altes Schema - minimales Query
+    // Zeit-Erkennung bei alten Daten: sets=1, weight=0, reps>0
     query = `
-      SELECT w.*, e.name as exercise_name, e.muscle_group, 'strength' as exercise_type
+      SELECT w.*, e.name as exercise_name, e.muscle_group,
+             CASE
+               WHEN e.exercise_type IS NOT NULL THEN e.exercise_type
+               WHEN (w.weight IS NULL OR w.weight = 0) AND (w.sets IS NULL OR w.sets <= 1) AND w.reps > 0 THEN 'time'
+               ELSE 'strength'
+             END as exercise_type
       FROM workouts w
       LEFT JOIN exercises e ON w.exercise_id = e.id
       WHERE w.user_id = ?
