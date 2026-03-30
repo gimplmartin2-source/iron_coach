@@ -810,6 +810,17 @@ app.post('/api/restore', authenticateJWT, async (req, res) => {
                   console.error('Migration Fehler:', err2);
                 } else {
                   schemaStatus.exercisesHasType = true;
+                  // Standard-Übungen mit korrektem exercise_type aktualisieren
+                  const timeExercises = [
+                    'Plank (Unterarmstütz)', 'ADIM-Core (für Gleitwirbel)', 
+                    'Randori (Freikampf)', 'Kata (Formen)', 'Ne-waza (Bodenkampf)',
+                    'Plank', 'Side Plank', 'Side-Plank', 'Dead Bug'
+                  ];
+                  timeExercises.forEach(name => {
+                    db.run('UPDATE exercises SET exercise_type = "time" WHERE name LIKE ? AND user_id = ?', 
+                      [`%${name}%`, req.user.userId]);
+                  });
+                  console.log('✅ Standard-Übungen aktualisiert');
                 }
                 res.json({ success: true });
               });
