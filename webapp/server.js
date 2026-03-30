@@ -858,6 +858,16 @@ app.post('/api/restore', authenticateJWT, async (req, res) => {
             }
           });
         } else {
+          // ACHTUNG: Nach Restore prüfen ob Übungen existieren, sonst neu erstellen
+          console.log('🔍 Prüfe ob Übungen nach Restore existieren...');
+          db.get('SELECT COUNT(*) as count FROM exercises WHERE user_id = ?', [req.user.userId], (err, row) => {
+            if (!err && row && row.count === 0) {
+              console.log('⚠️ Keine Übungen nach Restore - erstelle Standard-Übungen...');
+              createDefaultExercises(req.user.userId);
+            } else {
+              console.log(`✅ ${row.count} Übungen nach Restore vorhanden`);
+            }
+          });
           res.json({ success: true });
         }
       });
