@@ -61,12 +61,16 @@ const exerciseGifs = {
     'Kreuzheben': 'rumenian_deadlift-1.gif',
     'Klimmzüge': 'klimmzugstange_uebungen-enge_klimmzuege_untergriff-1.gif',
     'Rudern (Langhantel)': 'rudern_mit_kurzhantel-einarmig-1.gif',
+    'Rudern Kabelzug': 'rudern_am_kabelzug-einarmig-1.gif',
+    'Rudern Kurzhantel': 'rudern_mit_kurzhantel-einarmig-1.gif',
     'Latzug': 'latzuggeraet_uebungen-latzuggeraet_kabelzug_obergriff.gif',
     'T-Bar Rudern': 't_bar_rudern-beidarmig.gif',
+    'Rückenstrecker': 'rueckenstrecker_uebungen_gym-rueckenstrecker_geraet_zusatzgewicht.gif',
     'Kniebeugen': 'kniebeugen_ausfuehrung-1.gif',
     'Beinpresse': 'beinpresse_muskeln-45_grad_beinpresse_breit.gif',
     'Beinstrecker': 'beinstrecker_maschine-1.gif',
     'Beinbeuger': 'beinbeuger_trainieren-beckenheben-1.gif',
+    'Beckenheben': 'beinbeuger_trainieren-beckenheben-1.gif',
     'Wadenheben': 'calf_raises-1.gif',
     'Ausfallschritte': 'ausfallschritte_kurzhantel_nach_vorne.gif',
     'Schulterdrücken': 'schulterdruecken_mit_kurzhanteln-stehend-1.gif',
@@ -75,6 +79,7 @@ const exerciseGifs = {
     'Face Pulls': 'face-pulls-kabelzug.gif',
     'Bizeps-Curls': 'bizeps_curls_kurzhanteln_abwechselnd.gif',
     'Trizeps-Drücken': 'trizeps_uebungen_fitnessstudio-trizepsdruecken_am_kabelzug-1.gif',
+    'Trizeps-Drücken Kabel': 'trizeps_uebungen_fitnessstudio-trizepsdruecken_am_kabelzug-1.gif',
     'Hammer Curls': 'hammercurl_kurzhanteln_abwechselnd.gif',
     'Französisches Trizeps': 'trizepstraining_zuhause-kurzhandell_trizepsdruecken_beidarmig.gif',
     'Plank (Unterarmstütz)': 'plank.gif',
@@ -83,11 +88,11 @@ const exerciseGifs = {
     'Russische Twist': 'russian_twist.gif',
     'ADIM-Core (für Gleitwirbel)': 'adim-core.gif',
     'Dead Bug': 'dead-bug.gif',
-    'Bird-Dog': 'bird-dog.gif',
+    'Bird Dog': 'bird-dog.gif',
     'Glute Bridge': 'glute-bridge.gif',
     'Butterfly Stretch': 'butterfly-stretch.gif',
-    'Cat-Cow': 'cat-cow.gif',
-    'Hip Stretch': 'hip-stretch.gif',
+    'Katze-Kuh': 'cat-cow.gif',
+    'Hüftdehnung': 'hip-stretch.gif',
     'Torso Rotation': 'torso-rotation.gif',
     'Judo': 'judo.gif',
     'Rückenstrecker': 'rueckenstrecker_uebungen_gym-rueckenstrecker_geraet_zusatzgewicht.gif',
@@ -1769,10 +1774,17 @@ function autoAddExerciseThumbnails() {
                     const img = document.createElement('img');
                     img.src = imagePath;
                     img.alt = exerciseName;
-                    img.loading = 'lazy'; // Lazy loading für Performance
+                    // KEIN lazy loading für GIFs - verursacht Probleme auf iOS
+                    // img.loading = 'lazy';
+                    img.style.width = '100%';
+                    img.style.height = '100%';
+                    img.style.objectFit = 'cover';
                     img.onerror = () => {
                         // Fallback zu Emoji wenn Bild nicht geladen werden kann
                         thumb.textContent = emoji;
+                        thumb.style.display = 'flex';
+                        thumb.style.alignItems = 'center';
+                        thumb.style.justifyContent = 'center';
                     };
                     thumb.appendChild(img);
                 } else {
