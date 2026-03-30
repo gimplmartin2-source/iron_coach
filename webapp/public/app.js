@@ -823,6 +823,16 @@ async function loadWorkouts() {
         const res = await apiFetch('/api/workouts');
         if (!res) return;
         workouts = await res.json();
+        
+        // Exercise-Type zu jedem Workout hinzufügen
+        workouts.forEach(w => {
+            const exercise = exercises.find(e => e.id === w.exercise_id);
+            if (exercise) {
+                w.exercise_type = exercise.exercise_type;
+                w.muscle_group = exercise.muscle_group;
+            }
+        });
+        
         renderWorkoutsList();
     } catch (err) {
         console.error('Fehler beim Laden der Workouts:', err);
@@ -900,9 +910,10 @@ async function addWorkout(e) {
         const durationStr = document.getElementById('workout-duration').value;
         const durationSec = parseDuration(durationStr);
         data.duration_seconds = durationSec;
+        // Bei Zeit-Übungen KEINE sets/reps speichern (null oder 0)
         data.weight = 0;
-        data.sets = 1;
-        data.reps = durationSec;
+        data.sets = null;
+        data.reps = null;
     } else {
         // Kraft-Übung
         data.weight = parseFloat(document.getElementById('workout-weight').value) || 0;
@@ -968,14 +979,37 @@ function editWorkout(id) {
     
     editingWorkoutId = id;
     
+    // Prüfe ob Zeit-basierte Übung
+    const exercise = exercises.find(e => e.id === workout.exercise_id);
+    const isTimeBased = exercise && exercise.exercise_type === 'time';
+    
+    // Felder umschalten
+    toggleWorkoutFields(isTimeBased);
+    
     // Formular mit Daten füllen
     document.getElementById('workout-exercise').value = workout.exercise_id;
     document.getElementById('workout-date').value = workout.date;
-    document.getElementById('workout-weight').value = workout.weight;
-    document.getElementById('workout-sets').value = workout.sets;
-    document.getElementById('workout-reps').value = workout.reps;
     document.getElementById('workout-rest').value = workout.rest_seconds || '';
     document.getElementById('workout-feeling').value = workout.feeling || '';
+    
+    if (isTimeBased) {
+        // Zeit-basierte Übung: Dauer in Min:Sek Format
+        const durationSec = workout.duration_seconds || 0;
+        const mins = Math.floor(durationSec / 60);
+        const secs = durationSec % 60;
+        const durationStr = mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}`;
+        document.getElementById('workout-duration').value = durationStr;
+        // Kraft-Felder leeren
+        document.getElementById('workout-weight').value = '';
+        document.getElementById('workout-sets').value = '';
+        document.getElementById('workout-reps').value = '';
+    } else {
+        // Kraft-Übung
+        document.getElementById('workout-weight').value = workout.weight || '';
+        document.getElementById('workout-sets').value = workout.sets || '';
+        document.getElementById('workout-reps').value = workout.reps || '';
+        document.getElementById('workout-duration').value = '';
+    }
     
     // Button-Text ändern
     const submitBtn = document.querySelector('#workout-form button[type="submit"]');
@@ -1002,6 +1036,9 @@ function cancelEdit() {
     editingWorkoutId = null;
     document.getElementById('workout-form').reset();
     document.getElementById('workout-date').valueAsDate = new Date();
+    
+    // Felder zurück auf Kraft-Modus
+    toggleWorkoutFields(false);
     
     const submitBtn = document.querySelector('#workout-form button[type="submit"]');
     submitBtn.textContent = '💾 Speichern';
