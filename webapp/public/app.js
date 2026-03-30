@@ -1209,8 +1209,8 @@ function renderWorkoutsList() {
 
 // Session Typ erkennen (Judo, Gym, etc.)
 function detectSessionType(dateWorkouts) {
-    const names = dateWorkouts.map(w => w.exercise_name.toLowerCase());
-    const muscleGroups = [...new Set(dateWorkouts.map(w => w.muscle_group))];
+    const names = dateWorkouts.map(w => (w.exercise_name || '').toLowerCase());
+    const muscleGroups = [...new Set(dateWorkouts.map(w => w.muscle_group).filter(Boolean))];
     
     // Judo-Training erkennen
     if (names.some(n => n.includes('judo') || n.includes('wurf') || n.includes('technik'))) {
