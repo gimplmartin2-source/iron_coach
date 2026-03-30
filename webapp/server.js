@@ -770,11 +770,36 @@ app.post('/api/restore', authenticateJWT, async (req, res) => {
       db = new sqlite3.Database(DB_PATH);
       fs.unlinkSync(DB_PATH + '.restore');
       
-      // Schema neu laden
+      // Schema neu laden und MIGRATION durchführen
       schemaStatus = { workoutsHasDuration: false, exercisesHasType: false, initialized: false };
       checkSchema().then(() => {
-        console.log('✅ Datenbank wiederhergestellt');
-        res.json({ success: true });
+        // Migration: duration_seconds Spalte hinzufügen falls fehlt
+        if (!schemaStatus.workoutsHasDuration) {
+          console.log('🔧 Migration: Füge duration_seconds Spalte hinzu...');
+          db.run('ALTER TABLE workouts ADD COLUMN duration_seconds INTEGER', (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+              console.error('Migration Fehler:', err);
+            } else {
+              console.log('✅ Migration erfolgreich');
+              schemaStatus.workoutsHasDuration = true;
+            }
+            // Migration: exercise_type zur exercises Tabelle
+            if (!schemaStatus.exercisesHasType) {
+              db.run('ALTER TABLE exercises ADD COLUMN exercise_type TEXT DEFAULT "strength"', (err2) => {
+                if (err2 && !err2.message.includes('duplicate column')) {
+                  console.error('Migration Fehler:', err2);
+                } else {
+                  schemaStatus.exercisesHasType = true;
+                }
+                res.json({ success: true });
+              });
+            } else {
+              res.json({ success: true });
+            }
+          });
+        } else {
+          res.json({ success: true });
+        }
       });
     });
     
