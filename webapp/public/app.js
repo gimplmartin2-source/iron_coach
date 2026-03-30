@@ -899,8 +899,9 @@ function toggleWorkoutFields(isTimeBased) {
     
     const strengthFields = document.getElementById('strength-fields');
     const timeFields = document.getElementById('time-fields');
+    const timeSetsGroup = document.getElementById('time-sets-group');
     
-    console.log('📍 strengthFields:', !!strengthFields, '| timeFields:', !!timeFields);
+    console.log('📍 strengthFields:', !!strengthFields, '| timeFields:', !!timeFields, '| timeSetsGroup:', !!timeSetsGroup);
     
     if (!strengthFields || !timeFields) {
         console.log('❌ Felder nicht gefunden!');
@@ -911,10 +912,12 @@ function toggleWorkoutFields(isTimeBased) {
         console.log('⏱️ Zeige Zeit-Felder');
         strengthFields.style.display = 'none';
         timeFields.style.display = 'flex'; // Für einzelnes Feld
+        if (timeSetsGroup) timeSetsGroup.style.display = 'block';
     } else {
         console.log('💪 Zeige Kraft-Felder');
         strengthFields.style.display = 'grid';
         timeFields.style.display = 'none';
+        if (timeSetsGroup) timeSetsGroup.style.display = 'none';
     }
 }
 
