@@ -824,12 +824,20 @@ async function loadWorkouts() {
         if (!res) return;
         workouts = await res.json();
         
+        // WICHTIG: Sicherstellen dass exercises geladen sind
+        if (exercises.length === 0) {
+            console.log('🔄 Exercises noch nicht geladen, lade jetzt...');
+            await loadExercises();
+        }
+        
         // Exercise-Type zu jedem Workout hinzufügen
         workouts.forEach(w => {
             const exercise = exercises.find(e => e.id === w.exercise_id);
             if (exercise) {
                 w.exercise_type = exercise.exercise_type;
                 w.muscle_group = exercise.muscle_group;
+            } else {
+                console.log('⚠️ Keine Übung gefunden für workout:', w.id, 'exercise_id:', w.exercise_id);
             }
         });
         
