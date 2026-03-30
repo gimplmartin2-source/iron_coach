@@ -839,24 +839,32 @@ async function loadWorkouts() {
     }
 }
 
-// Hilfsfunktion: Dauer-String zu Sekunden parsen (z.B. "1:30" -> 90)
+// Hilfsfunktion: Dauer-String zu Sekunden parsen (z.B. "1:30" oder "01:30" -> 90)
 function parseDuration(str) {
     if (!str) return 0;
+    
+    // Trim whitespace
+    str = str.trim();
     
     // Einfache Sekunden (nur Zahl)
     if (/^\d+$/.test(str)) {
         return parseInt(str);
     }
     
-    // Format Min:Sek (z.B. "1:30")
-    const match = str.match(/^(\d+):(\d+)$/);
+    // Format MM:SS oder M:SS (z.B. "01:30" oder "1:30")
+    const match = str.match(/^(\d{1,2}):(\d{2})$/);
     if (match) {
         const mins = parseInt(match[1]);
         const secs = parseInt(match[2]);
-        return mins * 60 + secs;
+        // Validiere Sekunden (max 59)
+        if (secs >= 0 && secs <= 59) {
+            return mins * 60 + secs;
+        }
     }
     
-    return 0;
+    // Fallback: Versuche als Zahl zu parsen
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : Math.floor(num);
 }
 
 // Toggle zwischen Kraft- und Zeit-basierten Workout-Feldern
@@ -979,9 +987,21 @@ function editWorkout(id) {
     
     editingWorkoutId = id;
     
-    // Prüfe ob Zeit-basierte Übung
+    // Prüfe ob Zeit-basierte Übung (ROBUST für alte und neue Workouts)
     const exercise = exercises.find(e => e.id === workout.exercise_id);
-    const isTimeBased = exercise && exercise.exercise_type === 'time';
+    const duration = parseInt(workout.duration_seconds) || 0;
+    const weight = parseFloat(workout.weight) || 0;
+    const sets = parseInt(workout.sets) || 0;
+    const reps = parseInt(workout.reps) || 0;
+    
+    // Neues Format: duration_seconds > 0 oder exercise_type === 'time'
+    // Altes Format: sets=1, weight=0, reps=Zeit in Sekunden
+    const isTimeBased = (exercise && exercise.exercise_type === 'time') || 
+                       (duration > 0 && weight === 0) ||
+                       (duration === 0 && weight === 0 && sets === 1 && reps > 0);
+    
+    // Nutze duration_seconds wenn verfügbar, sonst reps (altes Format)
+    const effectiveDuration = duration > 0 ? duration : (isTimeBased && reps > 0 ? reps : 0);
     
     // Felder umschalten
     toggleWorkoutFields(isTimeBased);
@@ -994,7 +1014,7 @@ function editWorkout(id) {
     
     if (isTimeBased) {
         // Zeit-basierte Übung: Dauer in Min:Sek Format
-        const durationSec = workout.duration_seconds || 0;
+        const durationSec = effectiveDuration;
         const mins = Math.floor(durationSec / 60);
         const secs = durationSec % 60;
         const durationStr = mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : `${secs}`;
@@ -1109,27 +1129,41 @@ function renderWorkoutsList() {
             <div class="workouts-in-date" id="workouts-${date}" style="display: none;">`;
         
         dateWorkouts.forEach(w => {
-            // Prüfe ob Zeit-basierte Übung (robust)
+            // Prüfe ob Zeit-basierte Übung (ROBUST für alte und neue Workouts)
             const duration = parseInt(w.duration_seconds) || 0;
             const weight = parseFloat(w.weight) || 0;
-            const isTimeBased = (w.exercise_type === 'time') || (duration > 0 && weight === 0);
+            const sets = parseInt(w.sets) || 0;
+            const reps = parseInt(w.reps) || 0;
             
-            console.log('Workout:', w.exercise_name, 'type:', w.exercise_type, 'duration:', duration, 'weight:', weight, 'isTime:', isTimeBased);
+            // Neues Format: duration_seconds > 0
+            // Altes Format: sets=1, weight=0, reps=Zeit in Sekunden
+            // Oder: exercise_type explizit auf 'time'
+            const isTimeBased = (w.exercise_type === 'time') || 
+                               (duration > 0 && weight === 0) ||
+                               (duration === 0 && weight === 0 && sets === 1 && reps > 0);
+            
+            // Nutze duration_seconds wenn verfügbar, sonst reps (altes Format)
+            const effectiveDuration = duration > 0 ? duration : (isTimeBased && reps > 0 ? reps : 0);
+            
+            console.log('Workout:', w.exercise_name, 'type:', w.exercise_type, 'duration:', duration, 'weight:', weight, 'isTime:', isTimeBased, 'effectiveDuration:', effectiveDuration);
             
             let detailsText, statsValue;
             const feelingEmoji = w.feeling >= 8 ? '🔥' : w.feeling >= 5 ? '👍' : '😤';
             
             if (isTimeBased) {
                 // Zeit-basierte Übung
-                const mins = Math.floor((w.duration_seconds || 0) / 60);
-                const secs = (w.duration_seconds || 0) % 60;
+                const mins = Math.floor(effectiveDuration / 60);
+                const secs = effectiveDuration % 60;
                 const durationStr = mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')} min` : `${secs} Sek`;
-                detailsText = `${durationStr} | Ruhe: ${w.rest_seconds || '-'}s | Gefühl: ${w.feeling || '-'}/10`;
+                detailsText = `${durationStr} | Ruhe: ${w.rest_seconds || '-'}s`;
+                if (w.feeling) detailsText += ` | Gefühl: ${w.feeling}/10`;
                 statsValue = durationStr;
             } else {
                 // Kraft-Übung
-                const volume = (w.weight || 0) * (w.sets || 0) * (w.reps || 0);
-                detailsText = `${w.weight || 0}kg × ${w.sets || 0} × ${w.reps || 0} | Ruhe: ${w.rest_seconds || '-'}s | Gefühl: ${w.feeling || '-'}/10 ${feelingEmoji}`;
+                const volume = weight * sets * reps;
+                detailsText = `${weight}kg × ${sets} × ${reps}`;
+                if (w.rest_seconds) detailsText += ` | Ruhe: ${w.rest_seconds}s`;
+                if (w.feeling) detailsText += ` | Gefühl: ${w.feeling}/10 ${feelingEmoji}`;
                 statsValue = volume > 0 ? `${volume.toLocaleString()} kg` : '-';
             }
             
