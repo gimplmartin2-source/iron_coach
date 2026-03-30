@@ -439,7 +439,12 @@ app.get('/auth/google', passport.authenticate('google', {
 app.get('/auth/google/callback',
   passport.authenticate('google', { failureRedirect: '/login.html' }),
   (req, res) => {
-    const token = jwt.sign({ userId: req.user.id, email: req.user.email }, JWT_SECRET, { expiresIn: '7d' });
+    // WICHTIG: Google Access Token ins JWT packen für Auto-Backup
+    const token = jwt.sign({ 
+      userId: req.user.id, 
+      email: req.user.email,
+      googleAccessToken: req.user.google_access_token 
+    }, JWT_SECRET, { expiresIn: '7d' });
     res.redirect(`/?token=${token}`);
   }
 );
