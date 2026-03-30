@@ -215,6 +215,40 @@ async function initDatabase() {
       'Migration: duration_seconds zu workouts');
   }
   
+  // Migration: UNIQUE Index auf exercises (user_id, name) hinzufügen
+  const hasUniqueIndex = await new Promise((resolve) => {
+    db.get(`SELECT COUNT(*) as count FROM sqlite_master WHERE type='index' AND name='idx_exercises_user_name'`, [], (err, row) => {
+      resolve(row && row.count > 0);
+    });
+  });
+  
+  if (!hasUniqueIndex) {
+    // Zuerst Duplikate entfernen (nur neueste behalten)
+    console.log('🔧 Entferne Duplikate aus exercises...');
+    db.run(`
+      DELETE FROM exercises 
+      WHERE id NOT IN (
+        SELECT MIN(id) 
+        FROM exercises 
+        GROUP BY user_id, name
+      )
+    `, (err) => {
+      if (err) {
+        console.error('Fehler beim Entfernen von Duplikaten:', err);
+      } else {
+        console.log('✅ Duplikate entfernt');
+        // Jetzt UNIQUE Index erstellen
+        db.run(`CREATE UNIQUE INDEX idx_exercises_user_name ON exercises(user_id, name)`, (err2) => {
+          if (err2) {
+            console.error('Fehler beim Erstellen des UNIQUE Index:', err2);
+          } else {
+            console.log('✅ UNIQUE Index auf exercises erstellt');
+          }
+        });
+      }
+    });
+  }
+  
   // Schema neu laden
   schemaStatus = { workoutsHasDuration: false, exercisesHasType: false, initialized: false };
   await checkSchema();
