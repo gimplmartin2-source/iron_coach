@@ -539,11 +539,16 @@ app.get('/api/workouts', authenticateJWT, async (req, res) => {
       ORDER BY w.date DESC, w.created_at DESC
     `;
   } else if (schemaStatus.workoutsHasDuration) {
-    // Nur duration da
+    // Nur duration da - CASE statement fuer Zeit-Erkennung
     query = `
       SELECT w.id, w.user_id, w.exercise_id, w.weight, w.sets, w.reps, w.duration_seconds,
              w.rest_seconds, w.feeling, w.date, w.created_at,
-             e.name as exercise_name, e.muscle_group, 'strength' as exercise_type
+             e.name as exercise_name, e.muscle_group,
+             CASE 
+               WHEN e.exercise_type IS NOT NULL THEN e.exercise_type
+               WHEN w.duration_seconds > 0 AND (w.weight IS NULL OR w.weight = 0) THEN 'time'
+               ELSE 'strength'
+             END as exercise_type
       FROM workouts w
       LEFT JOIN exercises e ON w.exercise_id = e.id
       WHERE w.user_id = ?
