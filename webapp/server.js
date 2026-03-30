@@ -332,7 +332,20 @@ const authenticateJWT = (req, res, next) => {
 
 // Standard-Übungen erstellen
 function createDefaultExercises(userId) {
-  const defaultExercises = [
+  // Prüfe zuerst ob schon Übungen existieren
+  db.get('SELECT COUNT(*) as count FROM exercises WHERE user_id = ?', [userId], (err, row) => {
+    if (err) {
+      console.error('Fehler beim Prüfen:', err);
+      return;
+    }
+    // Wenn schon Übungen existieren, nicht neu erstellen
+    if (row.count > 0) {
+      console.log(`✅ User ${userId} hat schon ${row.count} Übungen, überspringe Standard-Übungen`);
+      return;
+    }
+    
+    // Sonst Standard-Übungen erstellen
+    const defaultExercises = [
     { name: 'Uchi-Komi (Wurfübungen)', muscle_group: 'Judo', exercise_type: 'strength' },
     { name: 'Nage-Komi (Wurftraining)', muscle_group: 'Judo', exercise_type: 'strength' },
     { name: 'Randori (Freikampf)', muscle_group: 'Judo', exercise_type: 'time' },
@@ -383,7 +396,8 @@ function createDefaultExercises(userId) {
     );
   });
   
-  console.log(`✅ ${defaultExercises.length} Standardübungen für User ${userId} erstellt`);
+  console.log(`✅ Standardübungen für User ${userId} erstellt (falls nicht vorhanden)`);
+  }); // Schließend für db.get Prüfung
 }
 
 // Register
