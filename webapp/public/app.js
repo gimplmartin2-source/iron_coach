@@ -1146,9 +1146,10 @@ function renderWorkoutsList() {
             // Neues Format: duration_seconds > 0
             // Altes Format: sets=1, weight=0, reps=Zeit in Sekunden
             // Oder: exercise_type explizit auf 'time'
+            // WICHTIG: Auch sets=0/null erlauben (neue Zeit-Workouts haben sets=null)
             const isTimeBased = (w.exercise_type === 'time') || 
                                (duration > 0 && weight === 0) ||
-                               (duration === 0 && weight === 0 && sets === 1 && reps > 0);
+                               (duration === 0 && weight === 0 && sets <= 1 && reps > 0);
             
             // Nutze duration_seconds wenn verfügbar, sonst reps (altes Format)
             const effectiveDuration = duration > 0 ? duration : (isTimeBased && reps > 0 ? reps : 0);
