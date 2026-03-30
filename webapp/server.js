@@ -723,6 +723,7 @@ app.post('/api/backup', authenticateJWT, async (req, res) => {
 });
 
 // Restore - akzeptiert Token aus DB oder aus Request Body
+// WICHTIG: Route muss VOR app.get('*') sein
 app.post('/api/restore', authenticateJWT, async (req, res) => {
   try {
     // Token aus Request Body (frisch vom Frontend) oder aus DB
