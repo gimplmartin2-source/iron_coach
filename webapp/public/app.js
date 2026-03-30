@@ -831,10 +831,17 @@ async function loadWorkouts() {
         }
         
         // Exercise-Type zu jedem Workout hinzufügen
+        // WICHTIG: Überschreibe exercise_type nur wenn nicht vom Backend gesetzt
         workouts.forEach(w => {
             const exercise = exercises.find(e => e.id === w.exercise_id);
             if (exercise) {
-                w.exercise_type = exercise.exercise_type;
+                // Nur überschreiben wenn Backend es nicht erkannt hat UND Übung explizit 'time' ist
+                if (!w.exercise_type || w.exercise_type === 'strength') {
+                    if (exercise.exercise_type === 'time') {
+                        w.exercise_type = 'time';
+                        console.log('⏱️ Zeit-Übung erkannt für:', w.exercise_name);
+                    }
+                }
                 w.muscle_group = exercise.muscle_group;
             } else {
                 console.log('⚠️ Keine Übung gefunden für workout:', w.id, 'exercise_id:', w.exercise_id);
