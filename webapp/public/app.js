@@ -854,24 +854,35 @@ async function loadWorkouts() {
     }
 }
 
-// Hilfsfunktion: Dauer-String zu Sekunden parsen (z.B. "1:30" oder "01:30" -> 90)
+// Hilfsfunktion: Dauer-String zu Sekunden parsen
+// Unterstützt: SS (Sekunden), MM:SS, HH:MM:SS
 function parseDuration(str) {
     if (!str) return 0;
     
     // Trim whitespace
     str = str.trim();
     
-    // Einfache Sekunden (nur Zahl)
+    // Einfache Sekunden (nur Zahl, z.B. "90" -> 90 Sek)
     if (/^\d+$/.test(str)) {
         return parseInt(str);
     }
     
+    // Format HH:MM:SS (z.B. "01:30:45")
+    const hmsMatch = str.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+    if (hmsMatch) {
+        const hours = parseInt(hmsMatch[1]);
+        const mins = parseInt(hmsMatch[2]);
+        const secs = parseInt(hmsMatch[3]);
+        if (mins >= 0 && mins <= 59 && secs >= 0 && secs <= 59) {
+            return hours * 3600 + mins * 60 + secs;
+        }
+    }
+    
     // Format MM:SS oder M:SS (z.B. "01:30" oder "1:30")
-    const match = str.match(/^(\d{1,2}):(\d{2})$/);
-    if (match) {
-        const mins = parseInt(match[1]);
-        const secs = parseInt(match[2]);
-        // Validiere Sekunden (max 59)
+    const msMatch = str.match(/^(\d{1,2}):(\d{2})$/);
+    if (msMatch) {
+        const mins = parseInt(msMatch[1]);
+        const secs = parseInt(msMatch[2]);
         if (secs >= 0 && secs <= 59) {
             return mins * 60 + secs;
         }
@@ -933,9 +944,19 @@ async function addWorkout(e) {
         const durationStr = document.getElementById('workout-duration').value;
         const durationSec = parseDuration(durationStr);
         data.duration_seconds = durationSec;
-        // Bei Zeit-Übungen sets/reps auf 0 setzen (NOT NULL constraint!)
+        
+        // Optionale Sätze für Zeit-Übungen (z.B. 3 Sätze à 60 Sek)
+        const setsTime = document.getElementById('workout-sets-time')?.value;
+        data.sets = setsTime ? parseInt(setsTime) : 0;
+        
+        // Wenn Zeit-Übung, nimm Datum aus workout-date-time oder workout-date
+        const dateTimeField = document.getElementById('workout-date-time');
+        if (dateTimeField && dateTimeField.value) {
+            data.date = dateTimeField.value;
+        }
+        
+        // Bei Zeit-Übungen weight/reps auf 0 setzen
         data.weight = 0;
-        data.sets = 0;
         data.reps = 0;
     } else {
         // Kraft-Übung
