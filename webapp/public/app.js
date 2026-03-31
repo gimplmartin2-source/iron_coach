@@ -28,16 +28,6 @@ function showExercisePreview(exercise) {
     video.playsInline = true;
     video.loop = true;
     video.preload = 'auto';
-    video.autoplay = true;
-    
-    // Play wenn geladen
-    video.onloadeddata = function() {
-        video.play().catch(function(e) {
-            console.log('Autoplay blockiert, versuche erneut...');
-            setTimeout(function() { video.play(); }, 100);
-        });
-    };
-    
     videoContainer.innerHTML = '';
     videoContainer.appendChild(video);
     
@@ -53,13 +43,7 @@ function reloadGif() {
         video.play();
     }
 }
-    
-    const imgEl = document.getElementById('preview-gif-fallback');
-    if (imgEl && imgEl.src) {
-        const basePath = imgEl.src.split('&t=')[0];
-        imgEl.src = basePath + '&t=' + Date.now();
-    }
-}
+
 const API_URL = '';
 
 // Token aus URL lesen (nach Google OAuth Redirect)
