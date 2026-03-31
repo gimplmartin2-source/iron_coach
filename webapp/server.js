@@ -997,6 +997,71 @@ app.post('/api/restore', authenticateJWT, async (req, res) => {
         });
       }
       
+      // WICHTIG: Unique Constraint sicherstellen nach Restore
+      console.log('🔧 Prüfe UNIQUE Constraint nach Restore...');
+      const hasUnique = await new Promise((resolve) => {
+        db.all(`PRAGMA index_list(exercises)`, [], (err, rows) => {
+          if (err) resolve(false);
+          else resolve(rows && rows.some(r => r.unique && r.name.includes('exercises')));
+        });
+      });
+      
+      if (!hasUnique) {
+        console.log('🔧 Migration: Füge UNIQUE Constraint hinzu...');
+        await new Promise((resolve) => {
+          db.run(`BEGIN TRANSACTION`, [], (err) => {
+            if (err) { resolve(); return; }
+            
+            // Entferne Duplikate zuerst
+            db.run(`
+              DELETE FROM exercises 
+              WHERE id NOT IN (
+                SELECT MIN(id) 
+                FROM exercises 
+                GROUP BY user_id, name
+              )
+            `, [], function(err) {
+              if (err) { db.run(`ROLLBACK`); resolve(); return; }
+              
+              console.log(`   ✅ ${this.changes} Duplikate entfernt`);
+              
+              // Tabelle neu erstellen mit UNIQUE
+              db.run(`
+                CREATE TABLE exercises_new (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  user_id INTEGER NOT NULL,
+                  name TEXT NOT NULL,
+                  muscle_group TEXT NOT NULL,
+                  exercise_type TEXT DEFAULT 'strength',
+                  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                  UNIQUE(user_id, name)
+                )
+              `, [], (err) => {
+                if (err) { db.run(`ROLLBACK`); resolve(); return; }
+                
+                db.run(`INSERT INTO exercises_new SELECT * FROM exercises`, [], function(err) {
+                  if (err) { db.run(`ROLLBACK`); resolve(); return; }
+                  
+                  db.run(`DROP TABLE exercises`, [], (err) => {
+                    if (err) { db.run(`ROLLBACK`); resolve(); return; }
+                    
+                    db.run(`ALTER TABLE exercises_new RENAME TO exercises`, [], (err) => {
+                      if (err) { db.run(`ROLLBACK`); resolve(); return; }
+                      
+                      db.run(`COMMIT`, [], (err) => {
+                        console.log('   ✅ UNIQUE Constraint hinzugefügt');
+                        resolve();
+                      });
+                    });
+                  });
+                });
+              });
+            });
+          });
+        });
+      }
+      
       // ACHTUNG: Nach Restore fehlende Standard-Übungen ergänzen
       console.log('🔄 Synchronisiere Standard-Übungen nach Restore...');
       await syncDefaultExercisesAsync(req.user.userId);
