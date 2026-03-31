@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebP Test - IronCoach</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 {
+            color: #00d4ff;
+            text-align: center;
+        }
+        .test-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(0,212,255,0.3);
+        }
+        .format {
+            color: #00d4ff;
+            font-weight: bold;
+        }
+        img, video {
+            width: 100%;
+            max-width: 400px;
+            height: auto;
+            border-radius: 8px;
+            margin: 15px 0;
+            display: block;
+        }
+        .status {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        .working {
+            color: #00ff88;
+        }
+        .not-working {
+            color: #ff4444;
+        }
+        button {
+            background: linear-gradient(45deg, #00d4ff, #7b2cbf);
+            border: none;
+            color: #fff;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 10px 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 WebP vs GIF Test</h1>
+    
+    <div class="test-container">
+        <h2>Test 1: Bankdrücken (GIF)</h2>
+        <p class="format">Format: GIF (traditionell)</p>
+        <img src="/exercises/bankdruecken_langhantel_flachbank.gif" alt="Bankdrücken GIF" id="gif-bank" 
+             style="width: 100%; height: 200px; object-fit: cover;"
+             onload="document.getElementById('status-gif').textContent='✅ Geladen'; document.getElementById('status-gif').className='working'"
+             onerror="document.getElementById('status-gif').textContent='❌ Fehler'; document.getElementById('status-gif').className='not-working'">
+        <p id="status-gif" class="status">⏳ Lädt...</p>
+    </div>
+    
+    <div class="test-container">
+        <h2>Test 2: Bankdrücken (Statisches Bild)</h2>
+        <p class="format">Format: JPG/PNG (erstes Frame)</p>
+        <img src="/exercises/bankdruecken_langhantel_flachbank.gif" 
+             alt="Bankdrücken" 
+             id="static-bank"
+             style="width: 100%; height: 200px; object-fit: cover;"
+             onload="document.getElementById('status-static').textContent='✅ Geladen (statisch)'; document.getElementById('status-static').className='working'">
+        <p id="status-static" class="status">⏳ Lädt...</p>
+        <p style="color: #888; font-size: 0.85rem;">
+            Hinweis: Das ist DAS GLICHE GIF, aber Chrome zeigt oft nur erstes Frame.
+        </p>
+    </div>
+    
+    <div class="test-container">
+        <h2>Test 3: CSS Animation Trick</h2>
+        <p class="format">CSS Animation auf statischer URL</p>
+        <img src="/exercises/bankdruecken_langhantel_flachbank.gif" 
+             alt="Bankdrücken" 
+             id="animated-bank"
+             style="width: 100%; height: 200px; object-fit: cover; animation: none;"
+             onload="startAnimation()">
+        <p id="status-animated" class="status">Versuche Animation...</p>
+    </div>
+    
+    <script>
+        function startAnimation() {
+            const img = document.getElementById('animated-bank');
+            const status = document.getElementById('status-animated');
+            
+            // Alle 100ms neu laden - extrem aggressiv
+            let count = 0;
+            const interval = setInterval(() => {
+                img.src = '/exercises/bankdruecken_langhantel_flachbank.gif?' + Date.now();
+                count++;
+                status.textContent = 'Frame: ' + count;
+                
+                if (count > 50) { // Nach 5 Sekunden stoppen
+                    clearInterval(interval);
+                    status.textContent = '✅ Animation versucht (' + count + ' Frames)';
+                }
+            }, 100);
+        }
+        
+        // Auto-test
+        setTimeout(testAll, 3000);
+        
+        function testAll() {
+            console.log('GIF complete:', document.getElementById('gif-bank').complete);
+            console.log('Static complete:', document.getElementById('static-bank').complete);
+        }
+    </script>
+</body>
+</html>
