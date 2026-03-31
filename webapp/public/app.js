@@ -446,26 +446,36 @@ function showExercisePreview(exercise) {
     
     const freshPath = gifPath + '&t=' + Date.now();
     
+    // Reset video
+    videoEl.pause();
+    videoEl.currentTime = 0;
     videoEl.src = freshPath;
-    videoEl.style.display = 'block';
+    
+    // Mobile attributes
     videoEl.muted = true;
     videoEl.playsInline = true;
     videoEl.loop = true;
     videoEl.preload = 'auto';
+    videoEl.autoplay = true;
+    videoEl.style.display = 'block';
     
     if (imgFallback) imgFallback.style.display = 'none';
     
-    const playVideo = () => {
-        videoEl.play().catch(err => {
+    // Try to play with retries
+    const tryPlay = (retries = 3) => {
+        if (retries <= 0) {
             videoEl.style.display = 'none';
             if (imgFallback) {
                 imgFallback.src = freshPath;
                 imgFallback.style.display = 'block';
             }
-        });
+            return;
+        }
+        videoEl.play().catch(() => setTimeout(() => tryPlay(retries - 1), 100));
     };
     
-    videoEl.onloadeddata = playVideo;
+    videoEl.onloadeddata = () => tryPlay();
+    videoEl.oncanplay = () => tryPlay();
     videoEl.onerror = () => {
         videoEl.style.display = 'none';
         if (imgFallback) {
@@ -475,6 +485,7 @@ function showExercisePreview(exercise) {
     };
     
     previewContainer.style.display = 'block';
+    setTimeout(() => tryPlay(), 50);
 }
 
 function reloadGif() {
