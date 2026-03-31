@@ -89,6 +89,12 @@ function getExerciseMedia(exerciseName) {
     };
 }
 
+// Hilfsfunktion: Abwärtskompatibel - altes Format
+function getExerciseGif(exerciseName) {
+    const media = getExerciseMedia(exerciseName);
+    return media ? media.src : null;
+}
+
 // Preload
 function preloadExerciseMedia() {
     const preloadList = ['Bankdrücken (Langhantel)', 'Kniebeugen', 'Klimmzüge', 'Plank (Unterarmstütz)'];
