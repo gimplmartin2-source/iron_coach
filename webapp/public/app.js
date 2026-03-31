@@ -136,6 +136,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
     
+    // WICHTIG: Bei Google Login (Token aus URL) -> Standard-Übungen synchronisieren
+    const isGoogleLogin = urlToken !== null;
+    if (isGoogleLogin) {
+        console.log('🔑 Google Login erkannt - synchronisiere Standard-Übungen...');
+        try {
+            const syncRes = await apiFetch('/api/exercises/sync', { method: 'POST' });
+            if (syncRes.ok) {
+                const syncData = await syncRes.json();
+                console.log(`✅ Sync Ergebnis: ${syncData.message}`);
+            }
+        } catch (syncErr) {
+            console.log('⚠️ Sync Fehler (nicht kritisch):', syncErr.message);
+        }
+    }
+    
     // Restore VOR dem Laden der Daten (nur einmal pro Session)
     const restoreAttempted = sessionStorage.getItem('restoreAttempted');
     if (!restoreAttempted) {
@@ -147,18 +162,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
     
-    // Kein Restore nötig oder fehlgeschlagen - normale Initialisierung
-    // Zuerst Übungen laden, dann prüfen ob Seed nötig
+    // Normale Initialisierung
     await loadExercises();
     
-    // Wenn keine Übungen vorhanden, Standardübungen erstellen
+    // Wenn keine Übungen vorhanden (z.B. komplett neuer User), Standardübungen erstellen
     if (exercises.length === 0) {
         console.log('📝 Keine Übungen gefunden, erstelle Standardübungen...');
-        await fetch('/api/exercises/seed', { 
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
-        });
-        // Kurz warten und neu laden
+        await apiFetch('/api/exercises/sync', { method: 'POST' });
         await new Promise(r => setTimeout(r, 500));
         await loadExercises();
     }

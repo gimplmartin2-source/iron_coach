@@ -712,6 +712,18 @@ app.post('/api/exercises', authenticateJWT, async (req, res) => {
   }
 });
 
+// Standard-Übungen synchronisieren (fehlende hinzufügen) - für Google Login
+app.post('/api/exercises/sync', authenticateJWT, async (req, res) => {
+  try {
+    console.log('🔄 Sync Standard-Übungen für User', req.user.userId);
+    const added = await syncDefaultExercisesAsync(req.user.userId);
+    res.json({ success: true, added, message: `${added} neue Standard-Übungen hinzugefügt` });
+  } catch (err) {
+    console.error('❌ Sync Fehler:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Übung aktualisieren
 app.put('/api/exercises/:id', authenticateJWT, async (req, res) => {
   await checkSchema();
