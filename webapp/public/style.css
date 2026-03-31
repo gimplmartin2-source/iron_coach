@@ -5,6 +5,27 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+/* GPU-Beschleunigung für GIFs (verhindert Einfrieren) */
+img[src*=".gif"], .gif-animated {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    perspective: 1000px;
+    -webkit-perspective: 1000px;
+    will-change: transform;
+}
+
+/* Subtile Animation um Chrome am Leben zu halten */
+@keyframes keep-alive {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.99; }
+}
+
+.gif-keep-alive {
+    animation: keep-alive 3s infinite;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
