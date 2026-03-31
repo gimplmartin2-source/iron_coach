@@ -136,10 +136,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
     
-    // WICHTIG: Bei Google Login (Token aus URL) -> Standard-Übungen synchronisieren
+    // WICHTIG: Reihenfolge!
+    // 1. Zuerst Restore (bringt bereinigte DB mit UNIQUE Constraint)
+    // 2. DANN Sync (nur wenn Restore fehlgeschlagen UND keine Übungen da)
+    
+    // Restore VOR dem Laden der Daten (nur einmal pro Session)
+    const restoreAttempted = sessionStorage.getItem('restoreAttempted');
+    let restoreSuccessful = false;
+    
+    if (!restoreAttempted) {
+        sessionStorage.setItem('restoreAttempted', 'true');
+        const restoreResult = await restoreFromDrive();
+        if (restoreResult) {
+            console.log('✅ Restore erfolgreich - Sync wird übersprungen');
+            restoreSuccessful = true;
+            // Restore erfolgreich, Seite wird neu geladen
+            return;
+        }
+    }
+    
+    // Nur Sync wenn kein Restore stattgefunden hat
     const isGoogleLogin = urlToken !== null;
-    if (isGoogleLogin) {
-        console.log('🔑 Google Login erkannt - synchronisiere Standard-Übungen...');
+    if (isGoogleLogin && !restoreSuccessful) {
+        console.log('🔑 Google Login ohne Restore - synchronisiere Standard-Übungen...');
         try {
             const syncRes = await apiFetch('/api/exercises/sync', { method: 'POST' });
             if (syncRes.ok) {
@@ -148,17 +167,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (syncErr) {
             console.log('⚠️ Sync Fehler (nicht kritisch):', syncErr.message);
-        }
-    }
-    
-    // Restore VOR dem Laden der Daten (nur einmal pro Session)
-    const restoreAttempted = sessionStorage.getItem('restoreAttempted');
-    if (!restoreAttempted) {
-        sessionStorage.setItem('restoreAttempted', 'true');
-        const restoreResult = await restoreFromDrive();
-        if (restoreResult) {
-            // Restore erfolgreich, Seite wird neu geladen
-            return;
         }
     }
     
