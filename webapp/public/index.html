@@ -287,13 +287,15 @@
             <div class="card">
                 <h2>Neues Workout</h2>
                 
-                <!-- Übungs-Vorschau mit GIF -->
+                <!-- Übungs-Vorschau mit Video (zuverlässiger als GIF auf Mobile) -->
                 <div id="exercise-preview" style="display: none; margin-bottom: 20px; background: rgba(0,0,0,0.3); border-radius: 12px; border: 1px solid rgba(0,212,255,0.3); overflow: hidden;">
-                    <div id="preview-gif-container" style="width: 100%; height: 220px; background: rgba(0,0,0,0.5); position: relative;">
-                        <!-- GIF mit pointer-events: none damit Chrome es nicht als anklickbar empfindet -->
-                        <img id="preview-gif" src="" alt="" style="width: 100%; height: 100%; object-fit: cover; pointer-events: none; -webkit-user-select: none; user-select: none;">
-                        <!-- Unsichtbares Overlay das Klicks abfängt -->
-                        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;"></div>
+                    <div id="preview-media-container" style="width: 100%; height: 220px; background: rgba(0,0,0,0.5);">
+                        <!-- Video für mobile Chrome (zuverlässiger als GIF) -->
+                        <video id="preview-video" style="width: 100%; height: 100%; object-fit: cover; pointer-events: none;" 
+                               playsinline muted loop autoplay preload="auto">
+                            <!-- Fallback auf IMG für Browser ohne Video-Support -->
+                            <img id="preview-gif-fallback" src="" alt="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                        </video>
                     </div>
                 </div>
                 
