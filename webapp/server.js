@@ -12,6 +12,19 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { google } = require('googleapis');
 const fs = require('fs');
+
+// Auto-Backup Funktionen
+let autoBackupFunctions = null;
+
+// Hilfsfunktion: Schedule Backup nach Änderung
+function scheduleBackup(userId) {
+  if (autoBackupFunctions && autoBackupFunctions.scheduleBackup) {
+    autoBackupFunctions.scheduleBackup(userId).catch(err => {
+      console.log('⚠️ Backup scheduled with error:', err.message);
+    });
+  }
+}
+
 require('dotenv').config();
 
 const app = express();
@@ -368,7 +381,27 @@ async function initDatabase() {
 }
 
 // Datenbank beim Start initialisieren
-initDatabase().catch(err => {
+initDatabase().then(async () => {
+  console.log('✅ Datenbank initialisiert');
+  
+  // Auto-Restore für alle User mit Google Token
+  console.log('🔄 Starte auto-restore für Google User...');
+  try {
+    // Lade auto-backup Funktionen
+    const autoBackup = require('./auto-backup');
+    if (autoBackup && autoBackup.autoRestoreOnStartup) {
+      await autoBackup.autoRestoreOnStartup(db);
+    }
+  } catch (err) {
+    console.log('ℹ️ Auto-restore Modul nicht geladen:', err.message);
+  }
+  
+  // Speichere scheduleBackup Funktion global
+  const autoBackup = require('./auto-backup');
+  if (autoBackup) {
+    global.scheduleBackupFn = autoBackup.scheduleBackup;
+  }
+}).catch(err => {
   console.error('❌ DB Init Fehler:', err);
 });
 
