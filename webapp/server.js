@@ -340,6 +340,18 @@ async function initDatabase() {
     await runMigration(`ALTER TABLE workouts ADD COLUMN duration_seconds INTEGER`,
       'Migration: duration_seconds zu workouts');
   }
+
+  // Migration: video_src zu exercises hinzufügen
+  const hasVideoSrc = await new Promise((resolve) => {
+    db.all(`PRAGMA table_info(exercises)`, [], (err, cols) => {
+      resolve(cols && cols.some(c => c.name === 'video_src'));
+    });
+  });
+
+  if (!hasVideoSrc) {
+    await runMigration(`ALTER TABLE exercises ADD COLUMN video_src TEXT`,
+      'Migration: video_src zu exercises');
+  }
   
   // Migration: UNIQUE Index auf exercises (user_id, name) hinzufügen
   const hasUniqueIndex = await new Promise((resolve) => {
@@ -530,8 +542,8 @@ function createDefaultExercises(userId) {
   const videoMapping = '';
   const videoSrc = videoMapping || null;
   
-  db.run('INSERT INTO exercises (user_id, name, muscle_group, exercise_type, video_src) VALUES (?, ?, ?, ?)',
-        [userId, exercise.name, exercise.muscle_group, exercise.exercise_type],
+  db.run('INSERT INTO exercises (user_id, name, muscle_group, exercise_type, video_src) VALUES (?, ?, ?, ?, ?)',
+        [userId, exercise.name, exercise.muscle_group, exercise.exercise_type, videoSrc],
         (err) => {
           if (err && !err.message.includes('UNIQUE constraint failed')) {
             console.error('❌ Fehler beim Erstellen der Übung:', err.message);
