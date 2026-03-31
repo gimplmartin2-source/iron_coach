@@ -28,6 +28,14 @@ function showExercisePreview(exercise) {
     video.playsInline = true;
     video.loop = true;
     video.preload = 'auto';
+    video.autoplay = true;
+    
+    // Play wenn geladen
+    video.onloadeddata = function() {
+        video.play().catch(function(e) {
+            console.log('Autoplay blockiert:', e);
+        });
+    };
     videoContainer.innerHTML = '';
     videoContainer.appendChild(video);
     
