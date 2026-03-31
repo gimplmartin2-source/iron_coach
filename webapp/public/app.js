@@ -251,6 +251,15 @@ async function loadExercises() {
 let selectedExerciseForWorkout = null;
 
 function openExerciseSelector() {
+    console.log('🎯 openExerciseSelector aufgerufen');
+    console.log('📊 exercises Array:', exercises ? exercises.length : 'undefined', 'Einträge');
+    
+    if (!exercises || exercises.length === 0) {
+        console.error('❌ Keine Übungen geladen!');
+        alert('Übungen werden geladen... bitte warte einen Moment und versuche es erneut.');
+        loadExercises();
+        return;
+    }
     const modal = document.createElement('div');
     modal.id = 'exercise-selector-modal';
     modal.style.cssText = `
@@ -417,7 +426,7 @@ function selectExerciseForWorkout(exerciseId, exerciseName) {
     closeExerciseSelector();
 }
 
-// Zeigt die �bungs-Vorschau mit Video an (zuverl�ssiger auf Mobile)
+// Zeigt die �bungs-Vorschau mit Video an (zuverl�ssiger auf Mobile)
 function showExercisePreview(exercise) {
     if (!exercise) return;
     
