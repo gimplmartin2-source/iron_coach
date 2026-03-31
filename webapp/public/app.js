@@ -1,63 +1,58 @@
-// Canvas-basierte GIF-Wiedergabe (zuverlaessigst auf Mobile)
+// Zeigt die Uebungs-Vorschau mit MP4 Video an
 function showExercisePreview(exercise) {
     if (!exercise) return;
     
     const previewContainer = document.getElementById('exercise-preview');
-    const videoEl = document.getElementById('preview-video');
-    const imgFallback = document.getElementById('preview-gif-fallback');
+    const videoContainer = document.getElementById('preview-media-container');
     
-    if (!previewContainer) return;
+    if (!previewContainer || !videoContainer) return;
     
-    // Altes Interval stoppen
-    if (window.gifRefreshInterval) {
-        clearInterval(window.gifRefreshInterval);
-        window.gifRefreshInterval = null;
+    // Altes Video entfernen falls vorhanden
+    const oldVideo = videoContainer.querySelector('video');
+    if (oldVideo) {
+        oldVideo.pause();
+        oldVideo.remove();
     }
     
-    const gifPath = getExerciseGif(exercise.name);
-    if (!gifPath) {
+    const media = getExerciseMedia(exercise.name);
+    if (!media) {
         previewContainer.style.display = 'none';
-        if (videoEl) videoEl.style.display = 'none';
-        if (imgFallback) imgFallback.style.display = 'none';
         return;
     }
     
-    const freshPath = gifPath + '&t=' + Date.now();
+    // Neues Video Element erstellen
+    const video = document.createElement('video');
+    video.src = media.src + '&t=' + Date.now();
+    video.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+    video.muted = true;
+    video.playsInline = true;
+    video.loop = true;
+    video.preload = 'auto';
+    video.autoplay = true;
     
-    // Verstecke Video, zeige Fallback IMG
-    if (videoEl) videoEl.style.display = 'none';
-    if (imgFallback) {
-        imgFallback.src = freshPath;
-        imgFallback.style.display = 'block';
-        
-        // WICHTIG: Chrome Mobile Trick - alle 3 Sekunden "ankurbeln"
-        let refreshCount = 0;
-        window.gifRefreshInterval = setInterval(() => {
-            refreshCount++;
-            // Nach 3 Sekunden kurzes "Zappeln" um Animation am Leben zu halten
-            if (refreshCount % 3 === 0) {
-                imgFallback.style.transform = 'scale(1.001)';
-                setTimeout(() => {
-                    imgFallback.style.transform = 'scale(1)';
-                }, 50);
-            }
-            // Nach 10 Sekunden komplett neu laden (frischer Start)
-            if (refreshCount >= 10) {
-                refreshCount = 0;
-                const newPath = gifPath + '&t=' + Date.now();
-                imgFallback.src = newPath;
-            }
-        }, 1000);
-    }
+    // Play wenn geladen
+    video.onloadeddata = function() {
+        video.play().catch(function(e) {
+            console.log('Autoplay blockiert, versuche erneut...');
+            setTimeout(function() { video.play(); }, 100);
+        });
+    };
+    
+    videoContainer.innerHTML = '';
+    videoContainer.appendChild(video);
     
     previewContainer.style.display = 'block';
 }
 
 function reloadGif() {
-    if (window.gifRefreshInterval) {
-        clearInterval(window.gifRefreshInterval);
-        window.gifRefreshInterval = null;
+    const previewContainer = document.getElementById('preview-media-container');
+    const video = previewContainer ? previewContainer.querySelector('video') : null;
+    
+    if (video) {
+        video.currentTime = 0;
+        video.play();
     }
+}
     
     const imgEl = document.getElementById('preview-gif-fallback');
     if (imgEl && imgEl.src) {
