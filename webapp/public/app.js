@@ -429,21 +429,60 @@ function showExercisePreview(exercise) {
     // GIF laden mit Mobile-Optimierung
     const gifPath = getExerciseGif(exercise.name);
     if (gifPath) {
-        // Mobile-Optimierung: Cache-Busting und Retry
-        gifImg.loading = 'eager'; // Sofort laden
-        gifImg.decoding = 'async'; // Async decoding für bessere Performance
+        // Erzwinge neues Laden durch Cache-Busting mit Timestamp
+        const freshGifPath = gifPath + '&t=' + Date.now();
         
-        // Alte Event-Listener entfernen (falls vorhanden)
-        gifImg.onerror = null;
-        gifImg.onload = null;
+        // Mobile-Optimierung: eager loading
+        gifImg.loading = 'eager';
+        gifImg.decoding = 'async';
         
-        // Mobile-Chrome spezifisches Handling
-        loadGifWithRetry(gifImg, gifPath, 3);
+        // Chrome Mobile: GIF explizit zurücksetzen vor neuem Laden
+        gifImg.src = '';
+        
+        // Kurze Verzögerung für Mobile Chrome
+        setTimeout(() => {
+            gifImg.src = freshGifPath;
+            
+            // Event-Handler für Mobile
+            gifImg.onerror = function() {
+                console.log('⚠️ GIF Fehler, versuche erneut...');
+                setTimeout(() => {
+                    gifImg.src = freshGifPath;
+                }, 300);
+            };
+            
+            gifImg.onload = function() {
+                gifImg.style.display = 'block';
+                // Chrome Mobile: Erzwinge Animation-Restart
+                if (gifImg.complete) {
+                    gifImg.style.animation = 'none';
+                    gifImg.offsetHeight; // Trigger reflow
+                    gifImg.style.animation = null;
+                }
+            };
+        }, 50);
+        
         previewContainer.style.display = 'block';
     } else {
-        // Kein GIF verfügbar - Container komplett ausblenden
         gifImg.style.display = 'none';
         previewContainer.style.display = 'none';
+    }
+}
+
+// GIF manuell neu laden (für Mobile Chrome)
+function reloadGif() {
+    const gifImg = document.getElementById('preview-gif');
+    const currentSrc = gifImg.src;
+    
+    if (currentSrc) {
+        // Chrome Mobile: GIF explizit zurücksetzen
+        gifImg.src = '';
+        
+        setTimeout(() => {
+            // Cache-Busting mit neuem Timestamp
+            const newSrc = currentSrc.split('&t=')[0] + '&t=' + Date.now();
+            gifImg.src = newSrc;
+        }, 100);
     }
 }
 
