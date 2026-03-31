@@ -421,10 +421,9 @@ function selectExerciseForWorkout(exerciseId, exerciseName) {
 function showExercisePreview(exercise) {
     if (!exercise) return;
     
-    const previewContainer = document.getElementById('exercise-preview');
-    const gifImg = document.getElementById('preview-gif');
+    const previewContainer = document.getElementById('exercise-preview');\n    const videoEl = document.getElementById('preview-video');\n    const imgFallback = document.getElementById('preview-gif-fallback');
     
-    if (!previewContainer || !gifImg) return;
+    if (!previewContainer || !videoEl) return;
     
     // GIF laden mit Mobile-Optimierung
     const gifPath = getExerciseGif(exercise.name);
@@ -462,10 +461,10 @@ function showExercisePreview(exercise) {
             };
         }, 50);
         
-        previewContainer.style.display = 'block';
+        videoEl.style.display = 'block';
     } else {
         gifImg.style.display = 'none';
-        previewContainer.style.display = 'none';
+        videoEl.style.display = 'none';
     }
 }
 
@@ -2806,3 +2805,5 @@ window.stopExerciseTimer = stopExerciseTimer;
 window.startTrainingTimer = startTrainingTimer;
 window.pauseTrainingTimer = pauseTrainingTimer;
 window.stopTrainingTimer = stopTrainingTimer;
+
+
