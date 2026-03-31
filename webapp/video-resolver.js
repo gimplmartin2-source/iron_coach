@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const EXERCISES_DIR = path.join(__dirname, 'exercises');
+const EXERCISES_DIR = path.join(__dirname, 'public', 'exercises');
 
 // Cache für Video-Mappings
 let videoCache = null;
