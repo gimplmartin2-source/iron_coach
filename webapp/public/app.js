@@ -140,6 +140,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', logout);
     }
+    
+    // GIFs vorladen für bessere Mobile-Performance
+    console.log('📱 Preloading GIFs für Mobile...');
+    preloadExerciseGifs();
 });
 
 function showUserInfo() {
@@ -420,26 +424,24 @@ function showExercisePreview(exercise) {
     const previewContainer = document.getElementById('exercise-preview');
     const gifImg = document.getElementById('preview-gif');
     
-    if (!previewContainer) return;
+    if (!previewContainer || !gifImg) return;
     
-    // GIF laden und anzeigen
+    // GIF laden mit Mobile-Optimierung
     const gifPath = getExerciseGif(exercise.name);
     if (gifPath) {
-        // Error-Handler hinzufügen - versteckt Bild wenn es nicht lädt
-        gifImg.onerror = function() {
-            console.log('⚠️ GIF nicht gefunden:', gifPath);
-            gifImg.style.display = 'none';
-            previewContainer.style.display = 'none';
-        };
+        // Mobile-Optimierung: Cache-Busting und Retry
+        gifImg.loading = 'eager'; // Sofort laden
+        gifImg.decoding = 'async'; // Async decoding für bessere Performance
         
-        gifImg.onload = function() {
-            // Nur anzeigen wenn erfolgreich geladen
-            gifImg.style.display = 'block';
-            previewContainer.style.display = 'block';
-        };
+        // Alte Event-Listener entfernen (falls vorhanden)
+        gifImg.onerror = null;
+        gifImg.onload = null;
         
-        gifImg.src = gifPath;
+        // Mobile-Chrome spezifisches Handling
+        loadGifWithRetry(gifImg, gifPath, 3);
+        previewContainer.style.display = 'block';
     } else {
+        // Kein GIF verfügbar - Container komplett ausblenden
         gifImg.style.display = 'none';
         previewContainer.style.display = 'none';
     }

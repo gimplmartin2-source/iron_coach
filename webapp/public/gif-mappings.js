@@ -70,6 +70,9 @@ const exerciseGifs = {
     'Turn-Uchikomi': null,
 };
 
+// Cache-Busting für Mobile Chrome (verhindert Caching-Probleme)
+const GIF_VERSION = '?v=2';
+
 // Hilfsfunktion: Finde passendes GIF für Übung
 function getExerciseGif(exerciseName) {
     if (!exerciseName) return null;
@@ -81,9 +84,57 @@ function getExerciseGif(exerciseName) {
     
     // Direkte Übereinstimmung
     if (exerciseGifs[exerciseName]) {
-        return `/exercises/${exerciseGifs[exerciseName]}`;
+        return `/exercises/${exerciseGifs[exerciseName]}${GIF_VERSION}`;
     }
     
     // Keine Teilübereinstimmung mehr - verhindert falsche Zuordnungen
     return null;
+}
+
+// Preload wichtige GIFs für bessere Mobile-Performance
+function preloadExerciseGifs() {
+    const preloadList = [
+        'Bankdrücken (Langhantel)',
+        'Kniebeugen',
+        'Kreuzheben',
+        'Klimmzüge',
+        'Plank (Unterarmstütz)'
+    ];
+    
+    preloadList.forEach(exercise => {
+        const gifPath = getExerciseGif(exercise);
+        if (gifPath) {
+            const img = new Image();
+            img.src = gifPath;
+        }
+    });
+}
+
+// Mobile-optimierte GIF-Ladung
+function loadGifWithRetry(imgElement, gifPath, maxRetries = 3) {
+    let retries = 0;
+    
+    function tryLoad() {
+        imgElement.src = gifPath;
+        
+        imgElement.onerror = function() {
+            retries++;
+            if (retries < maxRetries) {
+                console.log(`🔄 Retry ${retries}/${maxRetries} für GIF: ${gifPath}`);
+                setTimeout(tryLoad, 500 * retries); // Exponentielles Backoff
+            } else {
+                console.log('❌ GIF konnte nicht geladen werden:', gifPath);
+                imgElement.style.display = 'none';
+                imgElement.parentElement.style.display = 'none';
+            }
+        };
+        
+        imgElement.onload = function() {
+            imgElement.style.display = 'block';
+            // Verhindert Mobile-Chrome Caching-Issues
+            imgElement.decoding = 'async';
+        };
+    }
+    
+    tryLoad();
 }
