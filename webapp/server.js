@@ -25,6 +25,8 @@ function scheduleBackup(userId) {
   }
 }
 
+const videoResolver = require('./video-resolver');
+
 require('dotenv').config();
 
 const app = express();
@@ -524,7 +526,11 @@ function createDefaultExercises(userId) {
     
     // Sonst Standard-Übungen erstellen (aus zentraler Konstante)
     DEFAULT_EXERCISES.forEach(exercise => {
-      db.run('INSERT INTO exercises (user_id, name, muscle_group, exercise_type) VALUES (?, ?, ?, ?)',
+      // Video-Mapping hinzuf�gen
+  const videoMapping = '';
+  const videoSrc = videoMapping || null;
+  
+  db.run('INSERT INTO exercises (user_id, name, muscle_group, exercise_type, video_src) VALUES (?, ?, ?, ?)',
         [userId, exercise.name, exercise.muscle_group, exercise.exercise_type],
         (err) => {
           if (err && !err.message.includes('UNIQUE constraint failed')) {
@@ -642,67 +648,68 @@ app.get('/auth/google/callback',
   }
 );
 
-// Alle Übungen abrufen
+// Alle Übungen abrufen (mit Video)
 app.get('/api/exercises', authenticateJWT, async (req, res) => {
   await checkSchema();
   
-  // Versuche echtes exercise_type zu lesen, auch wenn Flag false
-  const query = schemaStatus.exercisesHasType
-    ? `SELECT id, user_id, name, muscle_group, exercise_type, created_at FROM exercises WHERE user_id = ?`
-    : `SELECT id, user_id, name, muscle_group, 
-       COALESCE(exercise_type, 'strength') as exercise_type, created_at 
-       FROM exercises WHERE user_id = ?`;
-  
-  db.all(query, [req.user.userId], (err, rows) => {
+  // Lade Übungen mit video_src aus DB
+  db.all(`
+    SELECT id, user_id, name, muscle_group, 
+           COALESCE(exercise_type, 'strength') as exercise_type,
+           video_src,
+           created_at 
+    FROM exercises 
+    WHERE user_id = ?
+  `, [req.user.userId], (err, rows) => {
     if (err) {
-      // Fallback ohne exercise_type
-      db.all('SELECT id, user_id, name, muscle_group, "strength" as exercise_type, created_at FROM exercises WHERE user_id = ?', 
-        [req.user.userId], (err2, rows2) => {
-        if (err2) return res.status(500).json({ error: err2.message });
-        res.json(rows2);
-      });
-      return;
+      return res.status(500).json({ error: err.message });
     }
-    res.json(rows);
+    
+    // Video-Resolver für Übungen ohne video_src
+    const enrichedRows = rows.map(row => ({
+      ...row,
+      video_src: row.video_src || videoResolver.getVideoForExercise(row.name)
+    }));
+    
+    res.json(enrichedRows);
   });
 });
 
-// Neue Übung hinzufügen
+// Neue �bung hinzuf�gen (mit Video)
 app.post('/api/exercises', authenticateJWT, async (req, res) => {
   await checkSchema();
   
   const { name, muscle_group, exercise_type } = req.body;
   const type = exercise_type || 'strength';
   
-  if (schemaStatus.exercisesHasType) {
-    db.run('INSERT INTO exercises (user_id, name, muscle_group, exercise_type) VALUES (?, ?, ?, ?)',
-      [req.user.userId, name, muscle_group, type],
-      function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ id: this.lastID, user_id: req.user.userId, name, muscle_group, exercise_type: type });
+  // Automatisch Video zuweisen
+  const videoSrc = videoResolver.getVideoForExercise(name);
+  
+  db.run('INSERT INTO exercises (user_id, name, muscle_group, exercise_type, video_src) VALUES (?, ?, ?, ?, ?)',
+    [req.user.userId, name, muscle_group, type, videoSrc],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({
+        id: this.lastID,
+        user_id: req.user.userId,
+        name,
+        muscle_group,
+        exercise_type: type,
+        video_src: videoSrc
       });
-  } else {
-    db.run('INSERT INTO exercises (user_id, name, muscle_group) VALUES (?, ?, ?)',
-      [req.user.userId, name, muscle_group],
-      function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ id: this.lastID, user_id: req.user.userId, name, muscle_group, exercise_type: 'strength' });
-      });
-  }
+      if (global.scheduleBackupFn) global.scheduleBackupFn(req.user.userId);
+    }
+  );
 });
 
 // Standard-Übungen synchronisieren (fehlende hinzufügen) - für Google Login
 app.post('/api/exercises/sync', authenticateJWT, async (req, res) => {
   try {
     console.log('🔄 Sync Standard-Übungen für User', req.user.userId);
-    const added = await syncDefaultExercisesAsync(req.user.userId);
-    res.json({ success: true, added, message: `${added} neue Standard-Übungen hinzugefügt` });
+    const added = await syncDefaultExercises(req.user.userId);
+    res.json({ success: true, added, message: added + ' new exercises added' } });
   } catch (err) {
-    console.error('❌ Sync Fehler:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
+    console.error('? Sync Fehler:', err);
 // Übung aktualisieren
 app.put('/api/exercises/:id', authenticateJWT, async (req, res) => {
   await checkSchema();
@@ -1218,3 +1225,7 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server läuft auf Port ${PORT}`);
 });
+
+
+
+
