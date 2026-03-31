@@ -255,6 +255,53 @@ async function initDatabase() {
     FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
   )`, 'Workouts Tabelle');
   
+  // Migration: UNIQUE Constraint auf exercises(user_id, name) hinzufügen
+  // Hinweis: SQLite unterstützt ALTER TABLE ADD CONSTRAINT nicht
+  // Wir prüfen ob Constraint existiert durch Versuch eines doppelten INSERTs
+  console.log('🔍 Prüfe UNIQUE Constraint auf exercises...');
+  const hasUniqueConstraint = await new Promise((resolve) => {
+    // Erstelle temporäre Test-Übung
+    db.run(`INSERT INTO exercises (user_id, name, muscle_group) VALUES (-999, '_unique_test_', 'Test')`, [], (err) => {
+      if (err) {
+        // Wenn Fehler wegen Constraint, ist alles OK
+        resolve(err.message.includes('UNIQUE'));
+      } else {
+        // Test-Eintrag erfolgreich, also kein Constraint - löschen und false zurückgeben
+        db.run(`DELETE FROM exercises WHERE user_id = -999`);
+        resolve(false);
+      }
+    });
+  });
+  
+  if (!hasUniqueConstraint) {
+    console.log('⚠️  Kein UNIQUE Constraint gefunden. Führe Migration durch...');
+    // Migration: Tabelle neu erstellen mit UNIQUE constraint
+    await runMigration(`BEGIN TRANSACTION`, 'Migration Start');
+    await runMigration(`
+      CREATE TABLE exercises_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        muscle_group TEXT NOT NULL,
+        exercise_type TEXT DEFAULT 'strength',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(user_id, name)
+      )
+    `, 'Erstelle neue Tabelle mit UNIQUE');
+    await runMigration(`
+      INSERT INTO exercises_new (user_id, name, muscle_group, exercise_type, created_at)
+      SELECT user_id, name, muscle_group, COALESCE(exercise_type, 'strength'), created_at
+      FROM exercises
+    `, 'Kopiere Daten');
+    await runMigration(`DROP TABLE exercises`, 'Lösche alte Tabelle');
+    await runMigration(`ALTER TABLE exercises_new RENAME TO exercises`, 'Benenne Tabelle um');
+    await runMigration(`COMMIT`, 'Migration Commit');
+    console.log('✅ UNIQUE Constraint Migration abgeschlossen');
+  } else {
+    console.log('✅ UNIQUE Constraint bereits vorhanden');
+  }
+  
   // Migration: exercise_type zu exercises hinzufügen
   const hasExerciseType = await new Promise((resolve) => {
     db.all(`PRAGMA table_info(exercises)`, [], (err, cols) => {
@@ -965,9 +1012,98 @@ app.post('/api/restore', authenticateJWT, async (req, res) => {
   }
 });
 
+// Duplikate entfernen (Admin/Debug Endpunkt)
+app.post('/api/admin/fix-duplicates', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    console.log(`🔧 Fix Duplikate für User ${userId}...`);
+    
+    // Finde Duplikate für diesen User
+    const duplicates = await new Promise((resolve, reject) => {
+      db.all(`
+        SELECT name, COUNT(*) as count, MIN(id) as keep_id, GROUP_CONCAT(id) as all_ids
+        FROM exercises 
+        WHERE user_id = ?
+        GROUP BY name 
+        HAVING count > 1
+      `, [userId], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+    
+    if (duplicates.length === 0) {
+      return res.json({ success: true, message: 'Keine Duplikate gefunden', deleted: 0 });
+    }
+    
+    let deletedCount = 0;
+    
+    for (const dup of duplicates) {
+      const ids = dup.all_ids.split(',').map(Number);
+      const keepId = dup.keep_id;
+      const deleteIds = ids.filter(id => id !== keepId);
+      
+      console.log(`   Lösche Duplikate für "${dup.name}": IDs [${deleteIds.join(', ')}]`);
+      
+      // Lösche Duplikate
+      const placeholders = deleteIds.map(() => '?').join(',');
+      await new Promise((resolve, reject) => {
+        db.run(`DELETE FROM exercises WHERE id IN (${placeholders})`, deleteIds, function(err) {
+          if (err) reject(err);
+          else {
+            deletedCount += this.changes;
+            resolve();
+          }
+        });
+      });
+    }
+    
+    console.log(`✅ ${deletedCount} Duplikate entfernt`);
+    res.json({ 
+      success: true, 
+      deleted: deletedCount, 
+      duplicatesFound: duplicates.length,
+      message: `${deletedCount} Duplikate entfernt`
+    });
+    
+  } catch (err) {
+    console.error('❌ Fehler:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Debug Endpoints
 app.get('/api/debug/schema', (req, res) => {
   res.json(schemaStatus);
+});
+
+// Debug: Zeige Duplikate (ohne löschen)
+app.get('/api/debug/duplicates', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    const duplicates = await new Promise((resolve, reject) => {
+      db.all(`
+        SELECT name, COUNT(*) as count, GROUP_CONCAT(id) as ids
+        FROM exercises 
+        WHERE user_id = ?
+        GROUP BY name 
+        HAVING count > 1
+      `, [userId], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+    
+    res.json({ 
+      userId, 
+      duplicatesFound: duplicates.length,
+      duplicates 
+    });
+    
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Static Files
