@@ -1,5 +1,6 @@
 // GIF Zuordnung für Übungen - KEINE DOPPLIKATE!
 // Format: 'Übungsname': 'dateiname.gif' oder null wenn kein GIF verfügbar
+// HINWEIS: Einige GIFs funktionieren nicht auf Chrome Mobile - auf null gesetzt
 const exerciseGifs = {
     // Brust
     'Bankdrücken (Langhantel)': 'bankdruecken_langhantel_flachbank.gif',
@@ -22,7 +23,7 @@ const exerciseGifs = {
     'Kniebeugen': 'kniebeugen_ausfuehrung-1.gif',
     'Beinpresse': 'beinpresse_muskeln-45_grad_beinpresse_breit.gif',
     'Beinstrecker': 'beinstrecker_maschine-1.gif',
-    'Beinbeuger': 'beinbeuger_maschine.gif',
+    'Beinbeuger': null,  // Chrome Mobile Problem
     'Beckenheben': 'glute-bridge.gif',
     'Wadenheben': 'calf_raises-1.gif',
     'Ausfallschritte': 'ausfallschritte_kurzhantel_nach_vorne.gif',
@@ -37,26 +38,26 @@ const exerciseGifs = {
     'Bizeps-Curls': 'bizeps_curls_kurzhanteln_abwechselnd.gif',
     'Hammer Curls': 'hammercurl_kurzhanteln_abwechselnd.gif',
     'Trizeps-Drücken Kabel': 'trizeps_uebungen_fitnessstudio-trizepsdruecken_am_kabelzug-1.gif',
-    'Französisches Trizeps': 'trizepstraining_zuhause-kurzhandell_trizepsdruecken_beidarmig.gif',
+    'Französisches Trizeps': null,  // Chrome Mobile Problem
     
     // Core/Bauch
     'Plank (Unterarmstütz)': 'plank.gif',
-    'Crunches': 'bauchmuskeluebungen_zu_hause-crunches.gif',
-    'Beinheben': 'liegendes_beinheben-1.gif',
+    'Crunches': null,  // Chrome Mobile Problem
+    'Beinheben': null,  // Chrome Mobile Problem
     'Russische Twist': 'russian_twist.gif',
     'ADIM-Core (für Gleitwirbel)': 'adim-core.gif',
     'Dead Bug': 'dead-bug.gif',
     'Bird Dog': 'bird-dog.gif',
     'Glute Bridge': 'glute-bridge.gif',
-    'Torso Rotation': 'torso-rotation.gif',
+    'Torso Rotation': null,  // Chrome Mobile Problem
     
     // Mobilität/Dehnen
     'Butterfly Stretch': 'butterfly-stretch.gif',
     'Katze-Kuh': 'cat-cow.gif',
     'Hüftdehnung': 'hip-stretch.gif',
-    'Kindhaltung': 'child-pose.gif',
+    'Kindhaltung': null,  // Chrome Mobile Problem
     
-    // Judo & andere ohne GIF
+    // Ohne GIFs
     'Side Plank': null,
     'Pallof Press': null,
     'Uchi-Komi (Wurfübungen)': null,
@@ -121,17 +122,18 @@ function loadGifWithRetry(imgElement, gifPath, maxRetries = 3) {
             retries++;
             if (retries < maxRetries) {
                 console.log(`🔄 Retry ${retries}/${maxRetries} für GIF: ${gifPath}`);
-                setTimeout(tryLoad, 500 * retries); // Exponentielles Backoff
+                setTimeout(tryLoad, 500 * retries);
             } else {
                 console.log('❌ GIF konnte nicht geladen werden:', gifPath);
                 imgElement.style.display = 'none';
-                imgElement.parentElement.style.display = 'none';
+                if (imgElement.parentElement) {
+                    imgElement.parentElement.style.display = 'none';
+                }
             }
         };
         
         imgElement.onload = function() {
             imgElement.style.display = 'block';
-            // Verhindert Mobile-Chrome Caching-Issues
             imgElement.decoding = 'async';
         };
     }
