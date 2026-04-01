@@ -1,0 +1,2 @@
+// Kopiere die aktuellen showExercisePreview und reloadGif Funktionen hierher
+// Zum Debuggen
