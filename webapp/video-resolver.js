@@ -53,62 +53,33 @@ function scanVideos() {
   }
 }
 
-// Video für Übungsnamen finden
+// Video für Übungsnamen finden - EXAKTES MATCHING
 function findVideoForExercise(exerciseName) {
   const videos = scanVideos();
   
   if (!exerciseName) return null;
   
-  // Erstmal: Alle verfügbaren Video-Keys loggen für Debug
-  // console.log('🔍 Suche Video für:', exerciseName);
-  // console.log('📹 Verfügbare Videos:', Object.keys(videos));
-  
-  // 1. EXAKTE ÜbereinstimmUNG (case-insensitive, mit Umlauten)
-  // "Bankdrücken (Langhantel)" soll "Bankdrücken (Langhantel).mp4" finden
   const exerciseLower = exerciseName.toLowerCase().trim();
+  
+  // 1. EXAKTE ÜbereinstimmUNG (case-insensitive)
+  // "Crunches" findet nur "Crunches.mp4", NICHT "Crunches (Maschine).mp4"
   if (videos[exerciseLower]) {
-    // console.log('✅ Exakte Übereinstimmung gefunden');
     return videos[exerciseLower];
   }
   
-  // 2. Übereinstimmung ohne Klammern
-  const withoutBrackets = exerciseLower.replace(/[()]/g, '').trim();
-  if (videos[withoutBrackets]) {
-    return videos[withoutBrackets];
-  }
-  
-  // 3. Normalisiert (ohne Umlaute, klein)
-  const normalized = exerciseLower
+  // 2. Übereinstimmung mit normalisierten Umlauten
+  // Wenn das Video "Bankdruecken.mp4" heißt aber die Übung "Bankdrücken"
+  const normalizedExercise = exerciseLower
     .replace(/ä/g, 'ae')
     .replace(/ö/g, 'oe')
     .replace(/ü/g, 'ue')
-    .replace(/ß/g, 'ss')
-    .replace(/[()]/g, '');
+    .replace(/ß/g, 'ss');
   
-  if (videos[normalized]) return videos[normalized];
-  
-  // 4. Flexibles Matching - suche ähnliche Namen
-  for (const [key, video] of Object.entries(videos)) {
-    const keyLower = key.toLowerCase();
-    
-    // Enthält der Key den Übungsnamen (oder umgekehrt)?
-    if (keyLower.includes(exerciseLower) || exerciseLower.includes(keyLower)) {
-      return video;
-    }
-    
-    // Normalisierte Version vergleichen
-    const keyNormalized = keyLower
-      .replace(/ä/g, 'ae')
-      .replace(/ö/g, 'oe')
-      .replace(/ü/g, 'ue')
-      .replace(/ß/g, 'ss');
-    
-    if (keyNormalized.includes(normalized) || normalized.includes(keyNormalized)) {
-      return video;
-    }
+  if (videos[normalizedExercise]) {
+    return videos[normalizedExercise];
   }
   
-  // console.log('❌ Kein Video gefunden für:', exerciseName);
+  // KEIN fuzzy/teilweises Matching - "Crunches" soll nicht "Crunches (Maschine)" finden
   return null;
 }
 
