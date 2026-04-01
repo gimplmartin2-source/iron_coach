@@ -410,13 +410,13 @@ function openExerciseSelector() {
         exercisesHtml += `<div class="exercise-grid" id="exercises-${cat}" style="display: ${display}; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 15px;">`;
         
         grouped[cat].forEach(e => {
-            const gifPath = getExerciseGif(e.name);
-            const gifHtml = gifPath ? `<img src="${gifPath}" alt="${e.name}" style="width: 100%; height: 80px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;" onerror="this.style.display='none'">` : '';
+            const media = getExerciseMedia(e.name);
+            const videoHtml = media ? `<video src="${media.src}" muted playsinline loop autoplay style="width: 100%; height: 80px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;" onerror="this.style.display='none'"></video>` : '';
             exercisesHtml += `
                 <button type="button" class="exercise-option" onclick="selectExerciseForWorkout(${e.id}, '${e.name.replace(/'/g, "\\'")}')" style="padding: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; cursor: pointer; transition: all 0.2s; text-align: left;"
                 onmouseover="this.style.background='rgba(0,212,255,0.2)'; this.style.borderColor='#00d4ff';" 
                 onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.2)';">
-                    ${gifHtml}
+                    ${videoHtml}
                     <div style="font-weight: bold; margin-bottom: 5px; font-size: 0.9rem;">${e.name}</div>
                     <div style="font-size: 0.75rem; color: #888;">${e.muscle_group}</div>
                 </button>`;
@@ -812,11 +812,11 @@ function renderExercisesList() {
         html += `<div style="margin-bottom: 20px;"></h3>${muscleGroup}</h3></div>`;
         html += exerciseList.map(e => {
             const typeIcon = e.exercise_type === 'time' ? '⏱️' : '💪';
-            const gifPath = getExerciseGif(e.name);
-            const gifHtml = gifPath ? `<img src="${gifPath}" alt="${e.name}" style="width: 80px; height: 60px; object-fit: cover; border-radius: 8px; margin-right: 12px; cursor: pointer;" onclick="showGifModal('${gifPath}', '${e.name}')" title="Klicken zum Vergrößern">` : '';
+            const media = getExerciseMedia(e.name);
+            const videoHtml = media ? `<video src="${media.src}" muted playsinline loop autoplay style="width: 80px; height: 60px; object-fit: cover; border-radius: 8px; margin-right: 12px; cursor: pointer;" onclick="showVideoModal('${media.src}', '${e.name.replace(/'/g, "\\'")}')" title="Klicken zum Vergrößern"></video>` : '';
             return `
             <div class="list-item" style="margin-bottom: 10px; display: flex; align-items: center;">
-                ${gifHtml}
+                ${videoHtml}
                 <div class="list-item-info" style="flex: 1;">
                     <h4>${e.name} <span style="color: #666; font-size: 0.8rem;">${typeIcon}</span></h4>
                     <p style="color: #888; font-size: 0.85rem;">${e.muscle_group}</p>
@@ -832,8 +832,8 @@ function renderExercisesList() {
     container.innerHTML = html;
 }
 
-// Modal für GIF Anzeige
-function showGifModal(gifPath, exerciseName) {
+// Modal fur Video Anzeige
+function showVideoModal(videoSrc, exerciseName) {
     const modal = document.createElement('div');
     modal.style.cssText = `
         position: fixed;
@@ -851,12 +851,17 @@ function showGifModal(gifPath, exerciseName) {
     modal.innerHTML = `
         <div style="text-align: center;" onclick="event.stopPropagation()">
             <h3 style="color: #00d4ff; margin-bottom: 20px;">${exerciseName}</h3>
-            <img src="${gifPath}" style="max-width: 90vw; max-height: 70vh; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+            <video src="${videoSrc}" autoplay loop muted playsinline style="max-width: 90vw; max-height: 70vh; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);"></video>
             <p style="color: #888; margin-top: 20px; font-size: 0.9rem;">Klicke außerhalb zum Schließen</p>
         </div>
     `;
     modal.onclick = () => modal.remove();
     document.body.appendChild(modal);
+}
+
+// Abwartskompatibilitat - alte GIF Modal Funktion
+function showGifModal(gifPath, exerciseName) {
+    showVideoModal(gifPath, exerciseName);
 }
 
 // Load workouts
