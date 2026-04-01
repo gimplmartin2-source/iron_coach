@@ -1311,6 +1311,17 @@ app.get('/api/debug/duplicates', authenticateJWT, async (req, res) => {
   }
 });
 
+// Verfügbare Videos für Frontend
+app.get('/api/exercises/videos', (req, res) => {
+  try {
+    const videos = videoResolver.scanVideos();
+    // Sende als simples Objekt: { "Übungsname": "dateiname.mp4" }
+    res.json(videos);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Static Files
 const publicPath = path.join(__dirname, 'public');
 console.log('📁 Serving static files from:', publicPath);

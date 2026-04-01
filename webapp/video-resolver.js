@@ -59,39 +59,56 @@ function findVideoForExercise(exerciseName) {
   
   if (!exerciseName) return null;
   
-  // 1. EXAKTE Übereinstimmung (case-insensitive)
-  // Prüfe, ob ein Video mit exakt dem Namen existiert: "Bankdrücken (Kurzhantel)" → "Bankdrücken (Kurzhantel).mp4"
-  const exactMatch = Object.keys(videos).find(videoName => 
-    videoName.toLowerCase() === exerciseName.toLowerCase()
-  );
-  if (exactMatch) return videos[exactMatch];
+  // Erstmal: Alle verfügbaren Video-Keys loggen für Debug
+  // console.log('🔍 Suche Video für:', exerciseName);
+  // console.log('📹 Verfügbare Videos:', Object.keys(videos));
   
-  // 2. Normalisierte Übereinstimmung (alte Logik)
-  const normalized = exerciseName.toLowerCase()
-    .replace(/[()]/g, '')
+  // 1. EXAKTE ÜbereinstimmUNG (case-insensitive, mit Umlauten)
+  // "Bankdrücken (Langhantel)" soll "Bankdrücken (Langhantel).mp4" finden
+  const exerciseLower = exerciseName.toLowerCase().trim();
+  if (videos[exerciseLower]) {
+    // console.log('✅ Exakte Übereinstimmung gefunden');
+    return videos[exerciseLower];
+  }
+  
+  // 2. Übereinstimmung ohne Klammern
+  const withoutBrackets = exerciseLower.replace(/[()]/g, '').trim();
+  if (videos[withoutBrackets]) {
+    return videos[withoutBrackets];
+  }
+  
+  // 3. Normalisiert (ohne Umlaute, klein)
+  const normalized = exerciseLower
     .replace(/ä/g, 'ae')
     .replace(/ö/g, 'oe')
     .replace(/ü/g, 'ue')
-    .replace(/ß/g, 'ss');
+    .replace(/ß/g, 'ss')
+    .replace(/[()]/g, '');
   
-  // Direkte Übereinstimmung
   if (videos[normalized]) return videos[normalized];
   
-  // Mit Leerzeichen
-  const withSpaces = normalized.replace(/[\-_]/g, ' ');
-  if (videos[withSpaces]) return videos[withSpaces];
-  
-  // Ohne Leerzeichen
-  const noSpaces = normalized.replace(/[\-_\s]/g, '');
-  if (videos[noSpaces]) return videos[noSpaces];
-  
-  // Teilübereinstimmung
+  // 4. Flexibles Matching - suche ähnliche Namen
   for (const [key, video] of Object.entries(videos)) {
-    if (normalized.includes(key) || key.includes(normalized)) {
+    const keyLower = key.toLowerCase();
+    
+    // Enthält der Key den Übungsnamen (oder umgekehrt)?
+    if (keyLower.includes(exerciseLower) || exerciseLower.includes(keyLower)) {
+      return video;
+    }
+    
+    // Normalisierte Version vergleichen
+    const keyNormalized = keyLower
+      .replace(/ä/g, 'ae')
+      .replace(/ö/g, 'oe')
+      .replace(/ü/g, 'ue')
+      .replace(/ß/g, 'ss');
+    
+    if (keyNormalized.includes(normalized) || normalized.includes(keyNormalized)) {
       return video;
     }
   }
   
+  // console.log('❌ Kein Video gefunden für:', exerciseName);
   return null;
 }
 
