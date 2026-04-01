@@ -26,12 +26,21 @@ function scanVideos() {
     videoCache = {};
     
     videos.forEach(video => {
-      const name = video.replace('.mp4', '').toLowerCase();
+      const originalName = video.replace('.mp4', ''); // Original-Name ohne .mp4
+      const normalized = originalName.toLowerCase();
       
-      // Verschiedene Varianten speichern
-      videoCache[name] = video;
-      videoCache[name.replace(/[\-_]/g, ' ')] = video; // Mit Leerzeichen
-      videoCache[name.replace(/[\-_\s]/g, '')] = video; // Ohne Leerzeichen
+      // Speichere verschiedene Varianten für Matching
+      videoCache[normalized] = video;
+      videoCache[normalized.replace(/[\-_]/g, ' ')] = video; // Mit Leerzeichen statt Bindestricht
+      videoCache[normalized.replace(/[\-_\s]/g, '')] = video; // Ohne Leerzeichen/Bindestriche
+      
+      // Auch ohne Umlaute speichern (frobustes Matching)
+      const withoutUmlauts = normalized
+        .replace(/ä/g, 'ae')
+        .replace(/ö/g, 'oe')
+        .replace(/ü/g, 'ue')
+        .replace(/ß/g, 'ss');
+      videoCache[withoutUmlauts] = video;
     });
     
     lastScan = now;
@@ -50,6 +59,14 @@ function findVideoForExercise(exerciseName) {
   
   if (!exerciseName) return null;
   
+  // 1. EXAKTE Übereinstimmung (case-insensitive)
+  // Prüfe, ob ein Video mit exakt dem Namen existiert: "Bankdrücken (Kurzhantel)" → "Bankdrücken (Kurzhantel).mp4"
+  const exactMatch = Object.keys(videos).find(videoName => 
+    videoName.toLowerCase() === exerciseName.toLowerCase()
+  );
+  if (exactMatch) return videos[exactMatch];
+  
+  // 2. Normalisierte Übereinstimmung (alte Logik)
   const normalized = exerciseName.toLowerCase()
     .replace(/[()]/g, '')
     .replace(/ä/g, 'ae')
