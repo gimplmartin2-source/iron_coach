@@ -131,17 +131,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Restore VOR dem Laden der Daten (nur einmal pro Session)
     const restoreAttempted = sessionStorage.getItem('restoreAttempted');
+    const alreadyRestored = sessionStorage.getItem('alreadyRestored'); // Verhindert wiederholtes Restore
     let restoreSuccessful = false;
     
-    if (!restoreAttempted) {
+    // Wenn schon restored in dieser Session, überspringe
+    if (alreadyRestored === 'true') {
+        console.log('✅ Bereits restauriert in dieser Session, überspringe Restore');
+    } else if (!restoreAttempted) {
         sessionStorage.setItem('restoreAttempted', 'true');
         const restoreResult = await restoreFromDrive();
         if (restoreResult) {
-            console.log('✅ Restore erfolgreich - Sync wird übersprungen');
+            console.log('✅ Restore erfolgreich - Speichere Status und lade neu');
+            sessionStorage.setItem('alreadyRestored', 'true'); // Merken dass wir restored haben
             restoreSuccessful = true;
             // Restore erfolgreich, Seite wird neu geladen
             return;
         }
+    } else {
+        console.log('ℹ️ Restore wurde bereits versucht, überspringe');
     }
     
     // Nur Sync wenn kein Restore stattgefunden hat
@@ -213,6 +220,7 @@ function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     sessionStorage.removeItem('restoreAttempted'); // Reset für nächsten Login
+    sessionStorage.removeItem('alreadyRestored'); // Reset für nächsten Login
     window.location.href = '/login.html';
 }
 
@@ -247,9 +255,7 @@ async function restoreFromDrive() {
         if (res.ok) {
             const data = await res.json();
             if (data.success) {
-                console.log('✅ Restore erfolgreich');
-                // WICHTIG: Flag löschen BEVOR wir neu laden, damit nach Reload alles normal lädt
-                sessionStorage.removeItem('restoreAttempted');
+                console.log('✅ Restore erfolgreich - lade Seite neu');
                 window.location.reload();
                 return true;
             }
@@ -277,9 +283,7 @@ async function restoreFromDrive() {
         if (res.ok) {
             const data = await res.json();
             if (data.success) {
-                console.log('✅ Restore mit manuellem Token erfolgreich');
-                // WICHTIG: Flag löschen BEVOR wir neu laden
-                sessionStorage.removeItem('restoreAttempted');
+                console.log('✅ Restore mit manuellem Token erfolgreich - lade Seite neu');
                 window.location.reload();
                 return true;
             }
