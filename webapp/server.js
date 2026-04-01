@@ -665,15 +665,29 @@ app.get('/api/exercises', authenticateJWT, async (req, res) => {
   try {
     await checkSchema();
     
-    // Lade Übungen mit video_src aus DB
-    db.all(`
-      SELECT id, user_id, name, muscle_group, 
-             COALESCE(exercise_type, 'strength') as exercise_type,
-             video_src,
-             created_at 
-      FROM exercises 
-      WHERE user_id = ?
-    `, [req.user.userId], (err, rows) => {
+    // Prüfe ob video_src Spalte existiert
+    const hasVideoSrc = await new Promise((resolve) => {
+      db.all(`PRAGMA table_info(exercises)`, [], (err, cols) => {
+        resolve(cols && cols.some(c => c.name === 'video_src'));
+      });
+    });
+    
+    // Query mit oder ohne video_src
+    const query = hasVideoSrc 
+      ? `SELECT id, user_id, name, muscle_group, 
+                COALESCE(exercise_type, 'strength') as exercise_type,
+                video_src,
+                created_at 
+         FROM exercises 
+         WHERE user_id = ?`
+      : `SELECT id, user_id, name, muscle_group, 
+                COALESCE(exercise_type, 'strength') as exercise_type,
+                NULL as video_src,
+                created_at 
+         FROM exercises 
+         WHERE user_id = ?`;
+    
+    db.all(query, [req.user.userId], (err, rows) => {
       if (err) {
         console.error('❌ DB Fehler in /api/exercises:', err);
         return res.status(500).json({ error: err.message });
