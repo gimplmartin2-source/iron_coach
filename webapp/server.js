@@ -1326,34 +1326,21 @@ app.get('/api/exercises/videos', (req, res) => {
   }
 });
 
-// Static Files - Korrektur für Render: Prüfe auf index.html, nicht nur Verzeichnis
-let publicPath;
-const localPublic = path.join(__dirname, 'public');
-const renderPublic = path.join(__dirname, 'webapp', 'public');
+// Static Files - Render startet von Root, also nutze process.cwd()/webapp/public
+const publicPath = path.join(process.cwd(), 'webapp', 'public');
 
-// Prüfe welcher Pfad die index.html enthält
-if (fs.existsSync(path.join(localPublic, 'index.html'))) {
-  publicPath = localPublic;
-} else if (fs.existsSync(path.join(renderPublic, 'index.html'))) {
-  publicPath = renderPublic;
-} else {
-  // Fallback: Versuche webapp/public direkt
-  publicPath = path.join(process.cwd(), 'webapp', 'public');
-}
-
-console.log('📁 Serving static files from:', publicPath);
-console.log('📁 Existiert:', fs.existsSync(publicPath));
-console.log('📁 Index.html existiert:', fs.existsSync(path.join(publicPath, 'index.html')));
+console.log('?? process.cwd():', process.cwd());
+console.log('?? �ffentlicher Pfad:', publicPath);
 
 app.use(express.static(publicPath));
 
-// Fallback für SPA
+// Fallback f�r SPA
 app.get('*', (req, res) => {
   const indexPath = path.join(publicPath, 'index.html');
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
-    res.status(404).send('index.html nicht gefunden. Pfad: ' + publicPath);
+    res.status(404).send('404 - index.html nicht gefunden. Pfad: ' + publicPath);
   }
 });
 
