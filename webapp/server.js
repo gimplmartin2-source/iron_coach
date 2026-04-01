@@ -1326,11 +1326,11 @@ app.get('/api/exercises/videos', (req, res) => {
   }
 });
 
-// Static Files - Render startet von Root, also nutze process.cwd()/webapp/public
-const publicPath = path.join(process.cwd(), 'webapp', 'public');
+// Static Files - Expliziter Pfad für Render
+const publicPath = process.env.PUBLIC_PATH || path.join(process.cwd(), 'webapp', 'public');
 
-console.log('?? process.cwd():', process.cwd());
-console.log('?? Öffentlicher Pfad:', publicPath);
+console.log('?? PUBLIC_PATH:', process.env.PUBLIC_PATH);
+console.log('?? Tatsächlicher Pfad:', publicPath);
 
 app.use(express.static(publicPath));
 
@@ -1340,7 +1340,7 @@ app.get('*', (req, res) => {
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
-    res.status(404).send('404 - index.html nicht gefunden. Pfad: ' + publicPath);
+    res.status(404).send('404 - index.html nicht gefunden. Pfad: ' + indexPath);
   }
 });
 
