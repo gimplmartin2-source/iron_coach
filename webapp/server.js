@@ -509,10 +509,28 @@ const authenticateJWT = (req, res, next) => {
         email: decoded.email
       };
       
+      // WICHTIG: Google Token aus JWT hat Priorität, speichere es auch in DB falls fehlend
+      const jwtGoogleToken = decoded.googleAccessToken;
+      
       // Versuche Google Token zu laden (optional)
       db.get('SELECT google_access_token FROM users WHERE id = ?', [decoded.userId], (err, row) => {
         if (!err && row) {
-          req.user.googleToken = row.google_access_token;
+          // Wenn JWT Token vorhanden aber DB null → speichern
+          if (jwtGoogleToken && !row.google_access_token) {
+            console.log(`🔄 Speichere Google Token für User ${decoded.userId}`);
+            db.run('UPDATE users SET google_access_token = ? WHERE id = ?', 
+              [jwtGoogleToken, decoded.userId],
+              (updateErr) => {
+                if (!updateErr) console.log('✅ Google Token gespeichert');
+                else console.log('⚠️ Fehler beim Speichern:', updateErr.message);
+              }
+            );
+            req.user.googleToken = jwtGoogleToken;
+          } else {
+            req.user.googleToken = jwtGoogleToken || row.google_access_token;
+          }
+        } else {
+          req.user.googleToken = jwtGoogleToken;
         }
         next();
       });
