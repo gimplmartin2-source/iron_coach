@@ -1326,24 +1326,35 @@ app.get('/api/exercises/videos', (req, res) => {
   }
 });
 
-// Static Files - Korrektur für Render: server.js ist in webapp/, aber Render startet von Root
+// Static Files - Korrektur für Render: Prüfe auf index.html, nicht nur Verzeichnis
 let publicPath;
-if (fs.existsSync(path.join(__dirname, 'public'))) {
-  // Lokal oder wenn korrekt gestartet
-  publicPath = path.join(__dirname, 'public');
+const localPublic = path.join(__dirname, 'public');
+const renderPublic = path.join(__dirname, 'webapp', 'public');
+
+// Prüfe welcher Pfad die index.html enthält
+if (fs.existsSync(path.join(localPublic, 'index.html'))) {
+  publicPath = localPublic;
+} else if (fs.existsSync(path.join(renderPublic, 'index.html'))) {
+  publicPath = renderPublic;
 } else {
-  // Render startet von Root aus
-  publicPath = path.join(__dirname, 'webapp', 'public');
+  // Fallback: Versuche webapp/public direkt
+  publicPath = path.join(process.cwd(), 'webapp', 'public');
 }
+
 console.log('📁 Serving static files from:', publicPath);
+console.log('📁 Existiert:', fs.existsSync(publicPath));
+console.log('📁 Index.html existiert:', fs.existsSync(path.join(publicPath, 'index.html')));
+
 app.use(express.static(publicPath));
 
 // Fallback für SPA
 app.get('*', (req, res) => {
-  const indexPath = fs.existsSync(path.join(__dirname, 'public', 'index.html')) 
-    ? path.join(__dirname, 'public', 'index.html')
-    : path.join(__dirname, 'webapp', 'public', 'index.html');
-  res.sendFile(indexPath);
+  const indexPath = path.join(publicPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send('index.html nicht gefunden. Pfad: ' + publicPath);
+  }
 });
 
 // Server starten
