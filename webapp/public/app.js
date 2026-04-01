@@ -640,13 +640,21 @@ async function autoBackup() {
     
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
-        if (!payload.googleAccessToken) return; // Nur für Google-User
+        if (!payload.googleAccessToken) {
+            console.log('ℹ️ Kein Google Token, Backup übersprungen');
+            return;
+        }
         
         // Silent backup
-        await apiFetch('/api/backup/drive', { method: 'POST' });
-        console.log('☁️ Auto-Backup erledigt');
+        const res = await apiFetch('/api/backup/drive', { method: 'POST' });
+        if (res && res.ok) {
+            console.log('☁️ Auto-Backup erfolgreich');
+        } else {
+            const status = res ? res.status : 'keine Antwort';
+            console.log('⚠️ Auto-Backup fehlgeschlagen:', status);
+        }
     } catch (err) {
-        console.log('ℹ️ Auto-Backup übersprungen:', err.message);
+        console.log('⚠️ Auto-Backup Fehler:', err.message);
     }
 }
 async function deleteExercise(id) {

@@ -1005,6 +1005,43 @@ app.post('/api/backup', authenticateJWT, async (req, res) => {
   }
 });
 
+// Alias: /api/backup/drive (für Client-Kompatibilität)
+app.post('/api/backup/drive', authenticateJWT, async (req, res) => {
+  // Weiterleitung zum Haupt-Backup-Handler
+  try {
+    if (!req.user.googleToken) {
+      return res.status(400).json({ error: 'Nicht mit Google verbunden' });
+    }
+    
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({ access_token: req.user.googleToken });
+    const drive = google.drive({ version: 'v3', auth: oauth2Client });
+    
+    // Backup hochladen
+    const fileMetadata = {
+      name: `ironcoach_backup_user${req.user.userId}.db`,
+      parents: [process.env.BACKUP_FOLDER_ID]
+    };
+    
+    const media = {
+      mimeType: 'application/x-sqlite3',
+      body: fs.createReadStream(DB_PATH)
+    };
+    
+    const file = await drive.files.create({
+      resource: fileMetadata,
+      media: media,
+      fields: 'id'
+    });
+    
+    console.log('✅ Backup zu Drive erfolgreich:', file.data.id);
+    res.json({ success: true, fileId: file.data.id });
+  } catch (err) {
+    console.error('❌ Backup zu Drive Fehler:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Restore - akzeptiert Token aus DB oder aus Request Body
 // WICHTIG: Route muss VOR app.get('*') sein
 app.post('/api/restore', authenticateJWT, async (req, res) => {
