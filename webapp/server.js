@@ -410,10 +410,14 @@ initDatabase().then(async () => {
     console.log('ℹ️ Auto-restore Modul nicht geladen:', err.message);
   }
   
-  // Speichere scheduleBackup Funktion global
-  const autoBackup = require('./auto-backup');
-  if (autoBackup) {
-    global.scheduleBackupFn = autoBackup.scheduleBackup;
+  // Speichere scheduleBackup Funktion global (optional - falls Modul existiert)
+  try {
+    const autoBackup = require('./auto-backup');
+    if (autoBackup && autoBackup.scheduleBackup) {
+      global.scheduleBackupFn = autoBackup.scheduleBackup;
+    }
+  } catch (err) {
+    console.log('ℹ️ Auto-backup optional - Modul nicht gefunden:', err.message);
   }
 }).catch(err => {
   console.error('❌ DB Init Fehler:', err);
@@ -1322,14 +1326,24 @@ app.get('/api/exercises/videos', (req, res) => {
   }
 });
 
-// Static Files
-const publicPath = path.join(__dirname, 'public');
+// Static Files - Korrektur für Render: server.js ist in webapp/, aber Render startet von Root
+let publicPath;
+if (fs.existsSync(path.join(__dirname, 'public'))) {
+  // Lokal oder wenn korrekt gestartet
+  publicPath = path.join(__dirname, 'public');
+} else {
+  // Render startet von Root aus
+  publicPath = path.join(__dirname, 'webapp', 'public');
+}
 console.log('📁 Serving static files from:', publicPath);
 app.use(express.static(publicPath));
 
 // Fallback für SPA
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  const indexPath = fs.existsSync(path.join(__dirname, 'public', 'index.html')) 
+    ? path.join(__dirname, 'public', 'index.html')
+    : path.join(__dirname, 'webapp', 'public', 'index.html');
+  res.sendFile(indexPath);
 });
 
 // Server starten

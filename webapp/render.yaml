@@ -3,7 +3,7 @@ services:
     name: ironcoach-tracker
     runtime: node
     buildCommand: npm install
-    startCommand: node server.js
+    startCommand: node webapp/server.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -13,7 +13,6 @@ services:
         generateValue: true
       - key: PORT
         value: 10000
-      # Google OAuth (needed for all users):
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
