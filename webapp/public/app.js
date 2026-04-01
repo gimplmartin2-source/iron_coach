@@ -248,6 +248,8 @@ async function restoreFromDrive() {
             const data = await res.json();
             if (data.success) {
                 console.log('✅ Restore erfolgreich');
+                // WICHTIG: Flag löschen BEVOR wir neu laden, damit nach Reload alles normal lädt
+                sessionStorage.removeItem('restoreAttempted');
                 window.location.reload();
                 return true;
             }
@@ -276,6 +278,8 @@ async function restoreFromDrive() {
             const data = await res.json();
             if (data.success) {
                 console.log('✅ Restore mit manuellem Token erfolgreich');
+                // WICHTIG: Flag löschen BEVOR wir neu laden
+                sessionStorage.removeItem('restoreAttempted');
                 window.location.reload();
                 return true;
             }
