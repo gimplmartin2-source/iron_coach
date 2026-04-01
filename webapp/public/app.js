@@ -296,12 +296,33 @@ async function restoreFromDrive() {
 async function loadExercises() {
     try {
         const res = await apiFetch('/api/exercises');
-        if (!res) return;
-        exercises = await res.json();
+        if (!res) {
+            console.log('⚠️ Keine Response beim Laden der Übungen');
+            exercises = [];
+            return;
+        }
+        if (!res.ok) {
+            const errorText = await res.text();
+            console.error('❌ API Fehler beim Laden der Übungen:', res.status, errorText);
+            exercises = [];
+            return;
+        }
+        const data = await res.json();
+        // Sicherstellen dass data ein Array ist
+        if (Array.isArray(data)) {
+            exercises = data;
+        } else if (data.error) {
+            console.error('❌ API Fehler:', data.error);
+            exercises = [];
+        } else {
+            console.error('❌ Ungültige API Antwort:', data);
+            exercises = [];
+        }
         updateExerciseSelects();
         renderExercisesList();
     } catch (err) {
         console.error('Fehler beim Laden der Übungen:', err);
+        exercises = [];
     }
 }
 
@@ -830,36 +851,63 @@ function showGifModal(gifPath, exerciseName) {
 async function loadWorkouts() {
     try {
         const res = await apiFetch('/api/workouts');
-        if (!res) return;
-        workouts = await res.json();
+        if (!res) {
+            console.log('⚠️ Keine Response beim Laden der Workouts');
+            workouts = [];
+            return;
+        }
+        if (!res.ok) {
+            const errorText = await res.text();
+            console.error('❌ API Fehler beim Laden der Workouts:', res.status, errorText);
+            workouts = [];
+            return;
+        }
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            workouts = data;
+        } else if (data.error) {
+            console.error('❌ API Fehler:', data.error);
+            workouts = [];
+        } else {
+            console.error('❌ Ungültige API Antwort:', data);
+            workouts = [];
+        }
         
         // WICHTIG: Sicherstellen dass exercises geladen sind
-        if (exercises.length === 0) {
+        if (!Array.isArray(exercises) || exercises.length === 0) {
             console.log('🔄 Exercises noch nicht geladen, lade jetzt...');
             await loadExercises();
+            // Falls immer noch kein Array, leeres Array setzen
+            if (!Array.isArray(exercises)) {
+                exercises = [];
+            }
         }
         
         // Exercise-Type zu jedem Workout hinzufügen
         // WICHTIG: Überschreibe exercise_type nur wenn nicht vom Backend gesetzt
-        workouts.forEach(w => {
-            const exercise = exercises.find(e => e.id === w.exercise_id);
-            if (exercise) {
-                // Nur überschreiben wenn Backend es nicht erkannt hat UND Übung explizit 'time' ist
-                if (!w.exercise_type || w.exercise_type === 'strength') {
-                    if (exercise.exercise_type === 'time') {
-                        w.exercise_type = 'time';
-                        console.log('⏱️ Zeit-Übung erkannt für:', w.exercise_name);
+        for (let i = 0; i < workouts.length; i++) {
+            const w = workouts[i];
+            if (Array.isArray(exercises)) {
+                const exercise = exercises.find(e => e.id === w.exercise_id);
+                if (exercise) {
+                    // Nur überschreiben wenn Backend es nicht erkannt hat UND Übung explizit 'time' ist
+                    if (!w.exercise_type || w.exercise_type === 'strength') {
+                        if (exercise.exercise_type === 'time') {
+                            w.exercise_type = 'time';
+                            console.log('⏱️ Zeit-Übung erkannt für:', w.exercise_name);
+                        }
                     }
+                    w.muscle_group = exercise.muscle_group;
+                } else {
+                    console.log('⚠️ Keine Übung gefunden für workout:', w.id, 'exercise_id:', w.exercise_id);
                 }
-                w.muscle_group = exercise.muscle_group;
-            } else {
-                console.log('⚠️ Keine Übung gefunden für workout:', w.id, 'exercise_id:', w.exercise_id);
             }
-        });
+        }
         
         renderWorkoutsList();
     } catch (err) {
         console.error('Fehler beim Laden der Workouts:', err);
+        workouts = [];
     }
 }
 
@@ -2806,5 +2854,8 @@ window.startTrainingTimer = startTrainingTimer;
 window.pauseTrainingTimer = pauseTrainingTimer;
 window.stopTrainingTimer = stopTrainingTimer;
 
-
+// GIFs vorladen für bessere Performance (Stub - wird von gif-mappings.js überschrieben wenn vorhanden)
+function preloadExerciseGifs() {
+    console.log('📱 Preload Übersprungen (keine GIFs definiert oder bereits geladen)');
+}
 

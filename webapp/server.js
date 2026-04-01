@@ -662,29 +662,44 @@ app.get('/auth/google/callback',
 
 // Alle Übungen abrufen (mit Video)
 app.get('/api/exercises', authenticateJWT, async (req, res) => {
-  await checkSchema();
-  
-  // Lade Übungen mit video_src aus DB
-  db.all(`
-    SELECT id, user_id, name, muscle_group, 
-           COALESCE(exercise_type, 'strength') as exercise_type,
-           video_src,
-           created_at 
-    FROM exercises 
-    WHERE user_id = ?
-  `, [req.user.userId], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
+  try {
+    await checkSchema();
     
-    // Video-Resolver für Übungen ohne video_src
-    const enrichedRows = rows.map(row => ({
-      ...row,
-      video_src: row.video_src || videoResolver.getVideoForExercise(row.name)
-    }));
-    
-    res.json(enrichedRows);
-  });
+    // Lade Übungen mit video_src aus DB
+    db.all(`
+      SELECT id, user_id, name, muscle_group, 
+             COALESCE(exercise_type, 'strength') as exercise_type,
+             video_src,
+             created_at 
+      FROM exercises 
+      WHERE user_id = ?
+    `, [req.user.userId], (err, rows) => {
+      if (err) {
+        console.error('❌ DB Fehler in /api/exercises:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      
+      // Sicherstellen dass rows ein Array ist
+      const safeRows = Array.isArray(rows) ? rows : [];
+      
+      try {
+        // Video-Resolver für Übungen ohne video_src
+        const enrichedRows = safeRows.map(row => ({
+          ...row,
+          video_src: row.video_src || videoResolver.getVideoForExercise(row.name)
+        }));
+        
+        res.json(enrichedRows);
+      } catch (resolverErr) {
+        console.error('❌ Video Resolver Fehler:', resolverErr);
+        // Im Fehlerfall trotzdem die Daten ohne Video zurückgeben
+        res.json(safeRows.map(row => ({ ...row, video_src: null })));
+      }
+    });
+  } catch (err) {
+    console.error('❌ Unhandled Fehler in /api/exercises:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Neue �bung hinzuf�gen (mit Video)
