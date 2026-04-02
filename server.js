@@ -466,13 +466,43 @@ app.get('/api/workouts', authenticateJWT, (req, res) => {
 });
 
 // Neues Workout hinzufügen
-app.post('/api/workouts', authenticateJWT, (req, res) => {
+app.post('/api/workouts', authenticateJWT, async (req, res) => {
   const { exercise_id, weight, sets, reps, rest_seconds, feeling, date } = req.body;
+  const userId = req.user.userId;
+  
+  console.log('📝 Workout POST:', { userId, exercise_id, weight, sets, reps, date });
+  
+  // Validierung
+  if (!exercise_id) {
+    return res.status(400).json({ error: 'exercise_id ist erforderlich' });
+  }
+  
+  // Prüfe ob Übung existiert und dem User gehört
+  try {
+    const exerciseExists = await new Promise((resolve, reject) => {
+      db.get('SELECT id FROM exercises WHERE id = ? AND user_id = ?', [exercise_id, userId], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+    
+    if (!exerciseExists) {
+      console.log('❌ Übung nicht gefunden:', exercise_id, 'für User:', userId);
+      return res.status(400).json({ error: 'Übung nicht gefunden oder gehört nicht diesem User' });
+    }
+  } catch (err) {
+    console.error('❌ Fehler beim Prüfen der Übung:', err);
+  }
+  
   db.run(
     'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [req.user.userId, exercise_id, weight, sets, reps, rest_seconds, feeling, date],
+    [userId, exercise_id, weight, sets, reps, rest_seconds, feeling, date],
     function(err) {
-      if (err) return res.status(500).json({ error: err.message });
+      if (err) {
+        console.error('❌ Workout INSERT Fehler:', err.message);
+        return res.status(500).json({ error: err.message });
+      }
+      console.log('✅ Workout gespeichert, ID:', this.lastID);
       res.json({ id: this.lastID, exercise_id, weight, sets, reps, rest_seconds, feeling, date });
     }
   );
