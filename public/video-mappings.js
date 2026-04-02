@@ -58,15 +58,16 @@ function getExerciseMedia(exerciseName) {
     if (staticMapping[exerciseName]) {
         return {
             type: 'video',
-            src: `/exercises/${staticMapping[exerciseName]}${MEDIA_VERSION}`
+            src: `/${staticMapping[exerciseName]}${MEDIA_VERSION}`
         };
     }
     
     // 2. Oder direkt: Übung = Dateiname (ohne .mp4)
     // "Kreuzheben" → "Kreuzheben.mp4"
+    // WICHTIG: Videos direkt im public Ordner
     return {
         type: 'video',
-        src: `/exercises/${exerciseName}.mp4${MEDIA_VERSION}`
+        src: `/${exerciseName}.mp4${MEDIA_VERSION}`
     };
 }
 

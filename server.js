@@ -852,6 +852,21 @@ const publicPath = path.join(__dirname, 'public');
 console.log('📁 Serving static files from:', publicPath);
 app.use(express.static(publicPath));
 
+// API-Route: Liste verfügbare Videos (VOR dem Fallback!)
+app.get('/api/exercises/videos', (req, res) => {
+  const availableVideos = [
+    'Bankdrücken (Langhantel).mp4',
+    'Kniebeugen.mp4',
+    'Klimmzüge.mp4',
+    'plank.mp4'
+  ];
+  const videoMap = {};
+  availableVideos.forEach(file => {
+    videoMap[file.replace('.mp4', '')] = file;
+  });
+  res.json(videoMap);
+});
+
 // Fallback für SPA
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
