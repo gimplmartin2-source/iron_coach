@@ -367,7 +367,10 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       }
       
       const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '24h' });
-      res.redirect(`/?token=${token}`);
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+      const host = req.headers['x-forwarded-host'] || req.headers.host;
+      const baseUrl = `${protocol}://${host}`;
+      res.redirect(`${baseUrl}/?token=${token}`);
     }
   );
 }
