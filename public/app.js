@@ -139,12 +139,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('✅ Bereits restauriert in dieser Session, überspringe Restore');
     } else if (!restoreAttempted) {
         sessionStorage.setItem('restoreAttempted', 'true');
-        const restoreResult = await restoreFromDrive();
+        // WICHTIG: Beim Google-Login (Token in URL) automatisch restore versuchen
+        const isGoogleLogin = urlToken !== null;
+        const restoreResult = await restoreFromDrive(isGoogleLogin);
         if (restoreResult) {
             console.log('✅ Restore erfolgreich - Speichere Status und lade neu');
-            sessionStorage.setItem('alreadyRestored', 'true'); // Merken dass wir restored haben
+            sessionStorage.setItem('alreadyRestored', 'true');
             restoreSuccessful = true;
-            // Restore erfolgreich, Seite wird neu geladen
             return;
         }
     } else {
@@ -168,6 +169,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Normale Initialisierung
     await loadExercises();
+    
+    // WICHTIG: Wenn keine Übungen gefunden (z.B. nach Google-Login), erstelle Standardübungen
+    if (exercises.length === 0) {
+        console.log('📝 Keine Übungen in localStorage, erstelle jetzt über API...');
+        
+        // Rufe /api/exercises/sync auf
+        try {
+            const syncRes = await apiFetch('/api/exercises/sync', { method: 'POST' });
+            if (syncRes.ok) {
+                console.log('✅ Übungen über Sync-Endpoint erstellt');
+                // Neu laden
+                await loadExercises();
+            }
+        } catch (err) {
+            console.error('❌ Sync Fehler:', err);
+        }
+    }
     
     // Wenn keine Übungen vorhanden (z.B. komplett neuer User), Standardübungen erstellen
     if (exercises.length === 0) {
@@ -238,14 +256,14 @@ function showTab(tabName) {
     }
 }
 
-// Restore von Google Drive
-async function restoreFromDrive() {
+// Restore von Google Drive - automatisch beim Google Login
+async function restoreFromDrive(autoMode = false) {
     const token = localStorage.getItem('token');
     if (!token) return false;
     
     console.log('🔍 Versuche Restore...');
     
-    // Versuche automatisches Restore
+    // Versuche automatisches Restore (bei Google OAuth)
     try {
         const res = await apiFetch('/api/restore', { 
             method: 'POST',
@@ -258,13 +276,22 @@ async function restoreFromDrive() {
                 console.log('✅ Restore erfolgreich - lade Seite neu');
                 window.location.reload();
                 return true;
+            } else {
+                console.log('ℹ️ Kein Backup gefunden:', data.message);
+                return false;
             }
         }
     } catch (err) {
         console.log('⚠️ Automatisches Restore fehlgeschlagen:', err.message);
     }
     
-    // Frage nach manuellem Token
+    // Nur im Auto-Mode: Nicht nach manuellem Token fragen
+    if (autoMode) {
+        console.log('ℹ️ Auto-Mode: Überspringe manuelle Token-Abfrage');
+        return false;
+    }
+    
+    // Manuelles Token für nicht-Google-Logins
     console.log('🔑 Bitte Google Token eingeben...');
     const manualToken = prompt('Google Access Token eingeben (aus der Console/App):\\n\\nHinweis: Token bekommst du von:\\n1. Google OAuth Playground\\n2. Oder neu einloggen');
     
@@ -283,14 +310,13 @@ async function restoreFromDrive() {
         if (res.ok) {
             const data = await res.json();
             if (data.success) {
-                console.log('✅ Restore mit manuellem Token erfolgreich - lade Seite neu');
+                console.log('✅ Restore mit manuellem Token erfolgreich');
                 window.location.reload();
                 return true;
             }
         }
     } catch (err) {
-        console.error('❌ Restore mit manuellem Token fehlgeschlagen:', err);
-        alert('Restore fehlgeschlagen: ' + err.message);
+        console.error('❌ Restore fehlgeschlagen:', err);
     }
     
     return false;
