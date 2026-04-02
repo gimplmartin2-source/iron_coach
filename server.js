@@ -182,23 +182,14 @@ passport.use(new LocalStrategy(
   }
 ));
 
-// Passport Google Strategy
+// Passport Google Strategy  
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  const getCallbackURL = () => {
-    if (process.env.GOOGLE_CALLBACK_URL && process.env.GOOGLE_CALLBACK_URL.startsWith('http')) {
-      return process.env.GOOGLE_CALLBACK_URL;
-    }
-    // Dynamischer Fallback für Render
-    const renderHost = process.env.RENDER_EXTERNAL_HOSTNAME || 'trainings-tracker-7kuw.onrender.com';
-    return `https://${renderHost}/auth/google/callback`;
-  };
-  
-  console.log('🔑 Google OAuth Callback URL:', getCallbackURL());
-  
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: getCallbackURL()
+    callbackURL: '/auth/google/callback',
+    proxy: true
+  }, (accessToken, refreshToken, profile, done) => {
   }, (accessToken, refreshToken, profile, done) => {
     const email = profile.emails[0].value;
     const googleId = profile.id;
