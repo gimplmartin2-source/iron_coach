@@ -184,11 +184,25 @@ passport.use(new LocalStrategy(
 
 // Passport Google Strategy  
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  // Baue absolute URL für Callback
+  const getBaseUrl = () => {
+    // Render setzt diese Variable automatisch
+    if (process.env.RENDER_EXTERNAL_URL) {
+      return process.env.RENDER_EXTERNAL_URL;  // z.B. https://trainings-tracker-7kuw.onrender.com
+    }
+    // Fallback: aus Host bauen
+    const host = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.HOST || 'localhost';
+    const isSecure = process.env.NODE_ENV === 'production';
+    return isSecure ? `https://${host}` : `http://${host}:${PORT}`;
+  };
+  
+  const callbackURL = `${getBaseUrl()}/auth/google/callback`;
+  console.log('🔑 Google OAuth Callback URL:', callbackURL);
+  
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: '/auth/google/callback',
-    proxy: true
+    callbackURL: callbackURL
   }, (accessToken, refreshToken, profile, done) => {
   }, (accessToken, refreshToken, profile, done) => {
     const email = profile.emails[0].value;
