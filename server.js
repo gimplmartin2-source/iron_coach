@@ -759,6 +759,86 @@ app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
   }
 });
 
+// Alias für /api/restore (kurzform)
+app.post('/api/restore', authenticateJWT, async (req, res) => {
+  // Weiterleiten an /api/restore/drive
+  req.url = '/api/restore/drive';
+  app._router.handle(req, res);
+});
+
+// Sync Endpunkt - erstellt Standardübungen falls keine vorhanden
+app.post('/api/exercises/sync', authenticateJWT, async (req, res) => {
+  try {
+    // Zähle vorhandene Übungen
+    const existingCount = await new Promise((resolve, reject) => {
+      db.get('SELECT COUNT(*) as count FROM exercises WHERE user_id = ?', [req.user.userId], (err, row) => {
+        if (err) reject(err);
+        else resolve(row ? row.count : 0);
+      });
+    });
+    
+    // Wenn keine Übungen, erstelle Standardübungen
+    if (existingCount === 0) {
+      // Seed Übungen (reuse Funktion aus dem Register)
+      const seedDefaultExercises = (userId) => {
+        const defaultExercises = [
+          { name: 'Bankdrücken (Langhantel)', muscle_group: 'Brust' },
+          { name: 'Schrägbankdrücken', muscle_group: 'Brust' },
+          { name: 'Fliegende (Butterfly)', muscle_group: 'Brust' },
+          { name: 'Dips', muscle_group: 'Brust' },
+          { name: 'Kreuzheben', muscle_group: 'Rücken' },
+          { name: 'Klimmzüge', muscle_group: 'Rücken' },
+          { name: 'Rudern (Langhantel)', muscle_group: 'Rücken' },
+          { name: 'Latzug', muscle_group: 'Rücken' },
+          { name: 'T-Bar Rudern', muscle_group: 'Rücken' },
+          { name: 'Kniebeugen', muscle_group: 'Beine' },
+          { name: 'Beinpresse', muscle_group: 'Beine' },
+          { name: 'Beinstrecker', muscle_group: 'Beine' },
+          { name: 'Beinbeuger', muscle_group: 'Beine' },
+          { name: 'Wadenheben', muscle_group: 'Beine' },
+          { name: 'Ausfallschritte', muscle_group: 'Beine' },
+          { name: 'Schulterdrücken', muscle_group: 'Schultern' },
+          { name: 'Seitheben', muscle_group: 'Schultern' },
+          { name: 'Frontheben', muscle_group: 'Schultern' },
+          { name: 'Face Pulls', muscle_group: 'Schultern' },
+          { name: 'Bizeps-Curls', muscle_group: 'Arme' },
+          { name: 'Trizeps-Drücken', muscle_group: 'Arme' },
+          { name: 'Hammer Curls', muscle_group: 'Arme' },
+          { name: 'Französisches Trizeps', muscle_group: 'Arme' },
+          { name: 'Plank (Unterarmstütz)', muscle_group: 'Bauch' },
+          { name: 'Crunches', muscle_group: 'Bauch' },
+          { name: 'Beinheben', muscle_group: 'Bauch' },
+          { name: 'Russische Twist', muscle_group: 'Bauch' },
+          { name: 'ADIM-Core (für Gleitwirbel)', muscle_group: 'Bauch' },
+          { name: 'Uchi-Komi (Wurfübungen)', muscle_group: 'Ganzkörper' },
+          { name: 'Nage-Komi (Wurftraining)', muscle_group: 'Ganzkörper' },
+          { name: 'Randori (Freikampf)', muscle_group: 'Ganzkörper' },
+          { name: 'Kata (Formen)', muscle_group: 'Ganzkörper' },
+          { name: 'Sprungsukomikomi', muscle_group: 'Beine' },
+          { name: 'Explosive Beinarbeit', muscle_group: 'Beine' },
+          { name: 'Grip Fighting', muscle_group: 'Arme' },
+          { name: 'Ne-waza (Bodenkampf)', muscle_group: 'Ganzkörper' },
+          { name: 'Turn-Uchikomi', muscle_group: 'Rücken' }
+        ];
+        
+        defaultExercises.forEach(exercise => {
+          db.run('INSERT OR IGNORE INTO exercises (user_id, name, muscle_group) VALUES (?, ?, ?)',
+            [userId, exercise.name, exercise.muscle_group]);
+        });
+      };
+      
+      seedDefaultExercises(req.user.userId);
+      res.json({ success: true, message: 'Standardübungen erstellt' });
+    } else {
+      res.json({ success: true, message: 'Übungen bereits vorhanden', count: existingCount });
+    }
+    
+  } catch (error) {
+    console.error('❌ Sync Fehler:', error);
+    res.status(500).json({ error: 'Sync fehlgeschlagen: ' + error.message });
+  }
+});
+
 // Static Files
 const publicPath = path.join(__dirname, 'public');
 console.log('📁 Serving static files from:', publicPath);
