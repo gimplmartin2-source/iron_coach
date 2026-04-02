@@ -204,7 +204,6 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: callbackURL
   }, (accessToken, refreshToken, profile, done) => {
-  }, (accessToken, refreshToken, profile, done) => {
     const email = profile.emails[0].value;
     const googleId = profile.id;
     const displayName = profile.displayName;
