@@ -470,40 +470,59 @@ app.post('/api/workouts', authenticateJWT, async (req, res) => {
   const { exercise_id, weight, sets, reps, rest_seconds, feeling, date } = req.body;
   const userId = req.user.userId;
   
-  console.log('📝 Workout POST:', { userId, exercise_id, weight, sets, reps, date });
+  console.log('📝 Workout POST erhalten:', { userId, exercise_id, weight, sets, reps, date });
   
   // Validierung
   if (!exercise_id) {
+    console.log('❌ Fehler: exercise_id fehlt');
     return res.status(400).json({ error: 'exercise_id ist erforderlich' });
   }
   
-  // Prüfe ob Übung existiert und dem User gehört
-  try {
-    const exerciseExists = await new Promise((resolve, reject) => {
-      db.get('SELECT id FROM exercises WHERE id = ? AND user_id = ?', [exercise_id, userId], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-    
-    if (!exerciseExists) {
-      console.log('❌ Übung nicht gefunden:', exercise_id, 'für User:', userId);
-      return res.status(400).json({ error: 'Übung nicht gefunden oder gehört nicht diesem User' });
-    }
-  } catch (err) {
-    console.error('❌ Fehler beim Prüfen der Übung:', err);
+  // Konvertiere zu Integer
+  const exerciseId = parseInt(exercise_id);
+  if (isNaN(exerciseId)) {
+    console.log('❌ Fehler: exercise_id ist keine gültige Zahl:', exercise_id);
+    return res.status(400).json({ error: 'exercise_id muss eine gültige Zahl sein' });
   }
   
+  // WICHTIG: Prüfe erst, ob Übung existiert
+  try {
+    const exerciseRow = await new Promise((resolve, reject) => {
+      db.get('SELECT id, name FROM exercises WHERE id = ? AND user_id = ?', 
+        [exerciseId, userId], 
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+    
+    if (!exerciseRow) {
+      console.log('❌ Übung nicht gefunden:', exerciseId, 'für User:', userId);
+      return res.status(400).json({ 
+        error: 'Übung nicht gefunden', 
+        details: `Keine Übung mit ID ${exerciseId} für User ${userId} gefunden.` 
+      });
+    }
+    
+    console.log('✅ Übung gefunden:', exerciseRow.name, '(ID:', exerciseId, ')');
+    
+  } catch (err) {
+    console.error('❌ Fehler beim Prüfen der Übung:', err);
+    return res.status(500).json({ error: 'Datenbankfehler beim Prüfen der Übung: ' + err.message });
+  }
+  
+  // Jetzt erst INSERT durchführen
   db.run(
     'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [userId, exercise_id, weight, sets, reps, rest_seconds, feeling, date],
+    [userId, exerciseId, weight && parseFloat(weight) || 0, sets && parseInt(sets) || 0, reps && parseInt(reps) || 0, rest_seconds && parseInt(rest_seconds) || 60, feeling && parseInt(feeling) || 5, date || new Date().toISOString().split('T')[0]],
     function(err) {
       if (err) {
         console.error('❌ Workout INSERT Fehler:', err.message);
-        return res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: 'Speichern fehlgeschlagen: ' + err.message });
       }
       console.log('✅ Workout gespeichert, ID:', this.lastID);
-      res.json({ id: this.lastID, exercise_id, weight, sets, reps, rest_seconds, feeling, date });
+      res.json({ id: this.lastID, exercise_id: exerciseId, weight, sets, reps, rest_seconds, feeling, date });
     }
   );
 });
@@ -809,55 +828,14 @@ app.post('/api/exercises/sync', authenticateJWT, async (req, res) => {
     
     // Wenn keine Übungen, erstelle Standardübungen
     if (existingCount === 0) {
-      // Seed Übungen (reuse Funktion aus dem Register)
-      const seedDefaultExercises = (userId) => {
-        const defaultExercises = [
-          { name: 'Bankdrücken (Langhantel)', muscle_group: 'Brust' },
-          { name: 'Schrägbankdrücken', muscle_group: 'Brust' },
-          { name: 'Fliegende (Butterfly)', muscle_group: 'Brust' },
-          { name: 'Dips', muscle_group: 'Brust' },
-          { name: 'Kreuzheben', muscle_group: 'Rücken' },
-          { name: 'Klimmzüge', muscle_group: 'Rücken' },
-          { name: 'Rudern (Langhantel)', muscle_group: 'Rücken' },
-          { name: 'Latzug', muscle_group: 'Rücken' },
-          { name: 'T-Bar Rudern', muscle_group: 'Rücken' },
-          { name: 'Kniebeugen', muscle_group: 'Beine' },
-          { name: 'Beinpresse', muscle_group: 'Beine' },
-          { name: 'Beinstrecker', muscle_group: 'Beine' },
-          { name: 'Beinbeuger', muscle_group: 'Beine' },
-          { name: 'Wadenheben', muscle_group: 'Beine' },
-          { name: 'Ausfallschritte', muscle_group: 'Beine' },
-          { name: 'Schulterdrücken', muscle_group: 'Schultern' },
-          { name: 'Seitheben', muscle_group: 'Schultern' },
-          { name: 'Frontheben', muscle_group: 'Schultern' },
-          { name: 'Face Pulls', muscle_group: 'Schultern' },
-          { name: 'Bizeps-Curls', muscle_group: 'Arme' },
-          { name: 'Trizeps-Drücken', muscle_group: 'Arme' },
-          { name: 'Hammer Curls', muscle_group: 'Arme' },
-          { name: 'Französisches Trizeps', muscle_group: 'Arme' },
-          { name: 'Plank (Unterarmstütz)', muscle_group: 'Bauch' },
-          { name: 'Crunches', muscle_group: 'Bauch' },
-          { name: 'Beinheben', muscle_group: 'Bauch' },
-          { name: 'Russische Twist', muscle_group: 'Bauch' },
-          { name: 'ADIM-Core (für Gleitwirbel)', muscle_group: 'Bauch' },
-          { name: 'Uchi-Komi (Wurfübungen)', muscle_group: 'Ganzkörper' },
-          { name: 'Nage-Komi (Wurftraining)', muscle_group: 'Ganzkörper' },
-          { name: 'Randori (Freikampf)', muscle_group: 'Ganzkörper' },
-          { name: 'Kata (Formen)', muscle_group: 'Ganzkörper' },
-          { name: 'Sprungsukomikomi', muscle_group: 'Beine' },
-          { name: 'Explosive Beinarbeit', muscle_group: 'Beine' },
-          { name: 'Grip Fighting', muscle_group: 'Arme' },
-          { name: 'Ne-waza (Bodenkampf)', muscle_group: 'Ganzkörper' },
-          { name: 'Turn-Uchikomi', muscle_group: 'Rücken' }
-        ];
-        
-        defaultExercises.forEach(exercise => {
-          db.run('INSERT OR IGNORE INTO exercises (user_id, name, muscle_group) VALUES (?, ?, ?)',
-            [userId, exercise.name, exercise.muscle_group]);
-        });
-      };
-      
+      // Verwende die globale seedDefaultExercises Funktion
+      // WICHTIG: Diese Funktion ist synchron und wartet nicht
+      // Daher warten wir kurz bevor wir antworten
       seedDefaultExercises(req.user.userId);
+      
+      // Warte 500ms damit die INSERTs abgeschlossen werden können
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       res.json({ success: true, message: 'Standardübungen erstellt' });
     } else {
       res.json({ success: true, message: 'Übungen bereits vorhanden', count: existingCount });
