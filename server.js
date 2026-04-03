@@ -808,11 +808,104 @@ app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
   }
 });
 
-// Alias für /api/restore (kurzform)
+// Alias für /api/restore (kurzform) - FÜHRT DIREKT DEN RESTORE AUS
 app.post('/api/restore', authenticateJWT, async (req, res) => {
-  // Weiterleiten an /api/restore/drive
-  req.url = '/api/restore/drive';
-  app._router.handle(req, res);
+  // Direkt die Restore-Logik ausführen statt weiterzuleiten
+  console.log('🔄 RESTORE-REQUEST für User:', req.user.userId || req.user.id);
+  
+  try {
+    const accessToken = req.user.googleAccessToken;
+    
+    if (!accessToken) {
+      console.log('❌ Kein Google Access Token im JWT');
+      return res.json({ success: false, message: 'Nicht mit Google angemeldet' });
+    }
+    
+    console.log('✅ Google Token gefunden');
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({ access_token: accessToken });
+    
+    console.log('📡 Verbinde zu Google Drive...');
+    const drive = google.drive({ version: 'v3', auth: oauth2Client });
+    
+    // Suche Backup-Ordner
+    console.log('🔍 Suche Backup-Ordner...');
+    const folderResponse = await drive.files.list({
+      q: "name='IronCoach-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+      fields: 'files(id, name)',
+    });
+    
+    console.log('📁 Ordner-Suche Ergebnis:', folderResponse.data.files.length, 'gefunden');
+    
+    if (folderResponse.data.files.length === 0) {
+      console.log('❌ Kein Backup-Ordner gefunden');
+      return res.json({ success: false, message: 'Kein Backup-Ordner gefunden' });
+    }
+    
+    const folderId = folderResponse.data.files[0].id;
+    console.log('✅ Backup-Ordner ID:', folderId);
+    
+    // Suche Backup-Datei
+    const userId = req.user.userId || req.user.id;
+    const filename = `ironcoach_backup_user${userId}.db`;
+    console.log('🔍 Suche Datei:', filename);
+    
+    const fileResponse = await drive.files.list({
+      q: `name='${filename}' and '${folderId}' in parents and trashed=false`,
+      fields: 'files(id, name, modifiedTime)',
+    });
+    
+    console.log('📄 Datei-Suche Ergebnis:', fileResponse.data.files.length, 'gefunden');
+    
+    if (fileResponse.data.files.length === 0) {
+      console.log('❌ Keine Backup-Datei gefunden');
+      return res.json({ success: false, message: 'Keine Backup-Datei gefunden' });
+    }
+    
+    const fileId = fileResponse.data.files[0].id;
+    console.log('✅ Backup-Datei ID:', fileId);
+    
+    console.log('📥 Lade Backup herunter...');
+    const response = await drive.files.get({ fileId, alt: 'media' }, { responseType: 'stream' });
+    
+    // Schließe aktuelle DB
+    await new Promise((resolve) => {
+      db.close(() => {
+        console.log('📁 Alte DB geschlossen');
+        resolve();
+      });
+    });
+    
+    // Backup herunterladen
+    const dest = fs.createWriteStream(DB_PATH);
+    response.data.pipe(dest);
+    
+    await new Promise((resolve, reject) => {
+      dest.on('finish', resolve);
+      dest.on('error', reject);
+    });
+    
+    console.log('✅ Backup heruntergeladen');
+    
+    // DB neu verbinden
+    await new Promise((resolve, reject) => {
+      db = new sqlite3.Database(DB_PATH, (err) => {
+        if (err) reject(err);
+        else {
+          console.log('✅ DB neu verbunden');
+          resolve();
+        }
+      });
+    });
+    
+    db.run('PRAGMA foreign_keys = ON');
+    
+    res.json({ success: true, message: 'Daten vom Backup wiederhergestellt' });
+    
+  } catch (error) {
+    console.error('❌ Restore Fehler:', error);
+    res.status(500).json({ error: 'Restore fehlgeschlagen: ' + error.message });
+  }
 });
 
 // Sync Endpunkt - erstellt Standardübungen falls keine vorhanden
