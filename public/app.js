@@ -1094,6 +1094,20 @@ async function addWorkout(e) {
             document.getElementById('workout-form').reset();
             document.getElementById('workout-date').valueAsDate = new Date();
             
+            // ÜBUNGSAUSWAHL ZURÜCKSETZEN
+            document.getElementById('workout-exercise').value = '';
+            selectedExerciseForWorkout = null;
+            const displayEl = document.getElementById('selected-exercise-display');
+            if (displayEl) {
+                displayEl.textContent = 'Bitte Übung auswählen';
+                displayEl.style.color = '#888';
+            }
+            // Preview ausblenden
+            const previewContainer = document.getElementById('exercise-preview');
+            if (previewContainer) previewContainer.style.display = 'none';
+            // Kraft- Felder wieder anzeigen (fallback)
+            toggleWorkoutFields(false);
+            
             if (editingWorkoutId) {
                 cancelEdit();
                 alert('✅ Workout aktualisiert!');
