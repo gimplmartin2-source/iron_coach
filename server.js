@@ -759,13 +759,16 @@ app.get('/api/progress/:exercise_id', authenticateJWT, (req, res) => {
 // Backup zu Google Drive
 app.post('/api/backup/drive', authenticateJWT, async (req, res) => {
   try {
-    // Google Token aus JWT holen
-    const accessToken = req.user.googleAccessToken;
+    let accessToken = req.user.googleAccessToken;
     
     if (!accessToken) {
-      return res.status(400).json({ 
-        error: 'Nicht mit Google angemeldet. Bitte mit Google-Login neu anmelden (nicht Email/Passwort).' 
-      });
+      // Versuche Token mit Refresh Token zu holen
+      accessToken = await refreshGoogleAccessToken(req.user.userId || req.user.id);
+      if (!accessToken) {
+        return res.status(400).json({ 
+          error: 'Nicht mit Google angemeldet. Bitte erneut einloggen.' 
+        });
+      }
     }
     
     const oauth2Client = new google.auth.OAuth2();
@@ -774,11 +777,32 @@ app.post('/api/backup/drive', authenticateJWT, async (req, res) => {
     const drive = google.drive({ version: 'v3', auth: oauth2Client });
     
     // Suche ob Backup-Ordner existiert
-    const folderResponse = await drive.files.list({
-      q: "name='IronCoach-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
-      fields: 'files(id, name)',
-      spaces: 'drive'
-    });
+    let folderResponse;
+    try {
+      folderResponse = await drive.files.list({
+        q: "name='IronCoach-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+        fields: 'files(id, name)',
+        spaces: 'drive'
+      });
+    } catch (err) {
+      if (err.code === 401 || err.response?.status === 401) {
+        // Token abgelaufen, erneuern
+        console.log('🔄 Token abgelaufen, versuche Erneuerung...');
+        accessToken = await refreshGoogleAccessToken(req.user.userId || req.user.id);
+        if (!accessToken) {
+          return res.status(401).json({ error: 'Token abgelaufen. Bitte neu einloggen.' });
+        }
+        // Nochmal versuchen mit neuem Token
+        oauth2Client.setCredentials({ access_token: accessToken });
+        folderResponse = await drive.files.list({
+          q: "name='IronCoach-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+          fields: 'files(id, name)',
+          spaces: 'drive'
+        });
+      } else {
+        throw err;
+      }
+    }
     
     let folderId;
     if (folderResponse.data.files.length === 0) {
@@ -851,13 +875,18 @@ app.post('/api/backup/drive', authenticateJWT, async (req, res) => {
 // Restore von Google Drive
 app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
   try {
-    // Prüfe ob Google OAuth vorhanden
     console.log('🔄 RESTORE-REQUEST für User:', req.user.userId || req.user.id);
     
-    const accessToken = req.user.googleAccessToken;
+    let accessToken = req.user.googleAccessToken;
     
     if (!accessToken) {
-      console.log('❌ Kein Google Access Token im JWT');
+      // Versuche Token mit Refresh Token zu holen
+      console.log('🔄 Kein Access Token, versuche Refresh...');
+      accessToken = await refreshGoogleAccessToken(req.user.userId || req.user.id);
+    }
+    
+    if (!accessToken) {
+      console.log('❌ Kein Google Token verfügbar');
       return res.json({ restored: false, message: 'Nicht mit Google angemeldet' });
     }
     
@@ -865,15 +894,32 @@ app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
     const oauth2Client = new google.auth.OAuth2();
     oauth2Client.setCredentials({ access_token: accessToken });
     
-    console.log('📡 Verbinde zu Google Drive...');
     const drive = google.drive({ version: 'v3', auth: oauth2Client });
     
-    // Suche Backup-Ordner
-    console.log('🔍 Suche Backup-Ordner...');
-    const folderResponse = await drive.files.list({
-      q: "name='IronCoach-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
-      fields: 'files(id, name)',
-    });
+    // Suche Backup-Ordner mit Fehlerbehandlung für abgelaufenes Token
+    let folderResponse;
+    try {
+      console.log('🔍 Suche Backup-Ordner...');
+      folderResponse = await drive.files.list({
+        q: "name='IronCoach-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+        fields: 'files(id, name)',
+      });
+    } catch (err) {
+      if (err.code === 401) {
+        console.log('🔄 Token abgelaufen, versuche Erneuerung...');
+        accessToken = await refreshGoogleAccessToken(req.user.userId || req.user.id);
+        if (!accessToken) {
+          return res.json({ restored: false, message: 'Token abgelaufen. Bitte neu einloggen.' });
+        }
+        oauth2Client.setCredentials({ access_token: accessToken });
+        folderResponse = await drive.files.list({
+          q: "name='IronCoach-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+          fields: 'files(id, name)',
+        });
+      } else {
+        throw err;
+      }
+    }
     
     console.log('📁 Ordner-Suche Ergebnis:', folderResponse.data.files.length, 'gefunden');
     
@@ -1011,14 +1057,19 @@ app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
 
 // Alias für /api/restore (kurzform) - FÜHRT DIREKT DEN RESTORE AUS
 app.post('/api/restore', authenticateJWT, async (req, res) => {
-  // Direkt die Restore-Logik ausführen statt weiterzuleiten
   console.log('🔄 RESTORE-REQUEST für User:', req.user.userId || req.user.id);
   
   try {
-    const accessToken = req.user.googleAccessToken;
+    let accessToken = req.user.googleAccessToken;
     
     if (!accessToken) {
-      console.log('❌ Kein Google Access Token im JWT');
+      // Versuche Token mit Refresh Token zu holen
+      console.log('🔄 Kein Access Token, versuche Refresh...');
+      accessToken = await refreshGoogleAccessToken(req.user.userId || req.user.id);
+    }
+    
+    if (!accessToken) {
+      console.log('❌ Kein Google Token verfügbar');
       return res.json({ success: false, message: 'Nicht mit Google angemeldet' });
     }
     
@@ -1026,15 +1077,32 @@ app.post('/api/restore', authenticateJWT, async (req, res) => {
     const oauth2Client = new google.auth.OAuth2();
     oauth2Client.setCredentials({ access_token: accessToken });
     
-    console.log('📡 Verbinde zu Google Drive...');
     const drive = google.drive({ version: 'v3', auth: oauth2Client });
     
-    // Suche Backup-Ordner
-    console.log('🔍 Suche Backup-Ordner...');
-    const folderResponse = await drive.files.list({
-      q: "name='IronCoach-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
-      fields: 'files(id, name)',
-    });
+    // Suche Backup-Ordner mit Fehlerbehandlung
+    let folderResponse;
+    try {
+      console.log('🔍 Suche Backup-Ordner...');
+      folderResponse = await drive.files.list({
+        q: "name='IronCoach-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+        fields: 'files(id, name)',
+      });
+    } catch (err) {
+      if (err.code === 401) {
+        console.log('🔄 Token abgelaufen, versuche Erneuerung...');
+        accessToken = await refreshGoogleAccessToken(req.user.userId || req.user.id);
+        if (!accessToken) {
+          return res.json({ success: false, message: 'Token abgelaufen. Bitte neu einloggen.' });
+        }
+        oauth2Client.setCredentials({ access_token: accessToken });
+        folderResponse = await drive.files.list({
+          q: "name='IronCoach-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+          fields: 'files(id, name)',
+        });
+      } else {
+        throw err;
+      }
+    }
     
     console.log('📁 Ordner-Suche Ergebnis:', folderResponse.data.files.length, 'gefunden');
     
