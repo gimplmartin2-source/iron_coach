@@ -137,6 +137,7 @@ db.serialize(() => {
     weight REAL NOT NULL,
     sets INTEGER NOT NULL,
     reps INTEGER NOT NULL,
+    duration_seconds INTEGER,
     rest_seconds INTEGER,
     feeling INTEGER CHECK(feeling >= 1 AND feeling <= 10),
     date TEXT NOT NULL,
@@ -156,6 +157,19 @@ db.serialize(() => {
             console.error('❌ Migration fehlgeschlagen:', alterErr.message);
           } else {
             console.log('✅ user_id Spalte zu workouts hinzugefügt');
+          }
+        });
+      }
+      
+      // Migration: Prüfe ob duration_seconds Spalte existiert
+      const hasDuration = columns.some(col => col.name === 'duration_seconds');
+      if (!hasDuration) {
+        console.log('⚠️ Migration: duration_seconds Spalte fehlt in workouts, füge hinzu...');
+        db.run(`ALTER TABLE workouts ADD COLUMN duration_seconds INTEGER`, (alterErr) => {
+          if (alterErr) {
+            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
+          } else {
+            console.log('✅ duration_seconds Spalte zu workouts hinzugefügt');
           }
         });
       }
@@ -499,7 +513,7 @@ app.put('/api/exercises/:id', authenticateJWT, (req, res) => {
 // Alle Workouts abrufen
 app.get('/api/workouts', authenticateJWT, (req, res) => {
   const query = `
-    SELECT w.*, e.name as exercise_name, e.muscle_group 
+    SELECT w.*, e.name as exercise_name, e.muscle_group, e.exercise_type 
     FROM workouts w 
     JOIN exercises e ON w.exercise_id = e.id 
     WHERE w.user_id = ?
@@ -513,10 +527,10 @@ app.get('/api/workouts', authenticateJWT, (req, res) => {
 
 // Neues Workout hinzufügen
 app.post('/api/workouts', authenticateJWT, async (req, res) => {
-  const { exercise_id, weight, sets, reps, rest_seconds, feeling, date } = req.body;
+  const { exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date } = req.body;
   const userId = req.user.userId;
   
-  console.log('📝 Workout POST erhalten:', { userId, exercise_id, weight, sets, reps, date });
+  console.log('📝 Workout POST erhalten:', { userId, exercise_id, weight, sets, reps, duration_seconds, date });
   
   // Validierung
   if (!exercise_id) {
@@ -558,17 +572,17 @@ app.post('/api/workouts', authenticateJWT, async (req, res) => {
     return res.status(500).json({ error: 'Datenbankfehler beim Prüfen der Übung: ' + err.message });
   }
   
-  // Jetzt erst INSERT durchführen
+  // Jetzt erst INSERT durchführen - mit duration_seconds
   db.run(
-    'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [userId, exerciseId, weight && parseFloat(weight) || 0, sets && parseInt(sets) || 0, reps && parseInt(reps) || 0, rest_seconds && parseInt(rest_seconds) || 60, feeling && parseInt(feeling) || 5, date || new Date().toISOString().split('T')[0]],
+    'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [userId, exerciseId, weight && parseFloat(weight) || 0, sets && parseInt(sets) || 0, reps && parseInt(reps) || 0, duration_seconds && parseInt(duration_seconds) || null, rest_seconds && parseInt(rest_seconds) || 60, feeling && parseInt(feeling) || 5, date || new Date().toISOString().split('T')[0]],
     function(err) {
       if (err) {
         console.error('❌ Workout INSERT Fehler:', err.message);
         return res.status(500).json({ error: 'Speichern fehlgeschlagen: ' + err.message });
       }
       console.log('✅ Workout gespeichert, ID:', this.lastID);
-      res.json({ id: this.lastID, exercise_id: exerciseId, weight, sets, reps, rest_seconds, feeling, date });
+      res.json({ id: this.lastID, exercise_id: exerciseId, weight, sets, reps, duration_seconds, rest_seconds, feeling, date });
     }
   );
 });
