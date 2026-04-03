@@ -903,6 +903,9 @@ app.post('/api/restore', authenticateJWT, async (req, res) => {
     
     console.log('✅ Backup heruntergeladen');
     
+    // WICHTIG: Nach Restore Migration ausführen (für neue Spalten wie exercise_type)
+    console.log('🔄 Führe Migrationen nach Restore aus...');
+    
     // DB neu verbinden
     await new Promise((resolve, reject) => {
       db = new sqlite3.Database(DB_PATH, (err) => {
@@ -915,6 +918,30 @@ app.post('/api/restore', authenticateJWT, async (req, res) => {
     });
     
     db.run('PRAGMA foreign_keys = ON');
+    
+    // Migration: Prüfe und füge exercise_type Spalte hinzu falls fehlend
+    await new Promise((resolve, reject) => {
+      db.all(`PRAGMA table_info(exercises)`, [], (err, columns) => {
+        if (!err && columns) {
+          const hasExerciseType = columns.some(col => col.name === 'exercise_type');
+          if (!hasExerciseType) {
+            console.log('⚠️ Migration nach Restore: exercise_type fehlt, füge hinzu...');
+            db.run(`ALTER TABLE exercises ADD COLUMN exercise_type TEXT DEFAULT 'strength'`, (alterErr) => {
+              if (alterErr) {
+                console.error('❌ Migration fehlgeschlagen:', alterErr.message);
+              } else {
+                console.log('✅ exercise_type Spalte nach Restore hinzugefügt');
+              }
+              resolve();
+            });
+          } else {
+            resolve();
+          }
+        } else {
+          resolve();
+        }
+      });
+    });
     
     res.json({ success: true, message: 'Daten vom Backup wiederhergestellt' });
     
