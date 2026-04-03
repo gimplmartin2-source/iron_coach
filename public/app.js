@@ -127,14 +127,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // WICHTIG: Reihenfolge!
     // 1. Zuerst Restore (bringt bereinigte DB mit UNIQUE Constraint)
-    // 2. DANN Sync (nur wenn Restore fehlgeschlagen UND keine Übungen da)
+    // 2. DANN fallback zu Standard-Übungen wenn kein Backup
     
     // Restore VOR dem Laden der Daten (nur einmal pro Session)
     const restoreAttempted = sessionStorage.getItem('restoreAttempted');
-    // WICHTIG: alreadyRestored wird NUR gesetzt wenn Restore erfolgreich war
-    // und die Seite wird neu geladen. Aber wir müssen nach Reload erkennen 
-    // dass wir aus dem Restore kommen und Daten laden müssen.
-    // Lösung: URL-Parameter statt sessionStorage für Cross-Reload State
     const urlParams = new URLSearchParams(window.location.search);
     const justRestored = urlParams.get('restored') === 'true';
     
@@ -144,62 +140,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         urlParams.delete('restored');
         const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
         window.history.replaceState({}, document.title, newUrl);
-        // Restore war erfolgreich, jetzt normal weitermachen
+        // Restore war erfolgreich
     } else if (!restoreAttempted) {
         sessionStorage.setItem('restoreAttempted', 'true');
-        // WICHTIG: Beim Google-Login (Token in URL) automatisch restore versuchen
+        
+        // Prüfe ob Google-Login
         const isGoogleLogin = urlToken !== null;
-        const restoreResult = await restoreFromDrive(isGoogleLogin);
-        if (restoreResult) {
-            console.log('✅ Restore erfolgreich - lade Seite neu mit Flag');
-            // Nach Reload erkennen dass Restore erfolgreich war
-            window.location.href = window.location.pathname + '?restored=true';
-            return;
-        }
-    } else {
-        console.log('ℹ️ Restore wurde bereits versucht, überspringe');
-    }
-    
-    // Nur Sync wenn kein Restore stattgefunden hat UND nicht gerade restored wurde
-    const isGoogleLogin = urlToken !== null;
-    if (isGoogleLogin && !justRestored) {
-        console.log('🔑 Google Login ohne Restore - synchronisiere Standard-Übungen...');
-        try {
-            const syncRes = await apiFetch('/api/exercises/sync', { method: 'POST' });
-            if (syncRes.ok) {
-                const syncData = await syncRes.json();
-                console.log(`✅ Sync Ergebnis: ${syncData.message}`);
+        
+        if (isGoogleLogin) {
+            // Versuche automatisches Restore
+            console.log('🔑 Google Login erkannt - versuche automatisches Restore...');
+            const restoreResult = await restoreFromDrive();
+            
+            if (restoreResult) {
+                console.log('✅ Restore erfolgreich - Seite wird neu geladen');
+                // Restore hat erfolgreich geladen und Seite wird neu geladen
+                return;
+            } else {
+                console.log('ℹ️ Kein Backup gefunden - erstelle später Standard-Übungen');
             }
-        } catch (syncErr) {
-            console.log('⚠️ Sync Fehler (nicht kritisch):', syncErr.message);
         }
     }
     
     // Normale Initialisierung
     await loadExercises();
     
-    // WICHTIG: Wenn keine Übungen gefunden (z.B. nach Google-Login), erstelle Standardübungen
+    // WICHTIG: Wenn keine Übungen gefunden (z.B. nach Google-Login ohne Backup)
     if (exercises.length === 0) {
-        console.log('📝 Keine Übungen in localStorage, erstelle jetzt über API...');
-        
-        // Rufe /api/exercises/sync auf
-        try {
-            const syncRes = await apiFetch('/api/exercises/sync', { method: 'POST' });
-            if (syncRes.ok) {
-                console.log('✅ Übungen über Sync-Endpoint erstellt');
-                // Neu laden
-                await loadExercises();
-            }
-        } catch (err) {
-            console.error('❌ Sync Fehler:', err);
-        }
-    }
-    
-    // Wenn keine Übungen vorhanden (z.B. komplett neuer User), Standardübungen erstellen
-    if (exercises.length === 0) {
-        console.log('📝 Keine Übungen gefunden, erstelle Standardübungen...');
-        await apiFetch('/api/exercises/sync', { method: 'POST' });
-        await new Promise(r => setTimeout(r, 500));
+        console.log('📝 Keine Übungen vorhanden - erstelle Standard-Übungen...');
+        await createDefaultExercises();
+        // Neu laden
         await loadExercises();
     }
     
@@ -245,8 +215,7 @@ function showUserInfo() {
 function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    sessionStorage.removeItem('restoreAttempted'); // Reset für nächsten Login
-    sessionStorage.removeItem('alreadyRestored'); // Reset für nächsten Login
+    sessionStorage.removeItem('restoreAttempted'); // WICHTIG: Reset für nächsten Login
     window.location.href = '/login.html';
 }
 
@@ -264,14 +233,26 @@ function showTab(tabName) {
     }
 }
 
-// Restore von Google Drive - automatisch beim Google Login
-async function restoreFromDrive(autoMode = false) {
+// Restore von Google Drive - AUTOMATISCH beim Google Login
+async function restoreFromDrive() {
     const token = localStorage.getItem('token');
     if (!token) return false;
     
-    console.log('🔍 Versuche Restore...');
+    // Prüfe ob Google-User (hat Google Access Token im JWT)
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (!payload.googleAccessToken) {
+            console.log('ℹ️ Kein Google-Login, überspringe Restore');
+            return false;
+        }
+    } catch (e) {
+        console.log('⚠️ Konnte Token nicht dekodieren');
+        return false;
+    }
     
-    // Versuche automatisches Restore (bei Google OAuth)
+    console.log('🔍 Versuche automatisches Restore von Google Drive...');
+    
+    // Automatisches Restore (Token kommt aus dem JWT)
     try {
         const res = await apiFetch('/api/restore', { 
             method: 'POST',
@@ -290,44 +271,61 @@ async function restoreFromDrive(autoMode = false) {
             }
         }
     } catch (err) {
-        console.log('⚠️ Automatisches Restore fehlgeschlagen:', err.message);
-    }
-    
-    // Nur im Auto-Mode: Nicht nach manuellem Token fragen
-    if (autoMode) {
-        console.log('ℹ️ Auto-Mode: Überspringe manuelle Token-Abfrage');
-        return false;
-    }
-    
-    // Manuelles Token für nicht-Google-Logins
-    console.log('🔑 Bitte Google Token eingeben...');
-    const manualToken = prompt('Google Access Token eingeben (aus der Console/App):\\n\\nHinweis: Token bekommst du von:\\n1. Google OAuth Playground\\n2. Oder neu einloggen');
-    
-    if (!manualToken) {
-        console.log('ℹ️ Kein Token eingegeben, überspringe Restore');
-        return false;
-    }
-    
-    // Versuche Restore mit manuellem Token
-    try {
-        const res = await apiFetch('/api/restore', { 
-            method: 'POST',
-            body: JSON.stringify({ googleToken: manualToken })
-        });
-        
-        if (res.ok) {
-            const data = await res.json();
-            if (data.success) {
-                console.log('✅ Restore mit manuellem Token erfolgreich');
-                window.location.reload();
-                return true;
-            }
-        }
-    } catch (err) {
-        console.error('❌ Restore fehlgeschlagen:', err);
+        console.log('⚠️ Restore fehlgeschlagen:', err.message);
     }
     
     return false;
+}
+
+// ERSTELLE STANDARD-ÜBUNGEN wenn kein Backup vorhanden
+async function createDefaultExercises() {
+    console.log('📝 Erstelle Standard-Übungen...');
+    
+    const defaultExercises = [
+        // Core-Übungen (für Gleitwirbel)
+        { name: 'ADIM', muscle_group: 'Core', exercise_type: 'strength' },
+        { name: 'Dead Bug', muscle_group: 'Core', exercise_type: 'strength' },
+        { name: 'Bird Dog', muscle_group: 'Core', exercise_type: 'strength' },
+        { name: 'Glute Bridge', muscle_group: 'Core', exercise_type: 'strength' },
+        { name: 'Side Plank', muscle_group: 'Core', exercise_type: 'time' },
+        { name: 'Pallof Press', muscle_group: 'Core', exercise_type: 'strength' },
+        { name: 'Front Plank', muscle_group: 'Core', exercise_type: 'time' },
+        { name: 'Glute March', muscle_group: 'Core', exercise_type: 'strength' },
+        { name: 'Copenhagen Plank', muscle_group: 'Core', exercise_type: 'time' },
+        
+        // Dehnungen
+        { name: 'Kindhaltung', muscle_group: 'Dehnen', exercise_type: 'time' },
+        { name: 'Katze-Kuh', muscle_group: 'Dehnen', exercise_type: 'strength' },
+        { name: 'Hüftbeuger-Dehnung', muscle_group: 'Dehnen', exercise_type: 'time' },
+        { name: '90/90 Hip Stretch', muscle_group: 'Dehnen', exercise_type: 'time' },
+        { name: 'Piriformis-Dehnung', muscle_group: 'Dehnen', exercise_type: 'time' },
+        { name: 'Schmetterling', muscle_group: 'Dehnen', exercise_type: 'time' },
+        { name: 'Brust-Dehnung', muscle_group: 'Dehnen', exercise_type: 'time' },
+        { name: 'Lat-Dehnung', muscle_group: 'Dehnen', exercise_type: 'time' },
+        { name: 'Nacken-Dehnung', muscle_group: 'Dehnen', exercise_type: 'time' },
+        { name: 'LWS-Rotation', muscle_group: 'Dehnen', exercise_type: 'time' },
+        
+        // Warm-up
+        { name: 'Hip Circles', muscle_group: 'Mobilität', exercise_type: 'strength' },
+        { name: 'Schulterkreisen', muscle_group: 'Mobilität', exercise_type: 'strength' },
+        { name: 'Tiefe Atmung', muscle_group: 'Mobilität', exercise_type: 'time' },
+        
+        // Judo
+        { name: 'Judo Warm-up', muscle_group: 'Judo', exercise_type: 'time' }
+    ];
+    
+    for (const ex of defaultExercises) {
+        try {
+            await apiFetch('/api/exercises', {
+                method: 'POST',
+                body: JSON.stringify(ex)
+            });
+        } catch (err) {
+            console.log(`⚠️ Konnte ${ex.name} nicht erstellen:`, err.message);
+        }
+    }
+    
+    console.log('✅ Standard-Übungen erstellt');
 }
 
 // Load exercises
