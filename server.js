@@ -714,6 +714,75 @@ app.delete('/api/workouts/:id', authenticateJWT, (req, res) => {
   });
 });
 
+// WICHTIG: Workout aktualisieren (EDIT)
+app.put('/api/workouts/:id', authenticateJWT, async (req, res) => {
+  const { exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date } = req.body;
+  const userId = req.user.userId;
+  const workoutId = req.params.id;
+  
+  console.log('📝 Workout UPDATE erhalten:', { workoutId, exercise_id, weight, sets, reps, duration_seconds, date });
+  
+  // Validierung
+  if (!exercise_id) {
+    return res.status(400).json({ error: 'exercise_id ist erforderlich' });
+  }
+  
+  const exerciseId = parseInt(exercise_id);
+  if (isNaN(exerciseId)) {
+    return res.status(400).json({ error: 'exercise_id muss eine gültige Zahl sein' });
+  }
+  
+  // Prüfe ob Übung existiert
+  try {
+    const exerciseRow = await new Promise((resolve, reject) => {
+      db.get('SELECT id, name FROM exercises WHERE id = ? AND user_id = ?', 
+        [exerciseId, userId], 
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+    
+    if (!exerciseRow) {
+      return res.status(400).json({ error: 'Übung nicht gefunden' });
+    }
+  } catch (err) {
+    return res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
+  }
+  
+  // UPDATE durchführen
+  db.run(
+    'UPDATE workouts SET exercise_id = ?, weight = ?, sets = ?, reps = ?, duration_seconds = ?, rest_seconds = ?, feeling = ?, date = ? WHERE id = ? AND user_id = ?',
+    [exerciseId, 
+     weight && parseFloat(weight) || 0, 
+     sets && parseInt(sets) || 0, 
+     reps && parseInt(reps) || 0, 
+     duration_seconds && parseInt(duration_seconds) || null, 
+     rest_seconds && parseInt(rest_seconds) || 60, 
+     feeling && parseInt(feeling) || 5, 
+     date || new Date().toISOString().split('T')[0],
+     workoutId,
+     userId],
+    function(err) {
+      if (err) {
+        console.error('❌ Workout UPDATE Fehler:', err.message);
+        return res.status(500).json({ error: 'Update fehlgeschlagen: ' + err.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Workout nicht gefunden oder keine Berechtigung' });
+      }
+      console.log('✅ Workout aktualisiert, ID:', workoutId);
+      res.json({ 
+        message: 'Workout aktualisiert', 
+        id: parseInt(workoutId), 
+        exercise_id: exerciseId, 
+        weight, sets, reps, duration_seconds, rest_seconds, feeling, date 
+      });
+    }
+  );
+});
+
 // Statistiken abrufen
 app.get('/api/stats', authenticateJWT, (req, res) => {
   const stats = {};
