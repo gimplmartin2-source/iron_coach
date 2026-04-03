@@ -88,6 +88,14 @@ db.serialize(() => {
     display_name TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+  
+  // Google Refresh Tokens Tabelle (neu)
+  db.run(`CREATE TABLE IF NOT EXISTS user_tokens (
+    user_id INTEGER PRIMARY KEY,
+    google_refresh_token TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`);
 
   // Exercises Tabelle - immer neu erstellen falls nicht existiert
   db.run(`CREATE TABLE IF NOT EXISTS exercises (
@@ -192,6 +200,34 @@ const authenticateJWT = (req, res, next) => {
   }
 };
 
+// WICHTIG: Hilfsfunktion zum Erneuern des Google Access Tokens
+async function refreshGoogleAccessToken(userId) {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT google_refresh_token FROM user_tokens WHERE user_id = ?', [userId], async (err, row) => {
+      if (err || !row || !row.google_refresh_token) {
+        console.log('ℹ️ Kein Refresh Token gefunden für User:', userId);
+        return resolve(null);
+      }
+      
+      try {
+        const oauth2Client = new google.auth.OAuth2(
+          process.env.GOOGLE_CLIENT_ID,
+          process.env.GOOGLE_CLIENT_SECRET
+        );
+        
+        oauth2Client.setCredentials({ refresh_token: row.google_refresh_token });
+        const { credentials } = await oauth2Client.refreshAccessToken();
+        
+        console.log('✅ Access Token erfolgreich erneuert für User:', userId);
+        resolve(credentials.access_token);
+      } catch (error) {
+        console.error('❌ Fehler beim Erneuern des Access Tokens:', error.message);
+        resolve(null);
+      }
+    });
+  });
+}
+
 // Passport Local Strategy
 passport.use(new LocalStrategy(
   { usernameField: 'email' },
@@ -246,6 +282,19 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         if (!user.google_id) {
           db.run('UPDATE users SET google_id = ? WHERE id = ?', [googleId, user.id]);
         }
+        
+        // WICHTIG: Refresh Token speichern für automatische Erneuerung
+        if (refreshToken) {
+          db.run(
+            'INSERT OR REPLACE INTO user_tokens (user_id, google_refresh_token, updated_at) VALUES (?, ?, datetime("now"))',
+            [user.id, refreshToken],
+            (err) => {
+              if (err) console.error('❌ Fehler beim Speichern des Refresh Tokens:', err.message);
+              else console.log('✅ Refresh Token gespeichert für User:', user.id);
+            }
+          );
+        }
+        
         return done(null, user, authInfo);
       }
       
@@ -254,6 +303,18 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         [email, googleId, displayName], function(err) {
         if (err) return done(err);
         const newUserId = this.lastID;
+        
+        // WICHTIG: Refresh Token für neuen User speichern
+        if (refreshToken) {
+          db.run(
+            'INSERT INTO user_tokens (user_id, google_refresh_token, updated_at) VALUES (?, ?, datetime("now"))',
+            [newUserId, refreshToken],
+            (err) => {
+              if (err) console.error('❌ Fehler beim Speichern des Refresh Tokens:', err.message);
+              else console.log('✅ Refresh Token gespeichert für neuen User:', newUserId);
+            }
+          );
+        }
         
         // Standardübungen erstellen
         seedDefaultExercises(newUserId);
@@ -404,6 +465,18 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   app.get('/auth/google/callback', 
     passport.authenticate('google', { failureRedirect: '/login.html' }),
     (req, res) => {
+      // WICHTIG: Refresh Token in DB speichern wenn vorhanden
+      if (req.authInfo && req.authInfo.refreshToken && req.user) {
+        db.run(
+          'INSERT OR REPLACE INTO user_tokens (user_id, google_refresh_token, updated_at) VALUES (?, ?, datetime("now"))',
+          [req.user.id, req.authInfo.refreshToken],
+          (err) => {
+            if (err) console.error('❌ Fehler beim Speichern des Refresh Tokens:', err.message);
+            else console.log('✅ Refresh Token in DB gespeichert für User:', req.user.id);
+          }
+        );
+      }
+      
       // Google Tokens für Drive-Backup in JWT speichern
       const tokenPayload = { 
         userId: req.user.id, 
