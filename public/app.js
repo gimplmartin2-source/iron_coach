@@ -144,20 +144,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (!restoreAttempted) {
         sessionStorage.setItem('restoreAttempted', 'true');
         
-        // Prüfe ob Google-Login
-        const isGoogleLogin = urlToken !== null;
+        // Prüfe ob Google-User (egal ob frisch eingeloggt oder bereits eingeloggt)
+        const token = localStorage.getItem('token');
+        let isGoogleUser = false;
         
-        if (isGoogleLogin) {
-            // Versuche automatisches Restore
-            console.log('🔑 Google Login erkannt - versuche automatisches Restore...');
+        if (token) {
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (payload.googleAccessToken) {
+                    isGoogleUser = true;
+                    console.log('🔑 Google-User erkannt im Token');
+                }
+            } catch (e) {
+                console.log('⚠️ Konnte Token nicht parsen');
+            }
+        }
+        
+        // Bei Google-User: Versuche automatisches Restore (auch bei normalem Seiten-Reload)
+        if (isGoogleUser || urlToken !== null) {
+            console.log('🔑 Automatisches Restore für Google-User...');
             const restoreResult = await restoreFromDrive();
             
             if (restoreResult) {
-                console.log('✅ Restore erfolgreich - Seite wird neu geladen');
-                // Restore hat erfolgreich geladen und Seite wird neu geladen
+                console.log('✅ Restore erfolgreich - lade Seite neu');
                 return;
             } else {
-                console.log('ℹ️ Kein Backup gefunden - erstelle später Standard-Übungen');
+                console.log('ℹ️ Kein Backup gefunden - fahre mit lokalen Daten fort');
             }
         }
     }
