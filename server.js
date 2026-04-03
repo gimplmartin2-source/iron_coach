@@ -816,6 +816,28 @@ app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
     // Foreign Keys wieder aktivieren
     db.run('PRAGMA foreign_keys = ON');
     
+    // WICHTIG: Nach Restore Migration ausführen
+    console.log('🔄 Führe Migrationen nach Restore aus...');
+    await new Promise((resolve) => {
+      db.all(`PRAGMA table_info(exercises)`, [], (err, columns) => {
+        if (!err && columns) {
+          const hasExerciseType = columns.some(col => col.name === 'exercise_type');
+          if (!hasExerciseType) {
+            console.log('⚠️ Migration: exercise_type fehlt, füge hinzu...');
+            db.run(`ALTER TABLE exercises ADD COLUMN exercise_type TEXT DEFAULT 'strength'`, (alterErr) => {
+              if (alterErr) console.error('❌ Migration fehlgeschlagen:', alterErr.message);
+              else console.log('✅ exercise_type Spalte hinzugefügt');
+              resolve();
+            });
+          } else {
+            resolve();
+          }
+        } else {
+          resolve();
+        }
+      });
+    });
+    
     res.json({ restored: true, message: 'Daten vom Backup wiederhergestellt' });
     
   } catch (error) {
