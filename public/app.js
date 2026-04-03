@@ -131,30 +131,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Restore VOR dem Laden der Daten (nur einmal pro Session)
     const restoreAttempted = sessionStorage.getItem('restoreAttempted');
-    const alreadyRestored = sessionStorage.getItem('alreadyRestored'); // Verhindert wiederholtes Restore
-    let restoreSuccessful = false;
+    // WICHTIG: alreadyRestored wird NUR gesetzt wenn Restore erfolgreich war
+    // und die Seite wird neu geladen. Aber wir müssen nach Reload erkennen 
+    // dass wir aus dem Restore kommen und Daten laden müssen.
+    // Lösung: URL-Parameter statt sessionStorage für Cross-Reload State
+    const urlParams = new URLSearchParams(window.location.search);
+    const justRestored = urlParams.get('restored') === 'true';
     
-    // Wenn schon restored in dieser Session, überspringe
-    if (alreadyRestored === 'true') {
-        console.log('✅ Bereits restauriert in dieser Session, überspringe Restore');
+    if (justRestored) {
+        console.log('✅ Kam gerade von Restore - entferne Parameter und lade normal');
+        // Parameter entfernen
+        urlParams.delete('restored');
+        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+        window.history.replaceState({}, document.title, newUrl);
+        // Restore war erfolgreich, jetzt normal weitermachen
     } else if (!restoreAttempted) {
         sessionStorage.setItem('restoreAttempted', 'true');
         // WICHTIG: Beim Google-Login (Token in URL) automatisch restore versuchen
         const isGoogleLogin = urlToken !== null;
         const restoreResult = await restoreFromDrive(isGoogleLogin);
         if (restoreResult) {
-            console.log('✅ Restore erfolgreich - Speichere Status und lade neu');
-            sessionStorage.setItem('alreadyRestored', 'true');
-            restoreSuccessful = true;
+            console.log('✅ Restore erfolgreich - lade Seite neu mit Flag');
+            // Nach Reload erkennen dass Restore erfolgreich war
+            window.location.href = window.location.pathname + '?restored=true';
             return;
         }
     } else {
         console.log('ℹ️ Restore wurde bereits versucht, überspringe');
     }
     
-    // Nur Sync wenn kein Restore stattgefunden hat
+    // Nur Sync wenn kein Restore stattgefunden hat UND nicht gerade restored wurde
     const isGoogleLogin = urlToken !== null;
-    if (isGoogleLogin && !restoreSuccessful) {
+    if (isGoogleLogin && !justRestored) {
         console.log('🔑 Google Login ohne Restore - synchronisiere Standard-Übungen...');
         try {
             const syncRes = await apiFetch('/api/exercises/sync', { method: 'POST' });
