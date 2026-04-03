@@ -113,6 +113,19 @@ db.serialize(() => {
           }
         });
       }
+      
+      // Migration: Prüfe ob exercise_type Spalte existiert
+      const hasExerciseType = columns.some(col => col.name === 'exercise_type');
+      if (!hasExerciseType) {
+        console.log('⚠️ Migration: exercise_type Spalte fehlt in exercises, füge hinzu...');
+        db.run(`ALTER TABLE exercises ADD COLUMN exercise_type TEXT DEFAULT 'strength'`, (alterErr) => {
+          if (alterErr) {
+            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
+          } else {
+            console.log('✅ exercise_type Spalte zu exercises hinzugefügt');
+          }
+        });
+      }
     }
   });
 
@@ -410,7 +423,7 @@ app.get('/api/auth/verify', authenticateJWT, (req, res) => {
 
 // Alle Übungen abrufen
 app.get('/api/exercises', authenticateJWT, (req, res) => {
-  db.all('SELECT * FROM exercises WHERE user_id = ? ORDER BY name', [req.user.userId], (err, rows) => {
+  db.all('SELECT id, user_id, name, muscle_group, exercise_type, created_at FROM exercises WHERE user_id = ? ORDER BY name', [req.user.userId], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
@@ -418,9 +431,9 @@ app.get('/api/exercises', authenticateJWT, (req, res) => {
 
 // Neue Übung hinzufügen
 app.post('/api/exercises', authenticateJWT, (req, res) => {
-  const { name, muscle_group } = req.body;
+  const { name, muscle_group, exercise_type } = req.body;
   
-  console.log('📝 Übung hinzufügen:', { name, muscle_group, userId: req.user.userId });
+  console.log('📝 Übung hinzufügen:', { name, muscle_group, exercise_type, userId: req.user.userId });
   
   if (!name || !muscle_group) {
     return res.status(400).json({ error: 'Name und Muskelgruppe erforderlich' });
@@ -431,14 +444,17 @@ app.post('/api/exercises', authenticateJWT, (req, res) => {
     return res.status(401).json({ error: 'Nicht authentifiziert' });
   }
   
-  db.run('INSERT INTO exercises (user_id, name, muscle_group) VALUES (?, ?, ?)', 
-    [req.user.userId, name, muscle_group], function(err) {
+  // exercise_type ist optional (default: 'strength')
+  const type = exercise_type || 'strength';
+  
+  db.run('INSERT INTO exercises (user_id, name, muscle_group, exercise_type) VALUES (?, ?, ?, ?)', 
+    [req.user.userId, name, muscle_group, type], function(err) {
     if (err) {
       console.error('❌ DB Fehler:', err);
       return res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
     }
     console.log('✅ Übung gespeichert, ID:', this.lastID);
-    res.json({ id: this.lastID, name, muscle_group });
+    res.json({ id: this.lastID, name, muscle_group, exercise_type: type });
   });
 });
 
