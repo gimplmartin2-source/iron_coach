@@ -1,0 +1,6 @@
+Kannst du das Popup, wenn man sich mit Google einloggt,
+kommt jedes Mal ein Popup-Zwecks-Token eingeben,
+kannst du dieses Fenster entfernen und machen,
+dass der Restore vom Google-Konto funktioniert.
+Und wenn kein Restore-Datei vorhanden ist,
+soll die Standardübungen angelegt werden.
