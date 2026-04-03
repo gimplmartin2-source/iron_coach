@@ -466,6 +466,36 @@ app.delete('/api/exercises/:id', authenticateJWT, (req, res) => {
   });
 });
 
+// Übung aktualisieren (EDIT)
+app.put('/api/exercises/:id', authenticateJWT, (req, res) => {
+  const { name, muscle_group, exercise_type } = req.body;
+  
+  console.log('📝 Übung aktualisieren:', { id: req.params.id, name, muscle_group, exercise_type, userId: req.user.userId });
+  
+  if (!name || !muscle_group) {
+    return res.status(400).json({ error: 'Name und Muskelgruppe erforderlich' });
+  }
+  
+  const type = exercise_type || 'strength';
+  
+  db.run(
+    'UPDATE exercises SET name = ?, muscle_group = ?, exercise_type = ? WHERE id = ? AND user_id = ?',
+    [name, muscle_group, type, req.params.id, req.user.userId],
+    function(err) {
+      if (err) {
+        console.error('❌ DB Fehler beim Update:', err);
+        return res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
+      }
+      if (this.changes === 0) {
+        console.log('❌ Übung nicht gefunden oder keine Berechtigung');
+        return res.status(404).json({ error: 'Übung nicht gefunden oder keine Berechtigung' });
+      }
+      console.log('✅ Übung aktualisiert, ID:', req.params.id);
+      res.json({ message: 'Übung aktualisiert', id: parseInt(req.params.id), name, muscle_group, exercise_type: type });
+    }
+  );
+});
+
 // Alle Workouts abrufen
 app.get('/api/workouts', authenticateJWT, (req, res) => {
   const query = `
