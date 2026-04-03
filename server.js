@@ -573,16 +573,55 @@ app.post('/api/workouts', authenticateJWT, async (req, res) => {
   }
   
   // Jetzt erst INSERT durchführen - mit duration_seconds
+  const hasDurationColumn = true; // Wir versuchen es immer zuerst mit
+  
   db.run(
     'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [userId, exerciseId, weight && parseFloat(weight) || 0, sets && parseInt(sets) || 0, reps && parseInt(reps) || 0, duration_seconds && parseInt(duration_seconds) || null, rest_seconds && parseInt(rest_seconds) || 60, feeling && parseInt(feeling) || 5, date || new Date().toISOString().split('T')[0]],
     function(err) {
-      if (err) {
+      if (err && err.message.includes('no column named duration_seconds')) {
+        console.log('⚠️ duration_seconds Spalte fehlt, füge hinzu...');
+        // Spalte hinzufügen und INSERT ohne duration_seconds (temporär)
+        db.run('ALTER TABLE workouts ADD COLUMN duration_seconds INTEGER', (alterErr) => {
+          if (alterErr) {
+            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
+            // Fallback: Ohne duration_seconds speichern
+            db.run(
+              'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+              [userId, exerciseId, weight && parseFloat(weight) || 0, sets && parseInt(sets) || 0, reps && parseInt(reps) || 0, rest_seconds && parseInt(rest_seconds) || 60, feeling && parseInt(feeling) || 5, date || new Date().toISOString().split('T')[0]],
+              function(err2) {
+                if (err2) {
+                  console.error('❌ Workout INSERT Fehler:', err2.message);
+                  return res.status(500).json({ error: 'Speichern fehlgeschlagen: ' + err2.message });
+                }
+                console.log('✅ Workout gespeichert (ohne duration_seconds)');
+                res.json({ id: this.lastID, exercise_id: exerciseId, weight, sets, reps, rest_seconds, feeling, date });
+              }
+            );
+          } else {
+            console.log('✅ duration_seconds Spalte hinzugefügt, versuche INSERT erneut');
+            // Erneut mit duration_seconds versuchen
+            db.run(
+              'INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              [userId, exerciseId, weight && parseFloat(weight) || 0, sets && parseInt(sets) || 0, reps && parseInt(reps) || 0, duration_seconds && parseInt(duration_seconds) || null, rest_seconds && parseInt(rest_seconds) || 60, feeling && parseInt(feeling) || 5, date || new Date().toISOString().split('T')[0]],
+              function(err3) {
+                if (err3) {
+                  console.error('❌ Workout INSERT Fehler:', err3.message);
+                  return res.status(500).json({ error: 'Speichern fehlgeschlagen: ' + err3.message });
+                }
+                console.log('✅ Workout gespeichert (mit duration_seconds)');
+                res.json({ id: this.lastID, exercise_id: exerciseId, weight, sets, reps, duration_seconds, rest_seconds, feeling, date });
+              }
+            );
+          }
+        });
+      } else if (err) {
         console.error('❌ Workout INSERT Fehler:', err.message);
         return res.status(500).json({ error: 'Speichern fehlgeschlagen: ' + err.message });
+      } else {
+        console.log('✅ Workout gespeichert, ID:', this.lastID);
+        res.json({ id: this.lastID, exercise_id: exerciseId, weight, sets, reps, duration_seconds, rest_seconds, feeling, date });
       }
-      console.log('✅ Workout gespeichert, ID:', this.lastID);
-      res.json({ id: this.lastID, exercise_id: exerciseId, weight, sets, reps, duration_seconds, rest_seconds, feeling, date });
     }
   );
 });
