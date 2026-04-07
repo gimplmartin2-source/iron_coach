@@ -403,22 +403,12 @@ function openExerciseSelector() {
         animation: fadeIn 0.2s ease-out;
     `;
     
-    // Nach Kategorie gruppieren
+    // Nach Muskelgruppe gruppieren (KEINE Sonderbehandlung nach Namen)
     const grouped = {};
-    const judoKeywords = ['uchi', 'nage', 'randori', 'kata', 'judo', 'ne-waza', 'grip', 'turn-uchi', 'sprungs', 'wurf'];
     
     exercises.forEach(e => {
-        const nameLower = e.name.toLowerCase();
-        const isJudo = judoKeywords.some(keyword => nameLower.includes(keyword));
-        
+        // Nur nach muscle_group gruppieren, nicht nach Namen-Kategorien
         let category = e.muscle_group;
-        if (isJudo) category = '🥋 Judo';
-        else if (e.muscle_group === 'Dehnen') category = '🧘 Dehnen';
-        else if (e.muscle_group === 'Bauch' || e.muscle_group === 'Core' || 
-                 nameLower.includes('plank') || nameLower.includes('bug') || 
-                 nameLower.includes('bird') || nameLower.includes('bridge')) {
-            category = '💪 Core';
-        }
         
         if (!grouped[category]) {
             grouped[category] = [];
@@ -426,8 +416,8 @@ function openExerciseSelector() {
         grouped[category].push(e);
     });
     
-    // Sortiere Kategorien
-    const categoryOrder = ['🥋 Judo', '💪 Core', '🧘 Dehnen', 'Brust', 'Rücken', 'Schultern', 'Beine', 'Arme', 'Bauch', 'Ganzkörper'];
+    // Sortierreihenfolge der Muskelgruppen
+    const categoryOrder = ['Brust', 'Rücken', 'Schultern', 'Beine', 'Arme', 'Bauch', 'Ganzkörper', 'Dehnen', 'Mobilität', 'Judo', 'Core'];
     const sortedCategories = Object.keys(grouped).sort((a, b) => {
         const idxA = categoryOrder.indexOf(a);
         const idxB = categoryOrder.indexOf(b);
@@ -552,30 +542,15 @@ function closeExerciseSelector() {
     if (modal) modal.remove();
 }
 
-// Update select dropdowns nach Kategorie gruppiert (Judo + Muskelgruppen)
+// Update select dropdowns nur nach Muskelgruppe gruppiert
 function updateExerciseSelects() {
     const workoutSelect = document.getElementById('workout-exercise');
     const statsSelect = document.getElementById('stats-exercise');
     const singleSelect = document.getElementById('single-exercise-select');
     
-    // Judo-Übungen erkennen (nach Namen)
-    const judoKeywords = ['uchi', 'nage', 'randori', 'kata', 'judo', 'ne-waza', 'grip', 'turn-uchi', 'sprungs', 'wurf'];
-    const judoExercises = [];
-    const otherExercises = [];
-    
-    exercises.forEach(e => {
-        const nameLower = e.name.toLowerCase();
-        const isJudo = judoKeywords.some(keyword => nameLower.includes(keyword));
-        if (isJudo) {
-            judoExercises.push(e);
-        } else {
-            otherExercises.push(e);
-        }
-    });
-    
-    // Nach Muskelgruppe gruppieren (nur nicht-Judo)
+    // ALLE Übungen nach Muskelgruppe gruppieren (keine Judo-Sonderbehandlung mehr)
     const grouped = {};
-    otherExercises.forEach(e => {
+    exercises.forEach(e => {
         if (!grouped[e.muscle_group]) {
             grouped[e.muscle_group] = [];
         }
@@ -583,7 +558,7 @@ function updateExerciseSelects() {
     });
     
     // Sortierreihenfolge der Muskelgruppen
-    const muscleOrder = ['Brust', 'Rücken', 'Schultern', 'Beine', 'Arme', 'Bauch', 'Ganzkörper'];
+    const muscleOrder = ['Brust', 'Rücken', 'Schultern', 'Beine', 'Arme', 'Bauch', 'Ganzkörper', 'Dehnen', 'Mobilität', 'Judo', 'Core'];
     const sortedMuscles = Object.keys(grouped).sort((a, b) => {
         const idxA = muscleOrder.indexOf(a);
         const idxB = muscleOrder.indexOf(b);
@@ -597,21 +572,10 @@ function updateExerciseSelects() {
     sortedMuscles.forEach(muscle => {
         grouped[muscle].sort((a, b) => a.name.localeCompare(b.name, 'de'));
     });
-    judoExercises.sort((a, b) => a.name.localeCompare(b.name, 'de'));
     
-    // Optgroups erstellen - zuerst Judo, dann Muskelgruppen
+    // Optgroups erstellen - nur nach Muskelgruppen
     let options = '';
     
-    // Judo-Kategorie zuerst
-    if (judoExercises.length > 0) {
-        options += `<optgroup label="🥋 Judo">`;
-        judoExercises.forEach(e => {
-            options += `<option value="${e.id}">${e.name}</option>`;
-        });
-        options += '</optgroup>';
-    }
-    
-    // Dann Muskelgruppen
     sortedMuscles.forEach(muscle => {
         options += `<optgroup label="${muscle}">`;
         grouped[muscle].forEach(e => {
