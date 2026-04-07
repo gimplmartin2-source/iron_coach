@@ -1282,7 +1282,8 @@ function renderWorkoutsList() {
             console.log('Workout:', w.exercise_name, 'type:', w.exercise_type, 'duration:', duration, 'weight:', weight, 'isTime:', isTimeBased, 'effectiveDuration:', effectiveDuration);
             
             let detailsText, statsValue;
-            const feelingEmoji = w.feeling >= 8 ? '🔥' : w.feeling >= 5 ? '👍' : '😤';
+            // INVERTIERTE Skala: 10 = sehr schwer 😰, 1 = leicht 😊
+            const feelingEmoji = w.feeling === 10 ? '😰' : w.feeling >= 7 ? '😓' : w.feeling >= 4 ? '😐' : '😊';
             
             if (isTimeBased) {
                 // Zeit-basierte Übung
