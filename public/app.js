@@ -530,6 +530,14 @@ function selectExerciseForWorkout(exerciseId, exerciseName) {
     console.log('🔄 isTimeBased:', isTimeBased);
     toggleWorkoutFields(isTimeBased);
     
+    // WICHTIG: Auch fuer Zeit-Uebungen heutiges Datum setzen
+    if (isTimeBased) {
+        const dateTimeField = document.getElementById('workout-date-time');
+        if (dateTimeField) {
+            dateTimeField.valueAsDate = new Date();
+        }
+    }
+    
     // Übungs-Vorschau mit GIF anzeigen
     showExercisePreview(exercise);
     
@@ -2543,7 +2551,8 @@ function updateDailyVolumeChart(weekWorkouts, weekStart) {
     for (let i = 0; i < 7; i++) {
         const day = new Date(weekStart);
         day.setDate(day.getDate() + i);
-        const dayKey = day.toISOString().split('T')[0];
+        // FIX: Verwende lokale Zeit statt UTC (toISOString) um 1-Tag-Versatz zu vermeiden
+        const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
         volumeByDay[dayKey] = { volume: 0, label: dayNames[i], hasWorkouts: false };
     }
     
