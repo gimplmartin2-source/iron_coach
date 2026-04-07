@@ -527,21 +527,14 @@ function selectExerciseForWorkout(exerciseId, exerciseName) {
     document.getElementById('selected-exercise-display').style.color = '#00d4ff';
     
     // Felder umschalten je nach Übungstyp
-    // WICHTIG: Prüfe auch auf undefined/null - wenn kein Typ, prüfe den Namen
+    // WICHTIG: Layout hängt NUR vom exercise_type Feld ab
     let isTimeBased = false;
     if (exercise) {
         if (exercise.exercise_type === 'time') {
             isTimeBased = true;
             console.log('✅ exercise_type ist "time"');
-        } else if (!exercise.exercise_type || exercise.exercise_type === 'strength') {
-            // Kein Typ oder Kraft - prüfe Name auf Zeit-Keywords
-            const timeKeywords = ['plank', 'haltung', 'atmung', 'dehn', 'stretch', 'hold', 'vacuum', 'kindhaltung', 'katze', 'knie', 'kreuz', 'hüft', 'kind', 'pose', 'stretch'];
-            const nameLower = exercise.name.toLowerCase();
-            isTimeBased = timeKeywords.some(kw => nameLower.includes(kw));
-            if (isTimeBased) {
-                console.log('🔍 Zeit-Übung erkannt per Keyword:', exercise.name);
-            }
         }
+        // KEINE Keyword-Prüfung mehr - nur noch exercise_type bestimmt das Layout
     }
     
     console.log('🔄 isTimeBased:', isTimeBased);
