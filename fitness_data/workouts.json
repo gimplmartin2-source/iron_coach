@@ -13,12 +13,12 @@
     "volume": 0
   },
   {
-    "id": 8,
+    "id": 9,
     "date": "2026-04-03",
     "exercise": "Plank",
     "muscle_group": "Bauch",
     "weight": 0.0,
-    "sets": 10,
+    "sets": 0,
     "reps": 0,
     "duration_seconds": 10,
     "rest_seconds": 10,
@@ -26,7 +26,7 @@
     "volume": 0
   },
   {
-    "id": 9,
+    "id": 8,
     "date": "2026-04-03",
     "exercise": "Bankdrücken Langhantel",
     "muscle_group": "Brust",
@@ -36,6 +36,6 @@
     "duration_seconds": 0,
     "rest_seconds": 60,
     "feeling": 10,
-    "volume": 1680.0
+    "volume": 1680
   }
 ]
