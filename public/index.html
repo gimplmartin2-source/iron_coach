@@ -458,18 +458,22 @@
                 </div>
             </div>
 
-            <!-- Übungs-Filter -->
+            <!-- Übungs-Filter (standardmäßig zugeklappt) -->
             <div class="card">
-                <h2>🏋️ Übungen filtern</h2>
-                <p style="color: #888; margin-bottom: 10px; font-size: 0.9rem;">Wähle aus, welche Übungen im Chart angezeigt werden:</p>
-                <div id="exercise-filter-list" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">
-                    <!-- Wird dynamisch gefüllt -->
-                    <div style="color: #666; font-style: italic;">Lade Übungen...</div>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn-secondary" onclick="selectAllExercises(true)" style="padding: 6px 12px; font-size: 0.85rem;">Alle an</button>
-                    <button class="btn-secondary" onclick="selectAllExercises(false)" style="padding: 6px 12px; font-size: 0.85rem;">Alle aus</button>
-                </div>
+                <details id="exercise-filter-details">
+                    <summary style="cursor: pointer; font-size: 1.2rem; font-weight: bold; color: #00d4ff;">🏋️ Übungen filtern</summary>
+                    <div style="margin-top: 15px;">
+                        <p style="color: #888; margin-bottom: 10px; font-size: 0.9rem;">Wähle aus, welche Übungen im Chart angezeigt werden:</p>
+                        <div id="exercise-filter-list" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">
+                            <!-- Wird dynamisch gefüllt -->
+                            <div style="color: #666; font-style: italic;">Lade Übungen...</div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn-secondary" onclick="selectAllExercises(true)" style="padding: 6px 12px; font-size: 0.85rem;">Alle an</button>
+                            <button class="btn-secondary" onclick="selectAllExercises(false)" style="padding: 6px 12px; font-size: 0.85rem;">Alle aus</button>
+                        </div>
+                    </div>
+                </details>
             </div>
 
             <!-- Gesamt-Chart (alle Workouts) -->
