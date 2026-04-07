@@ -1072,8 +1072,13 @@ async function addWorkout(e) {
         
         // Wenn Zeit-Übung, nimm Datum aus workout-date-time oder workout-date
         const dateTimeField = document.getElementById('workout-date-time');
+        const workoutDateField = document.getElementById('workout-date');
         if (dateTimeField && dateTimeField.value) {
             data.date = dateTimeField.value;
+        } else if (workoutDateField && workoutDateField.value) {
+            data.date = workoutDateField.value;
+        } else {
+            data.date = new Date().toISOString().split('T')[0];
         }
         
         // Bei Zeit-Übungen weight/reps auf 0 setzen
