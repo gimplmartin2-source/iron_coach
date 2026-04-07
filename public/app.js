@@ -2739,10 +2739,30 @@ function initStats() {
 
 // ===================== TIMER FUNKTIONEN =====================
 
-// --- �bungs-Stopuhr (f�r Zeit-�bungen) ---
+// --- Übungs-Stopuhr (für Zeit-Übungen) ---
 let exerciseTimerInterval = null;
 let exerciseTimerSeconds = 0;
 let exerciseTimerRunning = false;
+let exerciseTimerLastUpdate = null;
+
+// Hintergrund-Tracking für Exercise Timer
+if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+        if (exerciseTimerRunning) {
+            if (document.hidden) {
+                // Tab geht in Hintergrund - speichere Zeitstempel
+                exerciseTimerLastUpdate = Date.now();
+            } else {
+                // Tab kommt zurück - berechne vergangene Zeit
+                if (exerciseTimerLastUpdate) {
+                    const elapsed = Math.floor((Date.now() - exerciseTimerLastUpdate) / 1000);
+                    exerciseTimerSeconds += elapsed;
+                    updateExerciseTimerDisplay();
+                }
+            }
+        }
+    });
+}
 
 function startExerciseTimer() {
     if (exerciseTimerRunning) return;
@@ -2804,6 +2824,26 @@ function updateExerciseTimerDisplay() {
 let trainingTimerInterval = null;
 let trainingTimerSeconds = 0;
 let trainingTimerRunning = false;
+let trainingTimerLastUpdate = null;
+
+// Hintergrund-Tracking für Timer
+if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+        if (trainingTimerRunning) {
+            if (document.hidden) {
+                // Tab geht in Hintergrund - speichere Zeitstempel
+                trainingTimerLastUpdate = Date.now();
+            } else {
+                // Tab kommt zurück - berechne vergangene Zeit
+                if (trainingTimerLastUpdate) {
+                    const elapsed = Math.floor((Date.now() - trainingTimerLastUpdate) / 1000);
+                    trainingTimerSeconds += elapsed;
+                    updateTrainingTimerDisplay();
+                }
+            }
+        }
+    });
+}
 
 function startTrainingTimer() {
     if (trainingTimerRunning) return;
