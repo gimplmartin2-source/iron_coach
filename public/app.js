@@ -109,11 +109,27 @@ let volumeChart = null;
 // getExerciseGif() ist in gif-mappings.js verfügbar
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // User Info laden
+    // User Info laden (aus localStorage oder Token)
     const userStr = localStorage.getItem('user');
     if (userStr) {
         currentUser = JSON.parse(userStr);
         showUserInfo();
+    } else {
+        // Versuche aus Token zu laden (für frischen Google-Login)
+        const token = localStorage.getItem('token');
+        if (token) {
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                currentUser = { 
+                    email: payload.email, 
+                    displayName: payload.displayName || payload.email 
+                };
+                localStorage.setItem('user', JSON.stringify(currentUser));
+                showUserInfo();
+            } catch (e) {
+                console.log('Konnte User aus Token nicht laden');
+            }
+        }
     }
     
     // Verify Token
@@ -161,7 +177,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         // Bei Google-User: Versuche automatisches Restore (auch bei normalem Seiten-Reload)
-        if (isGoogleUser || urlToken !== null) {
+        // WICHTIG: Prüfe auch urlToken (frisch von Google Login)
+        const freshGoogleLogin = urlParams.get('token') !== null;
+        
+        if (isGoogleUser || freshGoogleLogin) {
             console.log('🔑 Automatisches Restore für Google-User...');
             const restoreResult = await restoreFromDrive();
             
