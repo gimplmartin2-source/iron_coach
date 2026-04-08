@@ -245,6 +245,31 @@ function showTab(tabName) {
     }
 }
 
+// Manuelles Restore (für den Restore-Button)
+async function manualRestore() {
+    console.log('🔄 Manuelles Restore gestartet...');
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = '⏳ Wird wiederhergestellt...';
+    btn.disabled = true;
+    
+    try {
+        const success = await restoreFromDrive();
+        if (success) {
+            alert('✅ Restore erfolgreich! Seite wird neu geladen.');
+            window.location.reload();
+        } else {
+            alert('⚠️ Kein Backup gefunden oder Restore nicht möglich.\n\nStelle sicher, dass du mit Google angemeldet bist und ein Backup existiert.');
+        }
+    } catch (err) {
+        console.error('Restore Fehler:', err);
+        alert('❌ Restore fehlgeschlagen: ' + err.message);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
 // Restore von Google Drive - AUTOMATISCH beim Google Login
 async function restoreFromDrive() {
     const token = localStorage.getItem('token');
