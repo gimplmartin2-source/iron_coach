@@ -183,6 +183,19 @@ db.serialize(() => {
       }
     }
   });
+
+  // Training Plans Tabelle
+  db.run(`CREATE TABLE IF NOT EXISTS training_plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    plan_data TEXT NOT NULL,
+    is_active INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`);
 });
 
 // JWT Middleware
@@ -811,16 +824,126 @@ app.get('/api/stats', authenticateJWT, (req, res) => {
 
 // Progress für eine Übung
 app.get('/api/progress/:exercise_id', authenticateJWT, (req, res) => {
-  const query = `
-    SELECT date, weight, sets, reps, (weight * sets * reps) as volume
-    FROM workouts 
-    WHERE exercise_id = ? AND user_id = ?
-    ORDER BY date ASC
-  `;
+  const query = `SELECT date, weight, sets, reps, (weight * sets * reps) as volume 
+    FROM workouts WHERE exercise_id = ? AND user_id = ? ORDER BY date ASC`;
   db.all(query, [req.params.exercise_id, req.user.userId], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
+});
+
+// === TRAINING PLANS API ===
+
+// Alle Trainingspläne abrufen
+app.get('/api/training-plans', authenticateJWT, (req, res) => {
+  db.all('SELECT id, name, description, is_active, created_at FROM training_plans WHERE user_id = ? ORDER BY updated_at DESC', 
+    [req.user.userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// Einzelnen Plan abrufen
+app.get('/api/training-plans/:id', authenticateJWT, (req, res) => {
+  db.get('SELECT * FROM training_plans WHERE id = ? AND user_id = ?', 
+    [req.params.id, req.user.userId], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Plan nicht gefunden' });
+    try { row.plan_data = JSON.parse(row.plan_data); } catch (e) {}
+    res.json(row);
+  });
+});
+
+// Neuen Plan erstellen
+app.post('/api/training-plans', authenticateJWT, (req, res) => {
+  const { name, description, plan_data, is_active } = req.body;
+  if (!name || !plan_data) return res.status(400).json({ error: 'Name und Plan-Daten erforderlich' });
+  
+  const planDataJson = typeof plan_data === 'string' ? plan_data : JSON.stringify(plan_data);
+  const isActive = is_active ? 1 : 0;
+  
+  if (isActive) db.run('UPDATE training_plans SET is_active = 0 WHERE user_id = ?', [req.user.userId]);
+  
+  db.run('INSERT INTO training_plans (user_id, name, description, plan_data, is_active) VALUES (?, ?, ?, ?, ?)',
+    [req.user.userId, name, description || '', planDataJson, isActive],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ id: this.lastID, name, description, is_active: isActive });
+    }
+  );
+});
+
+// Plan aktualisieren
+app.put('/api/training-plans/:id', authenticateJWT, (req, res) => {
+  const { name, description, plan_data, is_active } = req.body;
+  if (!name || !plan_data) return res.status(400).json({ error: 'Name und Plan-Daten erforderlich' });
+  
+  const planDataJson = typeof plan_data === 'string' ? plan_data : JSON.stringify(plan_data);
+  const isActive = is_active ? 1 : 0;
+  const planId = req.params.id;
+  
+  if (isActive) db.run('UPDATE training_plans SET is_active = 0 WHERE user_id = ? AND id != ?', [req.user.userId, planId]);
+  
+  db.run('UPDATE training_plans SET name = ?, description = ?, plan_data = ?, is_active = ?, updated_at = datetime("now") WHERE id = ? AND user_id = ?',
+    [name, description || '', planDataJson, isActive, planId, req.user.userId],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Plan nicht gefunden' });
+      res.json({ message: 'Plan aktualisiert', id: parseInt(planId) });
+    }
+  );
+});
+
+// Plan löschen
+app.delete('/api/training-plans/:id', authenticateJWT, (req, res) => {
+  db.run('DELETE FROM training_plans WHERE id = ? AND user_id = ?', 
+    [req.params.id, req.user.userId], 
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Plan nicht gefunden' });
+      res.json({ message: 'Plan gelöscht' });
+    }
+  );
+});
+
+// Vorlage herunterladen
+app.get('/api/training-plans/template/download', authenticateJWT, (req, res) => {
+  const template = {
+    "name": "Gleitwirbel-kompatibler Trainingsplan",
+    "description": "Core-Stabilisation für Gleitwirbel",
+    "days": [
+      {
+        "day": "Montag",
+        "focus": "🥋 Judo",
+        "intensity": "Hoch",
+        "duration": "90 Min",
+        "warmup": [{"name": "ADIM-Core", "sets": 1, "duration": "20 Sek"}],
+        "main": [{"name": "Reguläres Judo Training", "notes": "Im Dojo" }],
+        "cooldown": [{"name": "Kindhaltung", "duration": "60 Sek" }]
+      },
+      {
+        "day": "Dienstag",
+        "focus": "💪 Core + Rücken",
+        "intensity": "Mittel",
+        "duration": "45 Min",
+        "warmup": [{"name": "ADIM-Core", "sets": 3, "reps": 10}],
+        "main": [
+          {"name": "Dead Bug", "sets": 3, "reps": 10},
+          {"name": "Bird Dog", "sets": 3, "reps": 10},
+          {"name": "Klimmzüge", "sets": 3, "reps": "6-10"}
+        ],
+        "cooldown": [{"name": "Hüftbeuger-Dehnung", "duration": "60 Sek"}]
+      },
+      {"day": "Mittwoch", "focus": "💪 Tiefer Core", "intensity": "Mittel", "duration": "40 Min", "main": [{"name": "Dead Bug Extrem", "sets": 3, "reps": 8}, {"name": "Side Plank", "sets": 3, "duration": "30 Sek"}]},
+      {"day": "Donnerstag", "focus": "🧘 Dehnen", "intensity": "Niedrig", "duration": "30 Min", "main": [{"name": "Hüftbeuger-Dehnung", "duration": "60 Sek pro Seite"}]},
+      {"day": "Freitag", "focus": "🥋 Judo", "intensity": "Hoch", "duration": "90 Min", "main": [{"name": "Reguläres Judo Training" }]},
+      {"day": "Samstag", "focus": "💪 Core", "intensity": "Mittel", "duration": "40 Min", "main": [{"name": "Plank", "sets": 3, "duration": "30-45 Sek"}]},
+      {"day": "Sonntag", "focus": "☀️ Erholung", "intensity": "Niedrig", "duration": "20 Min", "main": [{"name": "Kindhaltung", "duration": "60 Sek"}]}
+    ]
+  };
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', 'attachment; filename="ironcoach-training-template.json"');
+  res.json(template);
 });
 
 // === GOOGLE DRIVE BACKUP ===

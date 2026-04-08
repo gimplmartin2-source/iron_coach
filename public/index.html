@@ -78,6 +78,22 @@
 
         <!-- Trainingsplan Panel (initially hidden) -->
         <section id="plan-panel" class="card" style="display: none;">
+            <!-- Plan Management UI -->
+            <div id="plan-management" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1);">
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="display: block; margin-bottom: 5px; color: #888; font-size: 0.9rem;">Aktiver Plan:</label>
+                        <select id="plan-select" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff;">
+                            <option>Standard-Plan laden...</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button onclick="downloadPlanTemplate()" class="btn-secondary" style="padding: 8px 14px; font-size: 0.9rem;">📥 Vorlage</button>
+                        <button onclick="document.getElementById('plan-upload').click()" class="btn-secondary" style="padding: 8px 14px; font-size: 0.9rem;">📤 Hochladen</button>
+                        <input type="file" id="plan-upload" accept=".json" style="display: none;" onchange="uploadTrainingPlan(this)">
+                    </div>
+                </div>
+            </div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2>📋 Dein Trainingsplan</h2>
                 <span style="font-size: 0.8rem; color: #888;">Gleitwirbel-kompatibel • Judo-optimiert</span>
@@ -513,6 +529,7 @@
 
     <script src="video-mappings.js"></script>
     <script src="gif-click-handler.js"></script>
+    <script src="training-plans.js"></script>
     <script src="app.js?v=3"></script>
     
     <script>
