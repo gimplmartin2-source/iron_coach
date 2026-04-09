@@ -292,21 +292,25 @@ async function manualRestore() {
 // Restore von Google Drive - AUTOMATISCH beim Google Login
 async function restoreFromDrive() {
     const token = localStorage.getItem('token');
-    if (!token) return false;
+    if (!token) {
+        console.log('❌ Kein Token vorhanden');
+        return false;
+    }
     
-    // Prüfe ob Google-User (hat Google Access Token im JWT)
+    // Prüfe User ID aus Token (der Server prüft dann Google-Zugriff)
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
-        if (!payload.googleAccessToken) {
-            console.log('ℹ️ Kein Google-Login, überspringe Restore');
+        if (!payload.userId) {
+            console.log('❌ Keine User ID im Token');
             return false;
         }
+        console.log('🔍 Versuche Restore für User:', payload.userId);
     } catch (e) {
         console.log('⚠️ Konnte Token nicht dekodieren');
         return false;
     }
     
-    console.log('🔍 Versuche automatisches Restore von Google Drive...');
+    console.log('🔍 Versuche Restore von Google Drive...');
     
     // Automatisches Restore (Token kommt aus dem JWT)
     try {
