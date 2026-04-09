@@ -1,0 +1,103 @@
+{
+  "name": "Martin's Trainingsplan (Backup-Übungen)",
+  "description": "7-Tage Split: Judo, Push, Pull, Beine, Judo, Core, Erholung",
+  "days": [
+    {
+      "day": "Montag",
+      "focus": "🥋 Judo",
+      "intensity": "Hoch",
+      "duration": "90 Min",
+      "exercises": [
+        {"name": "Uchi-Komi", "sets": 3, "reps": 10, "muscle": "Judo"},
+        {"name": "Nage-Komi", "sets": 3, "reps": 8, "muscle": "Judo"},
+        {"name": "Randori", "sets": 1, "duration": "20 Min", "muscle": "Judo"},
+        {"name": "Kata", "sets": 2, "reps": 1, "muscle": "Judo"}
+      ]
+    },
+    {
+      "day": "Dienstag", 
+      "focus": "💪 Push (Brust + Schultern + Trizeps)",
+      "intensity": "Mittel",
+      "duration": "60 Min",
+      "exercises": [
+        {"name": "Bankdrücken Langhantel", "sets": 4, "reps": 8, "muscle": "Brust"},
+        {"name": "Schrägbankdrücken", "sets": 3, "reps": 10, "muscle": "Brust"},
+        {"name": "Schulterdrücken Kurzhanteln", "sets": 4, "reps": 10, "muscle": "Schultern"},
+        {"name": "Kurzhantel Seitheben", "sets": 3, "reps": 12, "muscle": "Schultern"},
+        {"name": "Butterfly", "sets": 3, "reps": 12, "muscle": "Brust"},
+        {"name": "Dips", "sets": 3, "reps": 10, "muscle": "Brust"},
+        {"name": "French Press", "sets": 3, "reps": 12, "muscle": "Arme"},
+        {"name": "Trizeps Pulldown Maschine", "sets": 3, "reps": 15, "muscle": "Arme"}
+      ]
+    },
+    {
+      "day": "Mittwoch",
+      "focus": "💪 Pull (Rücken + Bizeps)",
+      "intensity": "Mittel",
+      "duration": "60 Min",
+      "exercises": [
+        {"name": "Kreuzheben", "sets": 4, "reps": 6, "muscle": "Rücken"},
+        {"name": "Klimmzüge", "sets": 3, "reps": 8, "muscle": "Rücken"},
+        {"name": "T-Bar Rudern", "sets": 3, "reps": 10, "muscle": "Rücken"},
+        {"name": "Latzug Maschine", "sets": 3, "reps": 12, "muscle": "Rücken"},
+        {"name": "Kurzhantel Rudern", "sets": 3, "reps": 10, "muscle": "Rücken"},
+        {"name": "Rudern Maschine", "sets": 3, "reps": 12, "muscle": "Rücken"},
+        {"name": "Bizepscurls Kurzhantel", "sets": 3, "reps": 12, "muscle": "Arme"},
+        {"name": "Hammercurl Kurzhantel", "sets": 3, "reps": 10, "muscle": "Arme"}
+      ]
+    },
+    {
+      "day": "Donnerstag",
+      "focus": "💪 Beine",
+      "intensity": "Hoch",
+      "duration": "60 Min",
+      "exercises": [
+        {"name": "Kniebeugen", "sets": 4, "reps": 8, "muscle": "Beine"},
+        {"name": "Beinpresse", "sets": 3, "reps": 12, "muscle": "Beine"},
+        {"name": "Beinstrecker", "sets": 3, "reps": 15, "muscle": "Beine"},
+        {"name": "Beinbeuger", "sets": 3, "reps": 15, "muscle": "Beine"},
+        {"name": "Ausfallschritt Kurzhantel", "sets": 3, "reps": 10, "muscle": "Beine"},
+        {"name": "Wadenheben", "sets": 4, "reps": 15, "muscle": "Beine"}
+      ]
+    },
+    {
+      "day": "Freitag",
+      "focus": "🥋 Judo",
+      "intensity": "Hoch", 
+      "duration": "90 Min",
+      "exercises": [
+        {"name": "Ne-waza", "sets": 3, "duration": "5 Min", "muscle": "Judo"},
+        {"name": "Grip Fighting", "sets": 3, "duration": "5 Min", "muscle": "Judo"},
+        {"name": "Kata", "sets": 2, "reps": 1, "muscle": "Judo"}
+      ]
+    },
+    {
+      "day": "Samstag",
+      "focus": "💪 Core/Bauch",
+      "intensity": "Mittel",
+      "duration": "40 Min",
+      "exercises": [
+        {"name": "Plank", "sets": 3, "duration": "45 Sek", "muscle": "Bauch"},
+        {"name": "Side Plank Extreme", "sets": 3, "duration": "30 Sek", "muscle": "Bauch"},
+        {"name": "Side Plank Rotation", "sets": 2, "duration": "20 Sek", "muscle": "Bauch"},
+        {"name": "Russian Twist", "sets": 3, "reps": 20, "muscle": "Bauch"},
+        {"name": "Beinheben", "sets": 3, "reps": 15, "muscle": "Bauch"},
+        {"name": "ADIM-Core", "sets": 3, "reps": 10, "muscle": "Bauch"},
+        {"name": "Crunches", "sets": 3, "reps": 20, "muscle": "Bauch"},
+        {"name": "Kabel Crunches", "sets": 3, "reps": 15, "muscle": "Bauch"}
+      ]
+    },
+    {
+      "day": "Sonntag",
+      "focus": "☀️ Erholung + Dehnen",
+      "intensity": "Niedrig",
+      "duration": "30 Min",
+      "exercises": [
+        {"name": "Kindhaltung", "sets": 1, "duration": "90 Sek", "muscle": "Dehnen"},
+        {"name": "Hüftbeuger-Dehnung", "sets": 1, "duration": "60 Sek pro Seite", "muscle": "Dehnen"},
+        {"name": "Piriformis-Dehnung", "sets": 1, "duration": "45 Sek pro Seite", "muscle": "Dehnen"},
+        {"name": "Ganzer Körper Dehnen", "sets": 1, "duration": "10 Min", "muscle": "Dehnen"}
+      ]
+    }
+  ]
+}

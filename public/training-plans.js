@@ -35,10 +35,37 @@ async function loadTrainingPlans() {
         const active = trainingPlans.find(p => p.is_active) || trainingPlans[0];
         if (active && !currentPlan) {
             await loadPlan(active.id);
+        } else if (trainingPlans.length === 0 && !currentPlan) {
+            // Keine Pläne vom Server - lade Default-Plan
+            await loadDefaultPlan();
         }
         
     } catch (err) {
         console.error('Pläne laden fehlgeschlagen:', err);
+        // Fallback: Lade Default-Plan
+        await loadDefaultPlan();
+    }
+}
+
+// Lädt den Default-Plan aus JSON-Datei
+async function loadDefaultPlan() {
+    try {
+        const res = await fetch('/default-training-plan.json');
+        if (!res.ok) throw new Error('Default-Plan nicht gefunden');
+        
+        const planData = await res.json();
+        currentPlan = planData;
+        renderDynamicPlan(planData);
+        
+        // Füge zu Dropdown hinzu
+        const select = document.getElementById('plan-select');
+        if (select) {
+            select.innerHTML = `<option value="default" selected>${planData.name}</option>`;
+        }
+        
+        console.log('✅ Default-Plan geladen:', planData.name);
+    } catch (err) {
+        console.error('Default-Plan laden fehlgeschlagen:', err);
     }
 }
 
@@ -84,14 +111,67 @@ async function loadPlan(planId) {
 // Rendert den Plan (überschreibt den hardcoded Plan)
 function renderPlan(planData) {
     if (!planData || !planData.days) return;
+    renderDynamicPlan(planData);
+}
+
+// Rendert einen Plan dynamisch im einheitlichen Tabellen-Format
+function renderDynamicPlan(planData) {
+    if (!planData || !planData.days) return;
     
     // Titel aktualisieren
     const title = document.querySelector('#plan-panel h2');
     if (title) title.textContent = '📋 ' + (planData.name || 'Trainingsplan');
     
-    // TODO: Dynamisches Rendering der Tage
-    // Derzeit bleibt der hardcoded Plan sichtbar als Fallback
-    console.log('Plan geladen:', planData.name);
+    // Alle Tage rendern
+    const dayIds = ['montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag', 'sonntag'];
+    
+    planData.days.forEach((day, index) => {
+        const dayId = dayIds[index];
+        if (!dayId) return;
+        
+        const dayDiv = document.getElementById('plan-' + dayId);
+        if (!dayDiv) return;
+        
+        // Header
+        const intensityClass = day.intensity === 'Hoch' ? 'intensity-high' : 
+                              day.intensity === 'Mittel' ? 'intensity-medium' : 'intensity-low';
+        
+        dayDiv.innerHTML = `
+            <h3>${day.focus || day.day}</h3>
+            <div class="plan-meta">
+                <span class="badge ${intensityClass}">Intensität: ${day.intensity}</span>
+                <span class="badge">${day.duration}</span>
+            </div>
+            <div class="plan-content">
+                <table class="plan-table interactive-plan-table">
+                    <tr><th>✓</th><th>Übung</th><th>Sätze</th><th>Wdh/Dauer</th></tr>
+                    ${day.exercises.map(ex => renderExerciseRow(ex)).join('')}
+                </table>
+            </div>
+        `;
+    });
+    
+    console.log('✅ Plan gerendert:', planData.name);
+}
+
+// Hilfsfunktion zum Rendern einer Übungs-Zeile
+function renderExerciseRow(ex) {
+    const hasDuration = ex.duration && ex.duration.includes('Min') || ex.duration && ex.duration.includes('Sek');
+    const repsDisplay = hasDuration ? ex.duration : ex.reps;
+    
+    return `
+        <tr class="plan-exercise-row" data-exercise="${ex.name}" data-sets="${ex.sets}" data-reps="${ex.reps || 1}">
+            <td>
+                <label class="checkbox-container">
+                    <input type="checkbox" class="plan-check">
+                    <span class="checkmark"></span>
+                </label>
+            </td>
+            <td>${ex.name}</td>
+            <td>${ex.sets}</td>
+            <td>${repsDisplay}</td>
+        </tr>
+    `;
 }
 
 // Vorlage herunterladen
