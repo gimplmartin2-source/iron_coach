@@ -23,9 +23,6 @@
             <p>Dein persönlicher Trainings-Tracker</p>
             <div id="user-info" style="margin-top: 15px; display: none; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
                 <span id="user-name" style="color: #888;"></span>
-                <button onclick="manualRestore()" class="btn-secondary" style="padding: 8px 16px; background: rgba(0,150,255,0.2); border-color: rgba(0,150,255,0.5); color: #66b3ff; font-size: 0.9rem;" title="Daten von Google Drive wiederherstellen">
-                    🔄 Restore
-                </button>
                 <button id="logout-btn" class="btn-secondary" style="padding: 8px 16px; background: rgba(255,50,50,0.2); border-color: rgba(255,50,50,0.5); color: #ff6666; font-size: 0.9rem;">
                     🚪 Abmelden
                 </button>
@@ -122,20 +119,13 @@
                     <span class="badge">90-120 Min</span>
                 </div>
                 <div class="plan-content">
-                    <p><strong>Vor dem Training (5 Min):</strong></p>
-                    <ul class="checklist">
-                        <li class="plan-exercise" data-exercise="Judo Warm-up"><label class="checkbox-container"><input type="checkbox" class="plan-check" data-exercise="ADIM" data-sets="3" data-reps="1" data-duration="20 Sek"><span class="checkmark"></span></label> ADIM (20 Sek)</li>
-                        <li class="plan-exercise"><label class="checkbox-container"><input type="checkbox" class="plan-check" data-exercise="Dead Bug" data-sets="1" data-reps="10"><span class="checkmark"></span></label> Dead Bug (5 pro Seite)</li>
-                        <li class="plan-exercise"><label class="checkbox-container"><input type="checkbox" class="plan-check" data-exercise="Hip Circles" data-sets="1" data-reps="20"><span class="checkmark"></span></label> Hip Circles (10 pro Richtung)</li>
-                        <li class="plan-exercise"><label class="checkbox-container"><input type="checkbox" class="plan-check" data-exercise="Schulterkreisen" data-sets="1" data-reps="15"><span class="checkmark"></span></label> Schulterkreisen rückwärts (15x)</li>
-                    </ul>
-                    <p style="margin-top: 15px; color: #888;">→ Judo-Training im Dojo</p>
-                    <p><strong>Nach dem Training (5 Min):</strong></p>
-                    <ul class="checklist">
-                        <li class="plan-exercise"><label class="checkbox-container"><input type="checkbox" class="plan-check" data-exercise="Kindhaltung" data-sets="1" data-reps="1" data-duration="60 Sek"><span class="checkmark"></span></label> Kindhaltung (60 Sek)</li>
-                        <li class="plan-exercise"><label class="checkbox-container"><input type="checkbox" class="plan-check" data-exercise="Hüftbeuger-Dehnung" data-sets="1" data-reps="1" data-duration="60 Sek pro Seite"><span class="checkmark"></span></label> Hüftbeuger-Dehnung (60 Sek pro Seite)</li>
-                        <li class="plan-exercise"><label class="checkbox-container"><input type="checkbox" class="plan-check" data-exercise="Tiefe Atmung" data-sets="1" data-reps="1" data-duration="1 Min"><span class="checkmark"></span></label> Tiefe Atmung im Liegen (1 Min)</li>
-                    </ul>
+                    <table class="plan-table interactive-plan-table">
+                        <tr><th>✓</th><th>Übung</th><th>Sätze</th><th>Wdh/Dauer</th></tr>
+                        <tr class="plan-exercise-row" data-exercise="Uchi-Komi" data-sets="3" data-reps="10"><td><label class="checkbox-container"><input type="checkbox" class="plan-check"><span class="checkmark"></span></label></td><td>Uchi-Komi (Wurfübungen)</td><td>3</td><td>10</td></tr>
+                        <tr class="plan-exercise-row" data-exercise="Nage-Komi" data-sets="3" data-reps="8"><td><label class="checkbox-container"><input type="checkbox" class="plan-check"><span class="checkmark"></span></label></td><td>Nage-Komi (Wurftraining)</td><td>3</td><td>8</td></tr>
+                        <tr class="plan-exercise-row" data-exercise="Randori" data-sets="1" data-reps="1" data-duration="20 Min"><td><label class="checkbox-container"><input type="checkbox" class="plan-check"><span class="checkmark"></span></label></td><td>Randori (Freikampf)</td><td>1</td><td>20 Min</td></tr>
+                        <tr class="plan-exercise-row" data-exercise="Kata" data-sets="2" data-reps="1"><td><label class="checkbox-container"><input type="checkbox" class="plan-check"><span class="checkmark"></span></label></td><td>Kata (Formen)</td><td>2</td><td>1x</td></tr>
+                    </table>
                 </div>
             </div>
 
