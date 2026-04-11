@@ -46,7 +46,7 @@ function getExerciseMedia(exerciseName) {
     const staticMapping = {
         'Bankdrücken (Langhantel)': 'Bankdrücken (Langhantel).mp4',
         'Bankdrücken Kurzhanteln': 'Bankdrücken Kurzhanteln.mp4',
-        'Bankdrücken Kurzhantel': 'Bankdrücken Kurzhanteln.mp4',
+        'Bankdrücken Kurzhantel': 'Bankdrücken Kurzhantel.mp4',
         'Kniebeugen': 'Kniebeugen.mp4',
         'Klimmzüge': 'Klimmzüge Untergriff.mp4',
         'Plank (Unterarmstütz)': 'plank.mp4',
