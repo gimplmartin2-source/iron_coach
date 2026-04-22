@@ -1344,7 +1344,8 @@ function renderWorkoutsList() {
                 const mins = Math.floor(effectiveDuration / 60);
                 const secs = effectiveDuration % 60;
                 const durationStr = mins > 0 ? `${mins}:${secs.toString().padStart(2, '0')} min` : `${secs} Sek`;
-                detailsText = `${durationStr} | Ruhe: ${w.rest_seconds || '-'}s`;
+                const setsText = sets > 0 ? `${sets} Sätze × ` : '';
+                detailsText = `${setsText}${durationStr} | Ruhe: ${w.rest_seconds || '-'}s`;
                 if (w.feeling) detailsText += ` | Gefühl: ${w.feeling}/10`;
                 statsValue = durationStr;
             } else {
