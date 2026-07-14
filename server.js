@@ -19,6 +19,10 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dein-geheimer-schluessel-mindestens-32-zeichen-lang';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'session-secret-mindestens-32-zeichen-lang-hier';
 
+// Token-Laufzeiten (in Sekunden oder als String)
+const TOKEN_SHORT = '24h';      // Standard-Session
+const TOKEN_LONG = '365d';      // "Eingeloggt bleiben" (1 Jahr)
+
 // Security Middleware
 app.use(helmet({
   contentSecurityPolicy: false
@@ -462,15 +466,15 @@ function seedDefaultExercises(userId) {
 
 // Register
 app.post('/api/auth/register', authLimiter, async (req, res) => {
-  const { email, password, displayName } = req.body;
-  
+  const { email, password, displayName, rememberMe } = req.body;
+
   if (!email || !password || password.length < 6) {
     return res.status(400).json({ error: 'Email und Passwort (min. 6 Zeichen) erforderlich' });
   }
-  
+
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
     db.run('INSERT INTO users (email, password, display_name) VALUES (?, ?, ?)',
       [email, hashedPassword, displayName || email], function(err) {
       if (err) {
@@ -479,12 +483,14 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
         }
         return res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
       }
-      
-      const token = jwt.sign({ userId: this.lastID, email }, JWT_SECRET, { expiresIn: '24h' });
-      
+
+      // "Eingeloggt bleiben" -> Token 1 Jahr gültig, sonst 24h
+      const tokenExpiry = rememberMe ? TOKEN_LONG : TOKEN_SHORT;
+      const token = jwt.sign({ userId: this.lastID, email }, JWT_SECRET, { expiresIn: tokenExpiry });
+
       // Standardübungen erstellen
       seedDefaultExercises(this.lastID);
-      
+
       res.json({ token, user: { id: this.lastID, email, displayName: displayName || email } });
     });
   } catch (err) {
@@ -497,11 +503,15 @@ app.post('/api/auth/login', authLimiter, (req, res, next) => {
   passport.authenticate('local', { session: false }, (err, user, info) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!user) return res.status(401).json({ error: info.message });
-    
-    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
-    res.json({ 
-      token, 
-      user: { id: user.id, email: user.email, displayName: user.display_name } 
+
+    // "Eingeloggt bleiben" -> Token 1 Jahr gültig, sonst 24h
+    const rememberMe = req.body.rememberMe === true;
+    const tokenExpiry = rememberMe ? TOKEN_LONG : TOKEN_SHORT;
+
+    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: tokenExpiry });
+    res.json({
+      token,
+      user: { id: user.id, email: user.email, displayName: user.display_name }
     });
   })(req, res, next);
 });
@@ -540,7 +550,8 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         tokenPayload.googleAccessToken = req.authInfo.accessToken;
       }
       
-      const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '24h' });
+      // Google-Login am Handy sollte dauerhaft gültig bleiben
+      const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: TOKEN_LONG });
       const protocol = req.headers['x-forwarded-proto'] || req.protocol;
       const host = req.headers['x-forwarded-host'] || req.headers.host;
       const baseUrl = `${protocol}://${host}`;
