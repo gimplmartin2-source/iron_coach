@@ -1,0 +1,132 @@
+{
+  "name": "Anfänger Trainingsplan (Gleitwirbel-sicher)",
+  "description": "Sanfter Einstieg mit Fokus auf Core-Stabilität und Gleitwirbel-Schonung",
+  "level": "Anfänger",
+  "location": "Mixed (Home/Gym)",
+  "goals": ["Gleitwirbel stabilisieren", "Muskulatur aufbauen", "Beweglichkeit verbessern"],
+  "days": [
+    {
+      "day": "Montag",
+      "focus": "🥋 Judo - Leicht",
+      "intensity": "Mittel",
+      "duration": "90 Min",
+      "warmup": [
+        {"name": "ADIM (Core-Aktivierung)", "sets": 2, "duration": "30 Sek"},
+        {"name": "Cat-Cow (sanfte Mobilisation)", "sets": 1, "reps": 8},
+        {"name": "Hüftkreisen", "sets": 1, "reps": 10}
+      ],
+      "exercises": [
+        {"name": "Uchi-Komi", "sets": 2, "reps": 6, "muscle": "Judo"},
+        {"name": "Technik-Training", "sets": 2, "duration": "15 Min", "muscle": "Judo"},
+        {"name": "Kata", "sets": 2, "reps": 1, "muscle": "Judo"}
+      ],
+      "cooldown": [
+        {"name": "Kindhaltung", "sets": 1, "duration": "60 Sek"}
+      ]
+    },
+    {
+      "day": "Dienstag",
+      "focus": "💪 Ganzkörperstabilität",
+      "intensity": "Niedrig",
+      "duration": "40 Min",
+      "warmup": [
+        {"name": "Gehen/Arm Bewegungen", "sets": 1, "duration": "5 Min"},
+        {"name": "ADIM", "sets": 2, "reps": 8, "hold": "5 Sek"}
+      ],
+      "exercises": [
+        {"name": "Dead Bug", "sets": 2, "reps": 6, "muscle": "Core"},
+        {"name": "Glute Bridge", "sets": 2, "reps": 10, "muscle": "Beine/Rücken"},
+        {"name": "Wand-Squats", "sets": 2, "reps": 8, "muscle": "Beine"},
+        {"name": "Schulter-Akzentuierung", "sets": 2, "reps": 10, "muscle": "Rücken"},
+        {"name": "Bird Dog (statisch)", "sets": 2, "duration": "15 Sek pro Seite", "muscle": "Core"}
+      ],
+      "cooldown": [
+        {"name": "Hüftbeuger-Dehnung", "sets": 1, "duration": "30 Sek pro Seite"},
+        {"name": "Tiefe Atmung", "sets": 1, "duration": "2 Min"}
+      ]
+    },
+    {
+      "day": "Mittwoch",
+      "focus": "🚶 Aktive Erholung",
+      "intensity": "Niedrig",
+      "duration": "30 Min",
+      "warmup": [
+        {"name": "Leichter Spaziergang", "sets": 1, "duration": "10 Min"}
+      ],
+      "exercises": [
+        {"name": "Dehnen (sanft)", "sets": 1, "duration": "15 Min"},
+        {"name": "Atemübungen", "sets": 1, "duration": "5 Min"}
+      ],
+      "cooldown": []
+    },
+    {
+      "day": "Donnerstag",
+      "focus": "💪 Oberkörper & Core",
+      "intensity": "Mittel",
+      "duration": "45 Min",
+      "warmup": [
+        {"name": "Schulterkreisen", "sets": 1, "reps": 10},
+        {"name": "ADIM", "sets": 2, "reps": 10}
+      ],
+      "exercises": [
+        {"name": "Kniebankdrücken (leicht)", "sets": 2, "reps": 8, "muscle": "Brust"},
+        {"name": "Schrägbankdrücken Kurzhantel", "sets": 2, "reps": 8, "muscle": "Brust"},
+        {"name": "Rudern am Kabel (leicht)", "sets": 2, "reps": 10, "muscle": "Rücken"},
+        {"name": "Frontheben Kurzhantel", "sets": 2, "reps": 8, "muscle": "Schultern"},
+        {"name": "Bizepscurls", "sets": 2, "reps": 10, "muscle": "Arme"}
+      ],
+      "cooldown": [
+        {"name": "Brust-Dehnung", "sets": 1, "duration": "30 Sek"},
+        {"name": "Lat-Dehnung", "sets": 1, "duration": "30 Sek pro Seite"}
+      ]
+    },
+    {
+      "day": "Freitag",
+      "focus": "🥋 Judo - Technik",
+      "intensity": "Mittel",
+      "duration": "90 Min",
+      "warmup": [
+        {"name": "ADIM", "sets": 3, "duration": "20 Sek"},
+        {"name": "Hip Circles", "sets": 1, "reps": 15}
+      ],
+      "exercises": [
+        {"name": "Technik-Drilling", "sets": 3, "duration": "10 Min", "muscle": "Judo"},
+        {"name": "Ne-waza (Grundtechnik)", "sets": 2, "duration": "8 Min", "muscle": "Judo"},
+        {"name": "Kata", "sets": 2, "reps": 1, "muscle": "Judo"}
+      ],
+      "cooldown": [
+        {"name": "Kindhaltung", "sets": 1, "duration": "60 Sek"}
+      ]
+    },
+    {
+      "day": "Samstag",
+      "focus": "💪 Core & Rücken",
+      "intensity": "Niedrig",
+      "duration": "35 Min",
+      "warmup": [
+        {"name": "ADIM", "sets": 2, "reps": 8}
+      ],
+      "exercises": [
+        {"name": "Dead Bug", "sets": 2, "reps": 8, "muscle": "Core"},
+        {"name": "Glute Bridge", "sets": 3, "reps": 12, "muscle": "Rücken"},
+        {"name": "Side Plank (modifiziert)", "sets": 2, "duration": "20 Sek pro Seite", "muscle": "Core"},
+        {"name": "Pallof Press", "sets": 2, "reps": 8, "muscle": "Core"}
+      ],
+      "cooldown": [
+        {"name": "Piriformis-Dehnung", "sets": 1, "duration": "45 Sek pro Seite"}
+      ]
+    },
+    {
+      "day": "Sonntag",
+      "focus": "☀️ Vollständige Erholung",
+      "intensity": "Niedrig",
+      "duration": "20 Min",
+      "warmup": [],
+      "exercises": [
+        {"name": "Sanftes Dehnen", "sets": 1, "duration": "15 Min"},
+        {"name": "Atemübungen", "sets": 1, "duration": "5 Min"}
+      ],
+      "cooldown": []
+    }
+  ]
+}

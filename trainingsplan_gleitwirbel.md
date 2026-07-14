@@ -8,15 +8,52 @@ Bei Gleitwirbel (Spondylolisthesis):
 
 ---
 
+## Aufwärm-Protokoll (JEDER TAG - vor dem Training)
+
+**Gleitwirbel-freundliches Aufwärmen (8-10 Min):**
+
+1. **Cat-Cow (Katze-Kuh)** - 10 Wdh
+   - Bewegt die Wirbelsäule sanft, kein Halten der Extremposition
+
+2. **Pelvic Tilts (Beckenpendeln)** - 10 Wdh
+   - Im Rückenlage, Becken kippen und zurück
+
+3. **ADIM Activation** - 20 Sek
+   - Bauchnabel einziehen, Core anschalten
+
+4. **Dead Bug (warm-up)** - 5 pro Seite
+   - Langsam, Rücken fest am Boden
+
+5. **Hip Circles** - 10 pro Richtung (stehend)
+   - Hüftgelenk mobilisieren
+
+6. **Arm Circles** - 15 vorwärts + 15 rückwärts
+   - Schultern locker machen
+
+---
+
+## Gleitwirbel-spezifische Übungen (täglich einbauen)
+
+| Übung | Fokus | Serie | Wo einbauen |
+|-------|-------|-------|-------------|
+| ADIM | Tiefer Core | 3 x 30 Sek | Jeder Trainingstag |
+| Dead Bug | Core-Stabilität | 3 x 8 pro Seite | Mo/Di/Mi/Fr/Sa |
+| Bird Dog | Rücken + Core | 3 x 8 pro Seite | Di/Mi/Sa |
+| Glute Bridge | Gesäß + LWS-Schutz | 3 x 12 | Mo/Sa |
+| Side Plank (Knie) | Seitlicher Core | 3 x 30 Sek | Di/Do/Sa |
+| Pallof Press | Anti-Rotation | 3 x 10 | Mi/Fr |
+
+---
+
 ## Wochenplan
 
 | Tag | Fokus | Intensität | Dauer |
 |-----|-------|------------|-------|
-| **Montag** | Judo-Training | Hoch | 90-120 min |
+| **Montag** | Judo-Training | Hoch | 90 min |
 | **Dienstag** | Core-Stabilisation + Dehnen | Mittel | 45 min |
 | **Mittwoch** | Tiefer Core + Rücken | Mittel | 40 min |
 | **Donnerstag** | Dehnen + Beweglichkeit | Niedrig | 30 min |
-| **Freitag** | Judo-Training | Hoch | 90-120 min |
+| **Freitag** | Judo-Training | Hoch | 120 min |
 | **Samstag** | Core-Ausdauer + Hüfte | Mittel | 40 min |
 | **Sonntag** | Aktive Erholung / leichtes Dehnen | Niedrig | 20 min |
 

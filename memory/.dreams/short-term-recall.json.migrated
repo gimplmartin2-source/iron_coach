@@ -1,0 +1,1276 @@
+{
+  "version": 1,
+  "updatedAt": "2026-04-29T07:40:27.202Z",
+  "entries": {
+    "memory:memory/2026-04-05.md:34:46": {
+      "key": "memory:memory/2026-04-05.md:34:46",
+      "path": "memory/2026-04-05.md",
+      "startLine": 34,
+      "endLine": 46,
+      "source": "memory",
+      "snippet": "- Automatischer Google-Token-Refresh - Korrekte Video-Dateinamen - Die wöchentliche Analyse kann nicht laufen ohne Trainingsdaten-Import ## Commits (letzte Aktivität vom 4. April) - `[155f954]` Update workout video file (Datei umbenannt) - `[193ddca]` Add PUT /api/workouts/:id endpoint - `[2bb4809]` Add automatic token refresh for Backup/Restore - `[a0c1138]` Add refresh token support --- *Memory-Eintrag erstellt am 5. April 2026 um 23:25 Uhr*",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.5224153906106949,
+      "maxScore": 0.5224153906106949,
+      "firstRecalledAt": "2026-04-09T19:16:05.623Z",
+      "lastRecalledAt": "2026-04-09T19:16:05.623Z",
+      "queryHashes": [
+        "c587e7399696"
+      ],
+      "recallDays": [
+        "2026-04-09"
+      ],
+      "conceptTags": [
+        "backup",
+        "google-token-refresh",
+        "video-dateinamen",
+        "trainingsdaten-import",
+        "api/workouts",
+        "backup/restore",
+        "memory-eintrag",
+        "automatischer"
+      ]
+    },
+    "memory:memory/2026-03-30.md:73:104": {
+      "key": "memory:memory/2026-03-30.md:73:104",
+      "path": "memory/2026-03-30.md",
+      "startLine": 73,
+      "endLine": 104,
+      "source": "memory",
+      "snippet": "- ✅ **Integrierte Stopuhr**: Für direkte Zeitmessung bei Zeit-Übungen - ✅ **Standard-Übungen**: Werden nur bei erstem Login erstellt (kein Überschreiben mehr) - ✅ **Modularer Trainingsplan**: JSON-basiert, leicht austauschbar - ✅ **Workout-Liste**: Zeit-Übungen werden korrekt als Zeit formatiert (nicht als Kraft) ### Heute hinzugefügt: - ✅ **Optimiertes Layout**: Sätze für Zeit-Übungen in Zeile mit Ruhezeit/Gefühl ### Offene Punkte: - ⏳ Auto-Backup Test: Erfordert Neuanmeldung mit Google (neues JWT mit Access Token) - ⏳ GIF-Upload: Martin hat GIFs erwähnt (Satz war unterbrochen) - ⏳ Manuelle Übungen: Button für benutzerdefinierte Übungseingabe? --- ## Erkenntnisse ### U",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.519368925690651,
+      "maxScore": 0.519368925690651,
+      "firstRecalledAt": "2026-04-09T19:16:05.623Z",
+      "lastRecalledAt": "2026-04-09T19:16:05.623Z",
+      "queryHashes": [
+        "c587e7399696"
+      ],
+      "recallDays": [
+        "2026-04-09"
+      ],
+      "conceptTags": [
+        "backup",
+        "zeit-übungen",
+        "standard-übungen",
+        "json-basiert",
+        "workout-liste",
+        "ruhezeit/gefühl",
+        "auto-backup",
+        "gif-upload"
+      ]
+    },
+    "memory:memory/2026-03-29.md:43:65": {
+      "key": "memory:memory/2026-03-29.md:43:65",
+      "path": "memory/2026-03-29.md",
+      "startLine": 43,
+      "endLine": 65,
+      "source": "memory",
+      "snippet": "- [ ] Handy-Responsive Design (Martin bemängelt: \"sieht scheiße aus\") - [ ] Alte Workouts könnten noch falsch anzeigen (pre-fix Daten) ## Erkenntnisse ### Für nächstes Mal: - WebApp ist feature-complete für MVP - Priorität: Responsive Design für Mobile - Training-Timer und Plan-System funktionieren ### Technische Erkenntnisse: - SQLite CASE statements für Zeit-Übungen stabil - Modularer JSON-Ansatz für Trainingspläne funktioniert gut - Keine kritischen Bugs seit 27.03. --- ## Zusammenfassung **Wochenende/Ruhetag** - Keine neue Entwicklung. System läuft stabil mit allen Features vom 27.03. --- *Automatisch erstellt am 29.03.2026 um 14:40 CET*",
+      "recallCount": 5,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 2.4576791226863857,
+      "maxScore": 0.5158634424209595,
+      "firstRecalledAt": "2026-04-09T19:16:05.623Z",
+      "lastRecalledAt": "2026-04-23T07:14:58.540Z",
+      "queryHashes": [
+        "c587e7399696",
+        "ac8fa001d780",
+        "0fa2f29f718e",
+        "4209a58dbfaf",
+        "acf6b8f13837"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-11",
+        "2026-04-12",
+        "2026-04-13",
+        "2026-04-23"
+      ],
+      "conceptTags": [
+        "handy-responsive",
+        "pre-fix",
+        "feature-complete",
+        "training-timer",
+        "plan-system",
+        "zeit-übungen",
+        "json-ansatz",
+        "27.03"
+      ]
+    },
+    "memory:memory/2026-03-30.md:1:51": {
+      "key": "memory:memory/2026-03-30.md:1:51",
+      "path": "memory/2026-03-30.md",
+      "startLine": 1,
+      "endLine": 51,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-03-30 ## Gespräche heute ### Thema: Zeit-Übungen UI-Optimierung (14:00-14:40) **Session:** Topic 4 (Training) **Beteiligt:** Martin **Martin's Request:** > \"kannst du die sätze in die zeile von ruhezeit und gefühl geben und die obere so lassen wie sie war\" **Problem:** Die optionalen Sätze für Zeit-Übungen waren im oberen Zeilen-Block mit Datum und Dauer, das führte zu einem unübersichtlichen Layout. **Lösung:** Sätze-Input für Zeit-Übungen in die gemeinsame Zeile mit Ruhezeit und Gefühl verschoben. --- ## Arbeitsschritte ### 14:00-14:08: UI-Layout für Zeit-Übungen optimiert **HTML-Anpassungen in `webapp/public/index.html`:** 1. **Oberer Bl",
+      "recallCount": 4,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 2.036963739991188,
+      "maxScore": 0.5270841389894485,
+      "firstRecalledAt": "2026-04-09T19:16:05.623Z",
+      "lastRecalledAt": "2026-04-28T23:34:34.700Z",
+      "queryHashes": [
+        "c587e7399696",
+        "0fa2f29f718e",
+        "4190f98b3fbd",
+        "c99c73fc8f4d"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-12",
+        "2026-04-14",
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "zeit-übungen",
+        "ui-optimierung",
+        "00-14",
+        "zeilen-block",
+        "sätze-input",
+        "ui-layout",
+        "html-anpassungen",
+        "webapp/public/index.html"
+      ]
+    },
+    "memory:memory/2026-04-02.md:1:31": {
+      "key": "memory:memory/2026-04-02.md:1:31",
+      "path": "memory/2026-04-02.md",
+      "startLine": 1,
+      "endLine": 31,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-02 (Mittwoch) ## Gespräche heute - **23:23 Uhr**: Martin weist auf zwei Probleme in der Trainings-Tracker WebApp hin: - Nach dem Speichern einer Übung soll keine Übung mehr vorausgewählt sein - Man kann Übungen nicht ändern/bearbeiten - Er bittet mich, diese Fixes zu implementieren - **23:23 Uhr**: Ich bestätige die Probleme und starte sofort mit den Code-Änderungen - **23:24 Uhr**: Martin bemerkt System-Meldung über Gateway-Update-Fehler und bittet um erneuten Push-Versuch - **Früher am Tag**: Mehrere Versuche GitHub-Push via Telegram-Approvals zu ermöglichen, Martin hat aber wiederholt \"Deny\" geklickt, wir haben das Thema pausiert ## Arbeitsschritte (23:20",
+      "recallCount": 9,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 4.776268246576267,
+      "maxScore": 0.7313842175454665,
+      "firstRecalledAt": "2026-04-09T19:16:05.623Z",
+      "lastRecalledAt": "2026-04-28T23:34:34.700Z",
+      "queryHashes": [
+        "c587e7399696",
+        "ac8fa001d780",
+        "cac9751648d3",
+        "0fa2f29f718e",
+        "4209a58dbfaf",
+        "4190f98b3fbd",
+        "acf6b8f13837",
+        "c99c73fc8f4d"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-11",
+        "2026-04-12",
+        "2026-04-13",
+        "2026-04-14",
+        "2026-04-15",
+        "2026-04-23",
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "gateway",
+        "trainings-tracker",
+        "ändern/bearbeiten",
+        "code-änderungen",
+        "system-meldung",
+        "gateway-update-fehler",
+        "push-versuch",
+        "github-push"
+      ]
+    },
+    "memory:memory/2026-03-26.md:1:28": {
+      "key": "memory:memory/2026-03-26.md:1:28",
+      "path": "memory/2026-03-26.md",
+      "startLine": 1,
+      "endLine": 28,
+      "source": "memory",
+      "snippet": "# Memory - 2026-03-26 ## Tagesübersicht - **Datum:** Donnerstag, 26. März 2026 - **Letzte User-Aktivität:** 24. März 2026 (Technik-Implementierungen) ## Status - ✅ Memory-Check Cron läuft (12:30) - ⏸️ Keine neuen Trainingsdaten seit 24.03. - ⏸️ Keine neuen Gespräche ## Aktive Projekte - **Trainings Tracker Web App**: Live auf Render - URL: https://trainings-tracker.onrender.com - GitHub: https://github.com/james100claw-cmyk/trainings-tracker - Features: Google Drive Backup/Restore, gruppierte Übungen, Workout-Update ## Offene Punkte - [ ] Keep-Alive Cron einrichten (alle 10 Min) - ausstehend seit 24.03. - [ ] Martin's nächstes Training erfassen ## Medizinische",
+      "recallCount": 4,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.9741155266761778,
+      "maxScore": 0.5092114627361297,
+      "firstRecalledAt": "2026-04-09T19:16:05.623Z",
+      "lastRecalledAt": "2026-04-23T07:14:58.540Z",
+      "queryHashes": [
+        "c587e7399696",
+        "0fa2f29f718e",
+        "4209a58dbfaf",
+        "acf6b8f13837"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-12",
+        "2026-04-13",
+        "2026-04-23"
+      ],
+      "conceptTags": [
+        "backup",
+        "user-aktivität",
+        "technik-implementierungen",
+        "memory-check",
+        "24.03",
+        "trainings-tracker.onrender.com",
+        "backup/restore",
+        "workout-update"
+      ]
+    },
+    "memory:memory/2026-03-28.md:1:35": {
+      "key": "memory:memory/2026-03-28.md:1:35",
+      "path": "memory/2026-03-28.md",
+      "startLine": 1,
+      "endLine": 35,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-03-28 ## Gespräche heute - **Session mit Martin (Topic 4)** - Extensive Arbeit an der Trainings-Tracker WebApp - Thema: Zeit-Übungen korrekt im Workout-Formular speichern - Problem: Encoding-Fehler bei Edit-Operationen auf Windows/PowerShell ## Arbeitsschritte 1. **Rollback auf Commit 5fa9170** - Wiederherstellung des stabilen Stands - `git reset --hard 5fa9170` - `git push --force origin main` - Render-Deployment wurde ausgelöst 2. **Zeit-Übungen Fix analysiert** - Problem identifiziert - Zeit-Felder fehlten komplett im HTML - `toggleWorkoutFields()` existierte im JS, aber keine HTML-Elemente - Keine Umschaltung zwischen Kraft- und Zei",
+      "recallCount": 6,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 3.0655338332057,
+      "maxScore": 0.5400417432188988,
+      "firstRecalledAt": "2026-04-11T08:00:46.119Z",
+      "lastRecalledAt": "2026-04-14T23:14:44.825Z",
+      "queryHashes": [
+        "ac8fa001d780",
+        "cac9751648d3",
+        "0fa2f29f718e",
+        "4190f98b3fbd",
+        "572ee52581c4"
+      ],
+      "recallDays": [
+        "2026-04-11",
+        "2026-04-12",
+        "2026-04-14",
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "trainings-tracker",
+        "zeit-übungen",
+        "workout-formular",
+        "encoding-fehler",
+        "edit-operationen",
+        "windows/powershell",
+        "render-deployment",
+        "zeit-felder"
+      ]
+    },
+    "memory:memory/2026-03-29.md:1:53": {
+      "key": "memory:memory/2026-03-29.md:1:53",
+      "path": "memory/2026-03-29.md",
+      "startLine": 1,
+      "endLine": 53,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-03-29 ## Gespräche heute - **Keine aktiven Gespräche** mit Martin - Automatisierter Memory-Eintrag via Cron (14:40 CET / 12:40 UTC) - Letzte Aktivität: 27.03.2026 - 13 Commits, alle Features live ## Arbeitsschritte - [Keine aktiven Arbeitsschritte - Ruhetag/Wochenende] - Täglicher Memory-Check via Cron-Job durchgeführt - Speicherung dieses Memory-Eintrags ## Entscheidungen - [Keine neuen Entscheidungen getroffen] - Memory-Dokumentation bleibt aktiv ## Status WebApp ### Letzter Stand (aktuell - 27.03.2026): ✅ **13 Commits erfolgreich deployed:** 1. GIFs im Workout-Modal fix 2. Große Übungs-Vorschau 3. Zeit-Übungen SQLite Bug fix 4. Timer (Übungs-",
+      "recallCount": 8,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 4.3430285909539235,
+      "maxScore": 0.8046317153936398,
+      "firstRecalledAt": "2026-04-11T08:00:46.119Z",
+      "lastRecalledAt": "2026-04-29T07:40:27.202Z",
+      "queryHashes": [
+        "ac8fa001d780",
+        "cac9751648d3",
+        "0fa2f29f718e",
+        "4209a58dbfaf",
+        "4190f98b3fbd",
+        "572ee52581c4",
+        "384cd5df6683"
+      ],
+      "recallDays": [
+        "2026-04-11",
+        "2026-04-12",
+        "2026-04-13",
+        "2026-04-14",
+        "2026-04-15",
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "memory-eintrag",
+        "27.03.2026",
+        "ruhetag/wochenende",
+        "memory-check",
+        "cron-job",
+        "memory-eintrags",
+        "memory-dokumentation",
+        "workout-modal"
+      ]
+    },
+    "memory:memory/2026-04-01.md:1:23": {
+      "key": "memory:memory/2026-04-01.md:1:23",
+      "path": "memory/2026-04-01.md",
+      "startLine": 1,
+      "endLine": 23,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-01 ## Gespräche heute - **20:38 - 20:42**: Intensives Troubleshooting mit Martin zum Render-Deployment der Trainings-Tracker WebApp - Martin zeigte mir Live-Logs vom Render-Deploy, die Fehler `ENOENT: no such file or directory, stat '/opt/render/project/src/public/index.html'` anzeigten - Gemeinsam debuggten wir das Pfad-Problem mehrere Commits lang ## Arbeitsschritte - **20:30-20:35**: Ersten Fix implementiert - statischer Pfad prüft jetzt auf index.html Existenz (nicht nur Verzeichnis) - **20:35-20:38**: Commit `4dfde2f` gepusht, aber Logs zeigten Code wurde nicht korrekt deployt (Caching-Problem) - **20:38-20:40**: Zweiter Ansatz - expliziter Pfad mit `process.cwd(",
+      "recallCount": 3,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.4810273259878157,
+      "maxScore": 0.5039029091596603,
+      "firstRecalledAt": "2026-04-11T08:00:46.119Z",
+      "lastRecalledAt": "2026-04-14T23:14:44.825Z",
+      "queryHashes": [
+        "ac8fa001d780",
+        "0fa2f29f718e"
+      ],
+      "recallDays": [
+        "2026-04-11",
+        "2026-04-12",
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "render-deployment",
+        "trainings-tracker",
+        "live-logs",
+        "render-deploy",
+        "pfad-problem",
+        "30-20",
+        "index.html",
+        "35-20"
+      ]
+    },
+    "memory:memory/2026-04-08.md:1:32": {
+      "key": "memory:memory/2026-04-08.md:1:32",
+      "path": "memory/2026-04-08.md",
+      "startLine": 1,
+      "endLine": 32,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-08 ## Gespräche heute - **14:24**: Martin meldet - Trainingsplan-Integration soll neu gemacht werden (minimal invasiv) - **14:24**: Bug-Report: Kraft-Übungen mit 1 Satz werden automatisch als Zeit-Übungen gespeichert - **17:05**: Restore hat nicht funktioniert + Abmelde-Button soll besser sichtbar sein ## Arbeitsschritte (Nachmittag) - Trainingsplan-Integration Neu - **14:24**: Rollback zu Commit 8a25d2b durchgeführt - **14:45**: Server API für Trainingspläne erneut hinzugefügt (Tabelle + Endpoints) - **15:00**: training-plans.js erstellt mit Download/Upload Funktion - **15:10**: Minimal-invasives HTML Update: Plan-Verwaltung UI nur im Panel - **15:15**: Commit & Push",
+      "recallCount": 4,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.9684018820524214,
+      "maxScore": 0.5029092907905578,
+      "firstRecalledAt": "2026-04-11T08:00:46.119Z",
+      "lastRecalledAt": "2026-04-14T23:14:44.825Z",
+      "queryHashes": [
+        "ac8fa001d780",
+        "cac9751648d3",
+        "0fa2f29f718e"
+      ],
+      "recallDays": [
+        "2026-04-11",
+        "2026-04-12",
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "trainingsplan-integration",
+        "bug-report",
+        "kraft-übungen",
+        "zeit-übungen",
+        "abmelde-button",
+        "training-plans.js",
+        "download/upload",
+        "minimal-invasives"
+      ]
+    },
+    "memory:memory/2026-03-27.md:1:43": {
+      "key": "memory:memory/2026-03-27.md:1:43",
+      "path": "memory/2026-03-27.md",
+      "startLine": 1,
+      "endLine": 43,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-03-27 ## Gespräche heute 1. **Session mit Martin (Topic 4)** - Mobile Layout Optimierung - Problem: Datum-Feld war größer als andere Felder im Mobile-Layout - Rollback zu Commit `d9e4bf7` durchgeführt (3 Commits zurück) - Analyse der Mobile-Ansicht (iPhone-Size 390x844) ## Arbeitsschritte ### WebApp CSS-Fixes (3 Commits erstellt, dann gerollbackt) 1. **Commit 1**: Grid-Layout für Formularfelder - Formulare jetzt im Grid: 4 Spalten Desktop, 2 Spalten Mobile - Timer-Buttons konsistente Positionierung 2. **Commit 2**: Datum-Feld exakte Größenanpassung - height/max-height/line-height: 48px - padding: 0 12px für konsistente Breite",
+      "recallCount": 3,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.4962122634053228,
+      "maxScore": 0.5298809841275215,
+      "firstRecalledAt": "2026-04-11T08:00:46.119Z",
+      "lastRecalledAt": "2026-04-14T07:14:59.375Z",
+      "queryHashes": [
+        "ac8fa001d780",
+        "0fa2f29f718e",
+        "4190f98b3fbd"
+      ],
+      "recallDays": [
+        "2026-04-11",
+        "2026-04-12",
+        "2026-04-14"
+      ],
+      "conceptTags": [
+        "datum-feld",
+        "mobile-layout",
+        "mobile-ansicht",
+        "iphone-size",
+        "css-fixes",
+        "grid-layout",
+        "timer-buttons",
+        "height/max-height/line-height"
+      ]
+    },
+    "memory:memory/2026-03-22.md:1:45": {
+      "key": "memory:memory/2026-03-22.md:1:45",
+      "path": "memory/2026-03-22.md",
+      "startLine": 1,
+      "endLine": 45,
+      "source": "memory",
+      "snippet": "# Memory - 2026-03-22 **Agent**: IronCoach **Session**: Memory-Check / Wartung --- ## Gespräche & Entscheidungen *Noch keine Einträge für heute.* --- ## Memory System Wartung ### Cron-Checks durchgeführt - **01:56 UTC**: Keine neuen Gesprächsdaten - **05:56 UTC**: Keine neuen Gesprächsdaten - **20:56 UTC**: Keine neuen Gesprächsdaten - Nächster Check: Morgen --- ## Kontext aus vorherigen Tagen - **Aktive Projekte** (aus 2026-03-21): - Trainings Tracker Web App (in Planung) - Trainingsplan für Martin existiert: `trainingsplan_gleitwirbel.md` - **User-Info**: - Name: Martin - Medizinisch: Gleitwirbel → Core-Training muss tiefen Rumpf (Transve",
+      "recallCount": 4,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.9804410323500632,
+      "maxScore": 0.5348847076296805,
+      "firstRecalledAt": "2026-04-11T08:00:46.119Z",
+      "lastRecalledAt": "2026-04-14T07:14:59.375Z",
+      "queryHashes": [
+        "ac8fa001d780",
+        "cac9751648d3",
+        "0fa2f29f718e",
+        "4190f98b3fbd"
+      ],
+      "recallDays": [
+        "2026-04-11",
+        "2026-04-12",
+        "2026-04-14"
+      ],
+      "conceptTags": [
+        "memory-check",
+        "cron-checks",
+        "trainingsplan-gleitwirbel.md",
+        "user-info",
+        "core-training",
+        "ironcoach",
+        "check",
+        "wartung"
+      ]
+    },
+    "memory:memory/2026-04-10.md:1:32": {
+      "key": "memory:memory/2026-04-10.md:1:32",
+      "path": "memory/2026-04-10.md",
+      "startLine": 1,
+      "endLine": 32,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-10 ## Gespräche heute - **17:59 Uhr (ca.)**: Cron-Job für täglichen Memory-Eintrag gestartet (diese Session) - **Früher heute**: Session in Topic 4 (James Headquater) mit Martin über WebApp-Updates - Martin bat um Anzeige der Statistiken (\"statis\") - Martin informierte über neue WebApp-URL: `https://trainings-tracker-7kuw.onrender.com/` - Diskussion über Login für Statistiken (nicht finalisiert) ## Arbeitsschritte - **17:59 Uhr - 18:05 Uhr**: Analyse der heutigen Sessions und Gespräche - **Frühere Session (Topic 4)**: - Komplette Überarbeitung des Trainingsplans in `public/index.html` - Alle 7 Tage auf einheitliches Tabellen-Format umgestellt - Judo-Zeiten",
+      "recallCount": 5,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 2.583779169619083,
+      "maxScore": 0.5558898717164993,
+      "firstRecalledAt": "2026-04-11T16:00:49.105Z",
+      "lastRecalledAt": "2026-04-14T23:14:44.825Z",
+      "queryHashes": [
+        "cac9751648d3",
+        "0fa2f29f718e",
+        "4190f98b3fbd",
+        "572ee52581c4",
+        "ac8fa001d780"
+      ],
+      "recallDays": [
+        "2026-04-11",
+        "2026-04-12",
+        "2026-04-14",
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "cron-job",
+        "memory-eintrag",
+        "webapp-updates",
+        "webapp-url",
+        "public/index.html",
+        "tabellen-format",
+        "judo-zeiten",
+        "ironcoach"
+      ]
+    },
+    "memory:memory/2026-04-11.md:1:24": {
+      "key": "memory:memory/2026-04-11.md:1:24",
+      "path": "memory/2026-04-11.md",
+      "startLine": 1,
+      "endLine": 24,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-11 (Samstag) ## Gespräche heute - **02:00 Uhr**: Cron-Job gestartet für täglichen Memory-Eintrag - **10:42 Uhr**: Sub-Agent Task Timeout - Trainingsplan-Update gescheitert - **10:52 Uhr**: Martin sagt \"Ja mach selbst\" → Übernahme der Aufgabe - **10:53-11:56 Uhr**: Vollständiger Trainingsplan-Update durchgeführt und deployed - **11:56 Uhr**: Martin fragt mit \"?\" nach → Zusammenfassung gegeben - **12:04 Uhr**: Martin schreibt \"statis\" → Will Statistiken sehen - **12:09 Uhr**: Entdeckt dass alte URL suspended ist - **13:08 Uhr**: Martin teilt neue URL mit: `https://trainings-tracker-7kuw.onrender.com/` - **13:10 Uhr**: Login-Screen blockiert Statistik-Zugriff → Login-Date",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.207045842337968,
+      "maxScore": 0.7182942520860454,
+      "firstRecalledAt": "2026-04-11T16:00:49.105Z",
+      "lastRecalledAt": "2026-04-12T16:00:54.112Z",
+      "queryHashes": [
+        "cac9751648d3",
+        "0fa2f29f718e"
+      ],
+      "recallDays": [
+        "2026-04-11",
+        "2026-04-12"
+      ],
+      "conceptTags": [
+        "cron-job",
+        "memory-eintrag",
+        "sub-agent",
+        "trainingsplan-update",
+        "53-11",
+        "login-screen",
+        "statistik-zugriff",
+        "login-date"
+      ]
+    },
+    "memory:memory/2026-03-21.md:1:48": {
+      "key": "memory:memory/2026-03-21.md:1:48",
+      "path": "memory/2026-03-21.md",
+      "startLine": 1,
+      "endLine": 48,
+      "source": "memory",
+      "snippet": "# Memory - 2026-03-21 **Agent**: IronCoach **Session**: Planung Trainings-Tracker --- ## Gespräche & Entscheidungen ### Memory-System Umstellung - **Entscheidung**: Umstellung von monolithischer MEMORY.md auf tägliche Dateien - **Grund**: Bessere Nachvollziehbarkeit und Kontext-Erhaltung - **Struktur**: `memory/YYYY-MM-DD.md` ## Aktive Tasks - [IN-PROGRESS] Trainings Tracker Web App planen - **[ERLEDIGT]** Trainingsplan für Gleitwirbel erstellen (Dokument: `trainingsplan_gleitwirbel.md`) ## Neue Informationen - User will sich an alle wichtigen Info erinnern können - Tägliche Dateien als Lösung vereinbart - **Medizinisch**: Martin hat Gleitwirbel → Core-Training m",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.4821903586387634,
+      "maxScore": 0.4821903586387634,
+      "firstRecalledAt": "2026-04-11T16:00:49.105Z",
+      "lastRecalledAt": "2026-04-11T16:00:49.105Z",
+      "queryHashes": [
+        "cac9751648d3"
+      ],
+      "recallDays": [
+        "2026-04-11"
+      ],
+      "conceptTags": [
+        "trainings-tracker",
+        "memory-system",
+        "memory.md",
+        "kontext-erhaltung",
+        "memory/yyyy-mm-dd.md",
+        "in-progress",
+        "trainingsplan-gleitwirbel.md",
+        "core-training"
+      ]
+    },
+    "memory:memory/2026-04-03.md:1:38": {
+      "key": "memory:memory/2026-04-03.md:1:38",
+      "path": "memory/2026-04-03.md",
+      "startLine": 1,
+      "endLine": 38,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-03 (Donnerstag/Freitag) ## Gespräche heute - **14:45 Uhr**: Session start - Martin fordert mehrere Änderungen: - Token-Popup bei Google-Login entfernen - Stattdessen automatisches Restore vom Google Drive beim Laden - Falls kein Backup existiert: Standard-Übungen anlegen lassen - **15:03 Uhr**: Martin fragt \"hast du gepusht\" - Bestätigung mit Commit-ID - **15:19 Uhr**: Martin meldet Fehler: \"sqlite error table workouts has no column named duration_seconds\" - Auch Kraft-Übungen konnten nicht mehr gespeichert werden - **15:31 Uhr**: Wichtige Anweisung von Martin: **\"Immer die Push-Nummer mit dazu schreiben wenn du etwas pushst\"** - **15:57 Uh",
+      "recallCount": 7,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 3.7649025407210743,
+      "maxScore": 0.6879165929333129,
+      "firstRecalledAt": "2026-04-11T16:00:49.105Z",
+      "lastRecalledAt": "2026-04-29T07:40:27.202Z",
+      "queryHashes": [
+        "cac9751648d3",
+        "0fa2f29f718e",
+        "bd75f054a7e9",
+        "4209a58dbfaf",
+        "4190f98b3fbd",
+        "c99c73fc8f4d",
+        "384cd5df6683"
+      ],
+      "recallDays": [
+        "2026-04-11",
+        "2026-04-12",
+        "2026-04-13",
+        "2026-04-14",
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "backup",
+        "donnerstag/freitag",
+        "token-popup",
+        "google-login",
+        "standard-übungen",
+        "commit-id",
+        "duration-seconds",
+        "kraft-übungen"
+      ]
+    },
+    "memory:memory/2026-03-23.md:1:18": {
+      "key": "memory:memory/2026-03-23.md:1:18",
+      "path": "memory/2026-03-23.md",
+      "startLine": 1,
+      "endLine": 18,
+      "source": "memory",
+      "snippet": "# Memory - 2026-03-23 ## Tagesübersicht - **Datum:** Montag, 23. März 2026 - **Letzte Aktivität:** Keine Gespräche ## Status - Keine neuen Trainingsdaten - Keine neuen Entscheidungen - Memory-Struktur geprüft und bereit ## Offene Punkte - Trainings Tracker Web App weiterhin in Planung - trainingsplan_gleitwirbel.md aktiv (Judo Montag/Freitag) --- *Automatisch erstellt durch Memory-Check Cron*",
+      "recallCount": 3,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.4907019466161726,
+      "maxScore": 0.5109953194856643,
+      "firstRecalledAt": "2026-04-12T16:00:54.112Z",
+      "lastRecalledAt": "2026-04-23T07:14:58.540Z",
+      "queryHashes": [
+        "0fa2f29f718e",
+        "4209a58dbfaf",
+        "acf6b8f13837"
+      ],
+      "recallDays": [
+        "2026-04-12",
+        "2026-04-13",
+        "2026-04-23"
+      ],
+      "conceptTags": [
+        "memory-struktur",
+        "trainingsplan-gleitwirbel.md",
+        "montag/freitag",
+        "memory-check",
+        "tagesübersicht",
+        "datum",
+        "montag",
+        "märz"
+      ]
+    },
+    "memory:memory/2026-04-02.md:26:54": {
+      "key": "memory:memory/2026-04-02.md:26:54",
+      "path": "memory/2026-04-02.md",
+      "startLine": 26,
+      "endLine": 54,
+      "source": "memory",
+      "snippet": "- **23:25**: Beginn der Deklaration von `editingExerciseId` als separate Variable ## Entscheidungen - **Entschieden**: Beide Fixes werden nacheinander implementiert statt gleichzeitig - so können wir jeden einzeln testen - **Entschieden**: Reset erfolgt direkt im `addWorkout` Callback nach erfolgreichem Speichern - so ist der Zustand sofort konsistent - **Entschieden**: Keine GitHub-Push-Versuche mehr bis Martin aktiv \"Approve\" in Telegram klickt ## Status WebApp **Aktueller Stand:** - ✅ Fix #1 implementiert: Dropdown reset nach Speichern - 🔄 Fix #2 in Arbeit: Übungen editierbar machen (Scope-Variable hinzufügen) - ⏳ GitHub Push ausstehend (wartet auf Approval) **Offene Punkte:** 1. Üb",
+      "recallCount": 3,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.669418510793395,
+      "maxScore": 0.7172049611794424,
+      "firstRecalledAt": "2026-04-12T16:00:54.112Z",
+      "lastRecalledAt": "2026-04-23T07:14:58.540Z",
+      "queryHashes": [
+        "0fa2f29f718e",
+        "4209a58dbfaf",
+        "acf6b8f13837"
+      ],
+      "recallDays": [
+        "2026-04-12",
+        "2026-04-13",
+        "2026-04-23"
+      ],
+      "conceptTags": [
+        "github-push-versuche",
+        "scope-variable",
+        "beginn",
+        "deklaration",
+        "editingexerciseid",
+        "als",
+        "separate",
+        "variable"
+      ]
+    },
+    "memory:memory/2026-04-09.md:1:33": {
+      "key": "memory:memory/2026-04-09.md:1:33",
+      "path": "memory/2026-04-09.md",
+      "startLine": 1,
+      "endLine": 33,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-09 ## Gespräche heute ### Gespräch 1: Hallo & Trainingsplan-Update (ca. 14:00-14:45) - **14:38**: Martin sagt \"Hallo\" im Telegram-Topic 4 (Training) - **14:40**: Martin fragt: \"Hast du den Trainings Plan aktualisiert\" - **14:43**: Ich lese den aktuellen Plan (trainingsplan_gleitwirbel.md) - **14:45**: Status-Update: Plan existiert seit 21.03.2026, letzte Aktualisierung war damals - **14:45**: Martin sagt \"Ich meine so wie du es schon gesagt hast\" - bezieht sich auf frühere Konversation mit James - **14:46**: Ich prüfe TODO.md und Memory - Tasks für Trainingsplan-Anpassung sind im TODO als \"Offen\" markiert - **14:48**: Es stellt sich heraus: Die JSON-Trainingsplan-Date",
+      "recallCount": 5,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 2.8668496705928415,
+      "maxScore": 0.8166525565424532,
+      "firstRecalledAt": "2026-04-12T16:00:54.112Z",
+      "lastRecalledAt": "2026-04-29T07:40:27.202Z",
+      "queryHashes": [
+        "0fa2f29f718e",
+        "4209a58dbfaf",
+        "4190f98b3fbd",
+        "c99c73fc8f4d",
+        "384cd5df6683"
+      ],
+      "recallDays": [
+        "2026-04-12",
+        "2026-04-13",
+        "2026-04-14",
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "trainingsplan-update",
+        "00-14",
+        "telegram-topic",
+        "trainingsplan-gleitwirbel.md",
+        "status-update",
+        "21.03.2026",
+        "todo.md",
+        "trainingsplan-anpassung"
+      ]
+    },
+    "memory:memory/2026-03-24.md:36:52": {
+      "key": "memory:memory/2026-03-24.md:36:52",
+      "path": "memory/2026-03-24.md",
+      "startLine": 36,
+      "endLine": 52,
+      "source": "memory",
+      "snippet": "2. **Client-Seite:** `restoreFromDrive()` wird beim DOMContentLoaded aufgerufen 3. **Reihenfolge:** - Restore zuerst → Seite neu laden - Dann Standardübungen erstellen (nur wenn keine vorhanden) 4. **Wichtige Änderung:** Code verhindert Restore nur wenn lokale **WORKOUTS** vorhanden sind **Code-Locations:** - `webapp/server.js`: Zeile ~695-750 (Restore-API) - `webapp/public/app.js`: Zeile ~35-85 (Restore beim Login) **Nächste Schritte:** - Keep-Alive Cron einrichten (alle 10 Min) ### Links - GitHub: https://github.com/james100claw-cmyk/trainings-tracker - Live: https://trainings-tracker.onrender.com",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.5094758629798889,
+      "maxScore": 0.5094758629798889,
+      "firstRecalledAt": "2026-04-12T18:08:33.553Z",
+      "lastRecalledAt": "2026-04-12T18:08:33.553Z",
+      "queryHashes": [
+        "bd75f054a7e9"
+      ],
+      "recallDays": [
+        "2026-04-12"
+      ],
+      "conceptTags": [
+        "client-seite",
+        "code-locations",
+        "webapp/server.js",
+        "695-750",
+        "restore-api",
+        "webapp/public/app.js",
+        "35-85",
+        "keep-alive"
+      ]
+    },
+    "memory:memory/2026-04-10.md:27:35": {
+      "key": "memory:memory/2026-04-10.md:27:35",
+      "path": "memory/2026-04-10.md",
+      "startLine": 27,
+      "endLine": 35,
+      "source": "memory",
+      "snippet": "- **Neue URL**: https://trainings-tracker-7kuw.onrender.com/ (Martin hat neuen Link bereitgestellt) - **Offene Punkte**: Statistiken-Seite erfordert Login (noch nicht finalisiert) - **Letzter Commit**: 80329ba (Trainingsplan-Update) ## Erkenntnisse - Die WebApp scheint bei Render neu deployed worden zu sein (neue URL) - Login-Daten (james100claw@gmail.com / P8hFM$@PwlPNz5) sind für zukünftige automatisierte Zugriffe verfügbar - Browser-Automation für Logins kann komplex sein - evtl. direkter API-Zugriff oder Screenshots bevorzugen",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.0355461478233337,
+      "maxScore": 0.5378879994153976,
+      "firstRecalledAt": "2026-04-12T18:08:33.553Z",
+      "lastRecalledAt": "2026-04-14T15:14:43.121Z",
+      "queryHashes": [
+        "bd75f054a7e9",
+        "572ee52581c4"
+      ],
+      "recallDays": [
+        "2026-04-12",
+        "2026-04-14"
+      ],
+      "conceptTags": [
+        "statistiken-seite",
+        "trainingsplan-update",
+        "login-daten",
+        "gmail.com",
+        "browser-automation",
+        "api-zugriff",
+        "neue",
+        "url"
+      ]
+    },
+    "memory:memory/2026-04-08.md:49:58": {
+      "key": "memory:memory/2026-04-08.md:49:58",
+      "path": "memory/2026-04-08.md",
+      "startLine": 49,
+      "endLine": 58,
+      "source": "memory",
+      "snippet": "- **19:59**: Server-Code analysiert - Restore Endpunkt nutzt `/api/restore` und prüft `req.user.googleAccessToken` - **Erkenntnis**: Das Google Access Token ist nur beim frischen Login im JWT - bei späteren Sessions fehlt es - **Lösungsansatz**: Server sollte auch mit Refresh Token aus DB arbeiten können, nicht nur aus JWT ## Ergebnis - ✅ Trainingsplan-Integration minimal - ✅ Bug: 1 Satz Kraft-Übungen fix - ✅ Logout-Button verbessert - ⚠️ Restore: Noch nicht zuverlässig - Google Token aus JWT fehlt nach Session-Timeout",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.49504904747009276,
+      "maxScore": 0.49504904747009276,
+      "firstRecalledAt": "2026-04-12T18:08:33.553Z",
+      "lastRecalledAt": "2026-04-12T18:08:33.553Z",
+      "queryHashes": [
+        "bd75f054a7e9"
+      ],
+      "recallDays": [
+        "2026-04-12"
+      ],
+      "conceptTags": [
+        "server-code",
+        "api/restore",
+        "req.user.googleaccesstoken",
+        "trainingsplan-integration",
+        "kraft-übungen",
+        "logout-button",
+        "session-timeout",
+        "server"
+      ]
+    },
+    "memory:memory/2026-03-24.md:1:43": {
+      "key": "memory:memory/2026-03-24.md:1:43",
+      "path": "memory/2026-03-24.md",
+      "startLine": 1,
+      "endLine": 43,
+      "source": "memory",
+      "snippet": "# Memory - 2026-03-24 ## Gespräche & Entscheidungen - [x] Cron Memory-Check um 07:30 durchgeführt - [x] Cron Memory-Check um 12:30 durchgeführt - [ ] Keine neuen User-Gespräche seit 07:30 ## Neue User-Infos - [ ] Keine neuen Informationen ## Aktive Tasks - Trainings Tracker Web App (in Planung) - Aktiver Trainingsplan: trainingsplan_gleitwirbel.md ## Training-Status - Letztes Update: 2026-03-23 - Prüfung erforderlich: Gestriges Training erfasst? --- *Cron-Checks: 02:30 ✓ | 07:30 ✓ - Keine neuen Gesprächsdaten.* ## Nachmittagssession (ab 10:50) ### Technische Implementierungen - ✅ PUT Route für Workout-Update hinzugefügt - ✅ Übungen Dropdown jetzt nach Muskelgrup",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.48790769577026366,
+      "maxScore": 0.48790769577026366,
+      "firstRecalledAt": "2026-04-12T18:08:33.553Z",
+      "lastRecalledAt": "2026-04-12T18:08:33.553Z",
+      "queryHashes": [
+        "bd75f054a7e9"
+      ],
+      "recallDays": [
+        "2026-04-12"
+      ],
+      "conceptTags": [
+        "memory-check",
+        "user-gespräche",
+        "user-infos",
+        "trainingsplan-gleitwirbel.md",
+        "training-status",
+        "cron-checks",
+        "workout-update",
+        "gespräche"
+      ]
+    },
+    "memory:memory/2026-04-03.md:79:115": {
+      "key": "memory:memory/2026-04-03.md:79:115",
+      "path": "memory/2026-04-03.md",
+      "startLine": 79,
+      "endLine": 115,
+      "source": "memory",
+      "snippet": "- **Entschieden**: Fallback statt hartem Fehler bei `duration_seconds` - robustere Lösung für Render-Deployments - **Entschieden**: Zukünftig immer Commit-Hash mitliefern bei Push-Benachrichtigungen - **Entschieden**: Standard-Übungen exakt auf Video-Dateinamen abstimmen für konsistentes Matching --- ## Status WebApp ### Heute implementiert: - ✅ **Token-Popup entfernt** - Keine manuelle Eingabe mehr nötig - ✅ **Automatisches Frontend-Restore** - Google Drive Backup beim Laden - ✅ **Automatisches Backend-Restore** - `/api/restore` Endpoint gefixt - ✅ **Standard-Übungen als Fallback** - 37 Übungen für neue User - ✅ **`duration_seconds` Hotfix** - Robustes Error-Handling für feh",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.48549075126647945,
+      "maxScore": 0.48549075126647945,
+      "firstRecalledAt": "2026-04-12T18:08:33.553Z",
+      "lastRecalledAt": "2026-04-12T18:08:33.553Z",
+      "queryHashes": [
+        "bd75f054a7e9"
+      ],
+      "recallDays": [
+        "2026-04-12"
+      ],
+      "conceptTags": [
+        "backup",
+        "duration-seconds",
+        "render-deployments",
+        "commit-hash",
+        "push-benachrichtigungen",
+        "standard-übungen",
+        "video-dateinamen",
+        "token-popup"
+      ]
+    },
+    "memory:memory/2026-04-12.md:1:25": {
+      "key": "memory:memory/2026-04-12.md:1:25",
+      "path": "memory/2026-04-12.md",
+      "startLine": 1,
+      "endLine": 25,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-12 ## Gespräche heute - **10:00 Uhr**: Cron-Job für täglichen Memory-Eintrag erhalten - automatisch ausgeführt - **~12:00 Uhr**: Martin fragt wegen Problem mit \"Bankdrücken Kurzhantel\" Video in der WebApp - es wird nicht angezeigt (schwarzes Bild) - **~12:30 Uhr**: Martin berichtet 500er Fehler bei `/api/training-plans` - ich analysiere beide Probleme - **~13:00 Uhr**: Ich finde und fixe das Video-Mapping-Problem - Dateiname war falsch (Kurzhanteln statt Kurzhantel) - **~13:10 Uhr**: Commit und Push des Fixes erfolgreich durchgeführt ## Arbeitsschritte 1. **Memory-Eintrag erstellen**: Cron-Job empfangen, Sessions analysiert, Gespräche dokumentiert 2. **Trainingsplan-R",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.7213130622713537,
+      "maxScore": 0.7213130622713537,
+      "firstRecalledAt": "2026-04-13T00:01:02.336Z",
+      "lastRecalledAt": "2026-04-13T00:01:02.336Z",
+      "queryHashes": [
+        "4209a58dbfaf"
+      ],
+      "recallDays": [
+        "2026-04-13"
+      ],
+      "conceptTags": [
+        "cron-job",
+        "memory-eintrag",
+        "api/training-plans",
+        "video-mapping-problem",
+        "trainingsplan-r",
+        "ironcoach",
+        "gespräche",
+        "heute"
+      ]
+    },
+    "memory:memory/2026-04-11.md:1:31": {
+      "key": "memory:memory/2026-04-11.md:1:31",
+      "path": "memory/2026-04-11.md",
+      "startLine": 1,
+      "endLine": 31,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-11 (Samstag) ## Gespräche heute - **02:00 Uhr**: Cron-Job für täglichen Memory-Eintrag gestartet - **10:52 Uhr**: Martin sagt \"Ja mach selbst\" → Übernahme der Aufgabe statt Sub-Agent - **10:53-11:56 Uhr**: Vollständiger Trainingsplan-Update durchgeführt und deployed - **11:56 Uhr**: Martin fragt mit \"?\" nach → Zusammenfassung gegeben - **12:00 Uhr**: Martin berichtet Problem - Bild bei \"Bankdrücken Kurzhantel\" bleibt schwarz - **12:00-12:04 Uhr**: Analyse des Video-Problems: - Datei war mit falschem Zeichen auf dem Lokal-System (\"Bankdr�cken\" mit defektem Encoding) - Martin hat Datei neu auf GitHub hochgeladen mit korrektem \"ü\" - Aber: Mapping in video-mappings.j",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.2198417234353702,
+      "maxScore": 0.7141841846637409,
+      "firstRecalledAt": "2026-04-13T00:01:02.336Z",
+      "lastRecalledAt": "2026-04-14T23:14:44.825Z",
+      "queryHashes": [
+        "4209a58dbfaf",
+        "ac8fa001d780"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "cron-job",
+        "memory-eintrag",
+        "sub-agent",
+        "53-11",
+        "trainingsplan-update",
+        "00-12",
+        "video-problems",
+        "lokal-system"
+      ]
+    },
+    "memory:memory/2026-04-14.md:1:31": {
+      "key": "memory:memory/2026-04-14.md:1:31",
+      "path": "memory/2026-04-14.md",
+      "startLine": 1,
+      "endLine": 31,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-14 ## Gespräche heute - **Keine Gespräche mit Martin** - Keine aktiven Trainingseinheiten oder Anfragen heute. - **09:14 Uhr**: Cron-gesteuerte Memory-Erinnerung erhalten und ausgeführt (erneuter Check). ## Arbeitsschritte - **09:14-09:16**: Täglichen Memory-Eintrag aktualisiert. - Session-Check durchgeführt: Keine IronCoach-spezifischen User-Interaktionen in den letzten 24 Stunden gefunden. - **Wichtige Erkenntnis**: Keine aktiven Arbeiten an der WebApp seit letztem Commit (länger zurückliegend). ## Entscheidungen - Keine Entscheidungen nötig - keine aktiven Aufgaben oder Anfragen. - Entschieden: Memory-System bleibt auch bei Inaktivität aktiv für Kontinuität. ## S",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.54402115046978,
+      "maxScore": 0.54402115046978,
+      "firstRecalledAt": "2026-04-14T15:14:43.121Z",
+      "lastRecalledAt": "2026-04-14T15:14:43.121Z",
+      "queryHashes": [
+        "572ee52581c4"
+      ],
+      "recallDays": [
+        "2026-04-14"
+      ],
+      "conceptTags": [
+        "cron-gesteuerte",
+        "memory-erinnerung",
+        "14-09",
+        "memory-eintrag",
+        "session-check",
+        "ironcoach-spezifischen",
+        "user-interaktionen",
+        "memory-system"
+      ]
+    },
+    "memory:memory/2026-04-13.md:1:24": {
+      "key": "memory:memory/2026-04-13.md:1:24",
+      "path": "memory/2026-04-13.md",
+      "startLine": 1,
+      "endLine": 24,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-13 (Montag) ## Gespräche heute - **08:22 Uhr**: Martin fragt nach Statistiken der Trainings-App. WebApp war suspended, er gibt neue URL: `https://trainings-tracker-7kuw.onrender.com/` - **08:27 Uhr**: Martin meldet \"?\" nach dem Trainingsplan-Update - er möchte Details sehen - **09:14 Uhr**: Martin fragt warum \"Bankdrücken Kurzhantel\" nicht angezeigt wird - **09:17 Uhr**: Martin sagt er hat die Datei neu auf GitHub hochgeladen mit korrektem Namen - **09:21 Uhr**: Martin schickt Console-Logs mit 500er Fehler bei `/api/training-plans` - **09:29 Uhr**: Martin schickt Screenshot - Vorschau bleibt schwarz - **09:42 Uhr**: Martin bittet um Fix und Code-Prüfung auf alte Beding",
+      "recallCount": 3,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.6999499830807254,
+      "maxScore": 0.6912656191195057,
+      "firstRecalledAt": "2026-04-14T23:14:44.825Z",
+      "lastRecalledAt": "2026-04-28T23:34:34.700Z",
+      "queryHashes": [
+        "ac8fa001d780",
+        "acf6b8f13837",
+        "c99c73fc8f4d"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-23",
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "trainings-app",
+        "trainingsplan-update",
+        "console-logs",
+        "api/training-plans",
+        "code-prüfung",
+        "ironcoach",
+        "montag",
+        "gespräche"
+      ]
+    },
+    "memory:memory/2026-04-14.md:1:27": {
+      "key": "memory:memory/2026-04-14.md:1:27",
+      "path": "memory/2026-04-14.md",
+      "startLine": 1,
+      "endLine": 27,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-14 ## Gespräche heute - **Keine Gespräche mit Martin** - Keine aktiven Trainingseinheiten oder Anfragen heute. - **09:14 Uhr**: Cron-gesteuerte Memory-Erinnerung erhalten und ausgeführt (erneuter Check). - **15:14 Uhr**: Zweiter Cron-gestuerter Memory-Check (Nachmittag) - Keine neuen Gespraeche. ## Arbeitsschritte - **09:14-09:16**: Täglichen Memory-Eintrag aktualisiert. - **15:14-15:17**: Zweiter Memory-Check durchgefuehrt. Session-Liste geprueft - weiterhin keine IronCoach-spezifischen User-Interaktionen. - Session-Check durchgeführt: Keine IronCoach-spezifischen User-Interaktionen in den letzten 24 Stunden gefunden. - **Wichtige Erkenntnis**: Keine aktiven Arbeiten",
+      "recallCount": 3,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.535876952111721,
+      "maxScore": 0.5405717119574547,
+      "firstRecalledAt": "2026-04-14T23:14:44.825Z",
+      "lastRecalledAt": "2026-04-29T07:40:27.202Z",
+      "queryHashes": [
+        "ac8fa001d780",
+        "acf6b8f13837",
+        "384cd5df6683"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-23",
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "cron-gesteuerte",
+        "memory-erinnerung",
+        "cron-gestuerter",
+        "memory-check",
+        "14-09",
+        "memory-eintrag",
+        "14-15",
+        "session-liste"
+      ]
+    },
+    "memory:memory/2026-04-14.md:21:34": {
+      "key": "memory:memory/2026-04-14.md:21:34",
+      "path": "memory/2026-04-14.md",
+      "startLine": 21,
+      "endLine": 34,
+      "source": "memory",
+      "snippet": "- **Offene Punkte aus vorherigen Sessions** (noch zu klären): - JSON-Trainingsplan-Datei vs. Markdown - Abstimmung erforderlich - Statistik-Anzeige im Dashboard - Martin hat \"statis\" angefragt (aus Memory 2026-04-10) - Keine Bug-Reports oder Feature-Requests heute bearbeitet. ## Erkenntnisse - **WebApp scheint stabil** - Keine Fehlermeldungen oder Rollbacks nötig. - **Martin möglichweise im Trainings-Modus** - Keine Aktivität heute deutet auf regulären Rhythmus hin. - **Nächster Schritt bei Aktivierung**: JSON/Datenformat für Trainingsplan mit Martin abstimmen. --- *Eintrag erstellt/aktualisiert durch: IronCoach Memory-Cron* *Letzte Aktualisierung: 15:14 CET - Nachmittags-Check durchge",
+      "recallCount": 4,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 2.0730201080441475,
+      "maxScore": 0.5458392411470413,
+      "firstRecalledAt": "2026-04-14T23:14:44.825Z",
+      "lastRecalledAt": "2026-04-29T07:40:27.202Z",
+      "queryHashes": [
+        "ac8fa001d780",
+        "acf6b8f13837",
+        "c99c73fc8f4d",
+        "384cd5df6683"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-23",
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "json-trainingsplan-datei",
+        "statistik-anzeige",
+        "bug-reports",
+        "feature-requests",
+        "trainings-modus",
+        "json/datenformat",
+        "erstellt/aktualisiert",
+        "memory-cron"
+      ]
+    },
+    "memory:memory/2026-04-15.md:1:35": {
+      "key": "memory:memory/2026-04-15.md:1:35",
+      "path": "memory/2026-04-15.md",
+      "startLine": 1,
+      "endLine": 35,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-15 (Dienstag) ## Gespräche heute - **01:14 Uhr**: Cron-gesteuerte Memory-Erinnerung erhalten und ausgeführt. - **Keine Gespräche mit Martin** - Keine aktiven Trainingseinheiten oder Anfragen seit Mitternacht. ## Arbeitsschritte - **01:14-01:16**: Täglichen Memory-Eintrag erstellt und gespeichert. - Sessions der letzten 24 Stunden analysiert: Keine IronCoach-spezifischen User-Interaktionen gefunden. - Memory-System prüft weiterhin automatisch auf neue Aktivitäten. ## Entscheidungen - Keine Entscheidungen nötig - keine aktiven Aufgaben oder Anfragen. - Entschieden: Memory-Dokumentation bleibt auch bei Inaktivität aktiv für vollständige Kontinuität. ## Status WebApp #",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.0217261761426926,
+      "maxScore": 0.5379492700099945,
+      "firstRecalledAt": "2026-04-23T07:14:58.540Z",
+      "lastRecalledAt": "2026-04-29T07:40:27.202Z",
+      "queryHashes": [
+        "acf6b8f13837",
+        "384cd5df6683"
+      ],
+      "recallDays": [
+        "2026-04-23",
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "cron-gesteuerte",
+        "memory-erinnerung",
+        "14-01",
+        "memory-eintrag",
+        "ironcoach-spezifischen",
+        "user-interaktionen",
+        "memory-system",
+        "memory-dokumentation"
+      ]
+    },
+    "memory:memory/2026-04-22.md:1:30": {
+      "key": "memory:memory/2026-04-22.md:1:30",
+      "path": "memory/2026-04-22.md",
+      "startLine": 1,
+      "endLine": 30,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-22 ## Gespräche heute - **17:13 Uhr**: Keine aktiven Gespräche mit Martin heute. Nur der tägliche Memory-Check Cron-Job wurde ausgeführt. - Letzte Benutzerinteraktion liegt mehr als 24 Stunden zurück. ## Arbeitsschritte - **17:13-17:14**: Täglicher Memory-Check durchgeführt - Sessions liste überprüft - keine aktiven Gespräche mit Martin gefunden - Neue Memory-Datei für heute erstellt ## Entscheidungen - Da keine Trainingsdaten oder Gespräche heute vorhanden sind, wurde ein Standard-Platzhalter-Eintrag erstellt - Dokumentation wird auch an \"stillen\" Tagen aufrechterhalten ## Status WebApp - **Aktueller Stand**: Keine neuen Änderungen heute - Letzte bekannte Version:",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.077955465018749,
+      "maxScore": 0.5459999799728393,
+      "firstRecalledAt": "2026-04-28T23:34:34.700Z",
+      "lastRecalledAt": "2026-04-29T07:40:27.202Z",
+      "queryHashes": [
+        "c99c73fc8f4d",
+        "384cd5df6683"
+      ],
+      "recallDays": [
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "memory-check",
+        "cron-job",
+        "13-17",
+        "memory-datei",
+        "standard-platzhalter-eintrag",
+        "ironcoach",
+        "gespräche",
+        "heute"
+      ]
+    },
+    "memory:memory/2026-04-23.md:106:122": {
+      "key": "memory:memory/2026-04-23.md:106:122",
+      "path": "memory/2026-04-23.md",
+      "startLine": 106,
+      "endLine": 122,
+      "source": "memory",
+      "snippet": "- **Git-Workflow:** Bei \"unstaged changes\" immer stash → pull → pop verwenden ### Für nächstes Mal 1. Bei UI-Bugs beide Richtungen checken: Anzeige + Speicherung 2. Neue Übungen/Videos immer sofort testen 3. Google Drive Backup-Link im Memory verlinken wenn Martin ihn teilt 4. Zeit-Übungen Sätze-Feld standardmäßig auf 1 setzen? ### Martin's Feedback Patterns - Meldet Bugs präzise und konkret - Erwartet schnelle Fixes ohne viel Diskussion - Teilt Links/Daten manchmal in vorherigen Nachrichten --- *Erstellt: 23.04.2026, 17:14 Uhr (Cron-Job)*",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.5277417078614235,
+      "maxScore": 0.5277417078614235,
+      "firstRecalledAt": "2026-04-28T23:34:34.700Z",
+      "lastRecalledAt": "2026-04-28T23:34:34.700Z",
+      "queryHashes": [
+        "c99c73fc8f4d"
+      ],
+      "recallDays": [
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "backup",
+        "git-workflow",
+        "ui-bugs",
+        "übungen/videos",
+        "backup-link",
+        "zeit-übungen",
+        "sätze-feld",
+        "links/daten"
+      ]
+    },
+    "memory:memory/2026-04-23.md:1:43": {
+      "key": "memory:memory/2026-04-23.md:1:43",
+      "path": "memory/2026-04-23.md",
+      "startLine": 1,
+      "endLine": 43,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-23 ## Gespräche heute ### **17:15 Uhr - Bugfix bei Zeit-Übungen** Martin meldete: \"Die Sätze werden bei den Zeit Übungen nicht im letzte workouts angezeigt und nicht gespeichert\" **Analyse:** - Problem identifiziert in `renderWorkoutsList()` Funktion in `public/app.js` - Die Sätze wurden zwar korrekt gespeichert (Speicher-Code war OK) - Aber bei der Anzeige von Zeit-Übungen wurden die Sätze nicht mit ausgegeben **Unterschied in Code:** - Kraft-Übungen: `detailsText = ${weight}kg × ${sets} × ${reps}` ← Sätze werden angezeigt - Zeit-Übungen: `detailsText = ${durationStr} | Ruhe: ${w.rest_seconds || '-'}s` ← Sätze fehlten! **Fix durchgeführt:** ```javascript // Vorher",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.5249371021986008,
+      "maxScore": 0.5249371021986008,
+      "firstRecalledAt": "2026-04-28T23:34:34.700Z",
+      "lastRecalledAt": "2026-04-28T23:34:34.700Z",
+      "queryHashes": [
+        "c99c73fc8f4d"
+      ],
+      "recallDays": [
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "zeit-übungen",
+        "public/app.js",
+        "speicher-code",
+        "kraft-übungen",
+        "w.rest-seconds",
+        "ironcoach",
+        "gespräche",
+        "heute"
+      ]
+    },
+    "memory:memory/2026-04-25.md:1:28": {
+      "key": "memory:memory/2026-04-25.md:1:28",
+      "path": "memory/2026-04-25.md",
+      "startLine": 1,
+      "endLine": 28,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-25 ## Gespräche heute - **09:14 Uhr**: Erster Cron-Job für täglichen Memory-Check - keine Gespräche mit Martin vorhanden - **17:14 Uhr**: Zweiter Cron-Check durchgeführt - weiterhin keine neuen Gespräche oder Aufgaben von Martin ## Arbeitsschritte - **09:14-09:15**: Erster Memory-Check gestartet, Sessions vom letzten Tag durchgesehen - **17:14-17:15**: Zweiter Memory-Check - keine neuen Aktivitäten seit dem ersten Check - Keine Trainingsdaten oder Code-Änderungen heute durchgeführt ## Entscheidungen - Keine Entscheidungen nötig da keine Gespräche und keine Aufgaben vorhanden - Warten auf Input von Martin für weitere Entwicklungen ## Status WebApp - Keine neuen Entwi",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.0702479287981985,
+      "maxScore": 0.5463510498404502,
+      "firstRecalledAt": "2026-04-28T23:34:34.700Z",
+      "lastRecalledAt": "2026-04-29T07:40:27.202Z",
+      "queryHashes": [
+        "c99c73fc8f4d",
+        "384cd5df6683"
+      ],
+      "recallDays": [
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "cron-job",
+        "memory-check",
+        "cron-check",
+        "14-09",
+        "14-17",
+        "code-änderungen",
+        "ironcoach",
+        "gespräche"
+      ]
+    },
+    "memory:memory/2026-04-29.md:1:27": {
+      "key": "memory:memory/2026-04-29.md:1:27",
+      "path": "memory/2026-04-29.md",
+      "startLine": 1,
+      "endLine": 27,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-29 (Dienstag/Mittwoch) ## Gespräche heute - **01:28 Uhr**: Keine aktiven Gespräche mit Martin heute. Der tägliche Memory-Check Cron-Job wurde ausgeführt, aber es gab keine Benutzerinteraktionen seit dem letzten Check. - **Letzte Benutzerinteraktion**: 25.04.2026 (Training mit 5 Einheiten, 11.430 kg Volumen) - **Nächster Daily Check-in**: Geplant für heute (Mi, 29.04.) um 20:00 Uhr laut Heartbeat-Information ## Arbeitsschritte - **01:28-01:29**: Täglicher Memory-Check durchgeführt - Sessions aus den letzten 24 Stunden überprüft - keine neuen Gespräche mit Martin gefunden - Keine Trainingsdaten-Einträge oder Code-Änderungen heute durchgeführt - Automatische Heartbeat-Ch",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.5604010418057441,
+      "maxScore": 0.5604010418057441,
+      "firstRecalledAt": "2026-04-29T07:40:27.202Z",
+      "lastRecalledAt": "2026-04-29T07:40:27.202Z",
+      "queryHashes": [
+        "384cd5df6683"
+      ],
+      "recallDays": [
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "dienstag/mittwoch",
+        "memory-check",
+        "cron-job",
+        "25.04.2026",
+        "11.430",
+        "check-in",
+        "29.04",
+        "heartbeat-information"
+      ]
+    },
+    "memory:memory/2026-04-24.md:1:34": {
+      "key": "memory:memory/2026-04-24.md:1:34",
+      "path": "memory/2026-04-24.md",
+      "startLine": 1,
+      "endLine": 34,
+      "source": "memory",
+      "snippet": "# IronCoach - 2026-04-24 ## Gespräche heute - **01:14 Uhr**: Cron-Job Erinnerung erhalten - Keine Gespräche mit Martin (Frühmorgen) - **09:14 Uhr**: Cron-Job Check - Weiterhin keine Gespräche mit Martin (Vormittag) - **17:14 Uhr**: Cron-Job Check - Keine neuen Gespräche oder Aufgaben seit letztem Check ## Arbeitsschritte - **01:14-01:15**: Erster Cron-gesteuerter Memory-Check durchgeführt - **09:14-09:15**: Zweiter Cron-Check durchgeführt - keine Tasks - **17:14-17:15**: Dritter Daily Memory-Check durchgeführt - keine neuen Aktivitäten ## Status gestern (23. April 2026) - Referenz - **Bug fix**: Sätze bei Zeit-Übungen wurden nicht in \"Letzte Workouts\" angezeigt - **Fix commit**: `8299d6a`",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.5381638944149016,
+      "maxScore": 0.5381638944149016,
+      "firstRecalledAt": "2026-04-29T07:40:27.202Z",
+      "lastRecalledAt": "2026-04-29T07:40:27.202Z",
+      "queryHashes": [
+        "384cd5df6683"
+      ],
+      "recallDays": [
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "cron-job",
+        "14-01",
+        "cron-gesteuerter",
+        "memory-check",
+        "14-09",
+        "cron-check",
+        "14-17",
+        "zeit-übungen"
+      ]
+    }
+  }
+}

@@ -13,13 +13,44 @@
 
 | Tag | Muskelgruppen | Fokus | Dauer |
 |-----|---------------|-------|-------|
-| **Montag** | Judo + Beine | Explosiv + Stabil | 90-120 min |
+| **Montag** | Judo + Beine | Explosiv + Stabil | 90 min |
 | **Dienstag** | Rücken + Hinterer Core | Kraft + Stabilität | 50 min |
 | **Mittwoch** | Brust + Schultern | Stabil + Mobil | 45 min |
 | **Donnerstag** | Core + Dehnen | Tief + Flexibel | 40 min |
-| **Freitag** | Judo + Arme | Technik + Zusatz | 90-120 min |
+| **Freitag** | Judo + Arme | Technik + Zusatz | 120 min |
 | **Samstag** | Beine + Gesäß | Kraft + Stabil | 50 min |
 | **Sonntag** | Aktive Erholung | Regeneration | 20-30 min |
+
+---
+
+## Allgemeines Aufwärm-Protokoll (VOR jedem Training)
+
+**Gleitwirbel-sicheres Warm-up (10 Min):**
+
+| Übung | Sätze | Wdh/Dauer | Hinweis |
+|-------|-------|-----------|---------|
+| Cat-Cow Mobility | 2 | 10 | Wirbelsäule mobilisieren |
+| Pelvic Tilts | 2 | 10 | Becken-Kontrolle |
+| ADIM Core Activation | 3 | 30 Sek | CORE ANSCHALTEN |
+| Dead Bug (light) | 2 | 8 pro Seite | Rücken fest |
+| Hip Flexor Dynamic Stretch | 2 | 30 Sek pro Seite | Für Judo wichtig |
+| Arm Circles (rückwärts zuerst) | 2 | 15 | Schultern schützen |
+| Scapular Wall Slides | 2 | 10 | Schulterblatt mobil |
+| Gentle Thoracic Rotation | 2 | 5 pro Seite | Oberer Rücken |
+
+---
+
+## Gleitwirbel-Spezifisch nach Aufwärmen
+
+| Tag | Primäre Übung | Sekundäre | Ziel |
+|-----|--------------|-----------|------|
+| **Montag** | Dead Bug | ADIM + Hip Circles | Vor Judo stabilisieren |
+| **Dienstag** | Bird Dog | Side Plank (Knie) | Rücken + Core |
+| **Mittwoch** | Pallof Press | Dead Bug | Anti-Rotation |
+| **Donnerstag** | ADIM (länger) | Cat-Cow + Dehnen | Aktive Erholung |
+| **Freitag** | Dead Bug Variation | ADIM + Arm Circles | Vor Judo |
+| **Samstag** | Single Leg Glute Bridge | Bird Dog | Beine + Core |
+| **Sonntag** | ADIM + Atemübung | Ganzkörper-Dehnen | Regeneration |
 
 ---
 

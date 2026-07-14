@@ -1,0 +1,4 @@
+Mach einen Rollback zu dem vorletzten Commit und dann versuche die Trainingsplanänderungen
+nochmal neu zu implementieren, ohne dass du den Rest der Trainingsapp veränderst und
+wenn ich den Trainingsplan zuklappe soll nichts vom Trainingsplan sichtbar sein bis auf den
+Trainingsplanbutton und füge einen Abmelden Knopf hinzu, der irgendwo in der Trainingsapp vorhanden ist.

@@ -1,0 +1,160 @@
+{
+  "name": "Mittelstufe Trainingsplan (Gleitwirbel-sicher)",
+  "description": "Aufbauendes Training mit mehr Volumen, weiterhin Gleitwirbel-Schonung",
+  "level": "Mittel",
+  "location": "Mixed (Home/Gym)",
+  "goals": ["Gleitwirbel stabilisieren", "Muskelwachstum", "Kraftaufbau"],
+  "days": [
+    {
+      "day": "Montag",
+      "focus": "🥋 Judo - Intensiv",
+      "intensity": "Hoch",
+      "duration": "90 Min",
+      "warmup": [
+        {"name": "ADIM", "sets": 3, "duration": "30 Sek"},
+        {"name": "Hip Circles", "sets": 1, "reps": 20},
+        {"name": "Schulterkreisen", "sets": 1, "reps": 15}
+      ],
+      "exercises": [
+        {"name": "Uchi-Komi", "sets": 3, "reps": 10, "muscle": "Judo"},
+        {"name": "Nage-Komi", "sets": 3, "reps": 8, "muscle": "Judo"},
+        {"name": "Randori", "sets": 1, "duration": "20 Min", "muscle": "Judo"},
+        {"name": "Kata", "sets": 2, "reps": 1, "muscle": "Judo"}
+      ],
+      "cooldown": [
+        {"name": "Kindhaltung", "sets": 1, "duration": "90 Sek"},
+        {"name": "Hüftbeuger-Dehnung", "sets": 1, "duration": "60 Sek"}
+      ]
+    },
+    {
+      "day": "Dienstag",
+      "focus": "💪 Push (Brust + Schultern + Trizeps)",
+      "intensity": "Mittel",
+      "duration": "60 Min",
+      "warmup": [
+        {"name": "ADIM", "sets": 2, "reps": 10, "hold": "5 Sek"},
+        {"name": "Leichte Mobilität", "sets": 1, "duration": "3 Min"}
+      ],
+      "exercises": [
+        {"name": "Bankdrücken Langhantel", "sets": 4, "reps": 8, "muscle": "Brust"},
+        {"name": "Schrägbankdrücken", "sets": 3, "reps": 10, "muscle": "Brust"},
+        {"name": "Schulterdrücken Kurzhanteln", "sets": 4, "reps": 10, "muscle": "Schultern"},
+        {"name": "Kurzhantel Seitheben", "sets": 3, "reps": 12, "muscle": "Schultern"},
+        {"name": "Butterfly", "sets": 3, "reps": 12, "muscle": "Brust"},
+        {"name": "Dips", "sets": 3, "reps": 10, "muscle": "Brust"},
+        {"name": "French Press", "sets": 3, "reps": 12, "muscle": "Arme"},
+        {"name": "Trizeps Pulldown", "sets": 3, "reps": 15, "muscle": "Arme"}
+      ],
+      "cooldown": [
+        {"name": "Brust-Dehnung", "sets": 1, "duration": "45 Sek"},
+        {"name": "Schulter-Dehnung", "sets": 1, "duration": "45 Sek"}
+      ]
+    },
+    {
+      "day": "Mittwoch",
+      "focus": "💪 Pull (Rücken + Bizeps) + Reha",
+      "intensity": "Mittel",
+      "duration": "65 Min",
+      "warmup": [
+        {"name": "ADIM", "sets": 2, "reps": 10},
+        {"name": "Rückenmobilisation", "sets": 1, "reps": 10}
+      ],
+      "exercises": [
+        {"name": "Kreuzheben", "sets": 4, "reps": 6, "muscle": "Rücken"},
+        {"name": "Klimmzüge", "sets": 3, "reps": 8, "muscle": "Rücken"},
+        {"name": "T-Bar Rudern", "sets": 3, "reps": 10, "muscle": "Rücken"},
+        {"name": "Latzug", "sets": 3, "reps": 12, "muscle": "Rücken"},
+        {"name": "Rudern Maschine", "sets": 3, "reps": 12, "muscle": "Rücken"},
+        {"name": "Face Pulls", "sets": 3, "reps": 15, "muscle": "Schultern"},
+        {"name": "Bizepscurls", "sets": 3, "reps": 12, "muscle": "Arme"},
+        {"name": "Hammercurls", "sets": 3, "reps": 10, "muscle": "Arme"}
+      ],
+      "cooldown": [
+        {"name": "Lat-Dehnung", "sets": 1, "duration": "45 Sek"},
+        {"name": "Bizeps-Dehnung", "sets": 1, "duration": "30 Sek"}
+      ]
+    },
+    {
+      "day": "Donnerstag",
+      "focus": "💪 Beine (Kniebeugen-fokussiert)",
+      "intensity": "Hoch",
+      "duration": "60 Min",
+      "warmup": [
+        {"name": "ADIM", "sets": 3, "reps": 10, "hold": "5 Sek"},
+        {"name": "Beinheben liegend", "sets": 1, "reps": 10},
+        {"name": "Hip Circles", "sets": 1, "reps": 15}
+      ],
+      "exercises": [
+        {"name": "Kniebeugen", "sets": 4, "reps": 8, "muscle": "Beine"},
+        {"name": "Beinpresse", "sets": 3, "reps": 12, "muscle": "Beine"},
+        {"name": "Ausfallschritte", "sets": 3, "reps": 10, "muscle": "Beine"},
+        {"name": "Beinstrecker", "sets": 3, "reps": 15, "muscle": "Beine"},
+        {"name": "Beinbeuger", "sets": 3, "reps": 15, "muscle": "Beine"},
+        {"name": "Wadenheben stehend", "sets": 4, "reps": 15, "muscle": "Beine"}
+      ],
+      "cooldown": [
+        {"name": "Quadrizeps-Dehnung", "sets": 1, "duration": "60 Sek"},
+        {"name": "Hüftbeuger-Dehnung", "sets": 1, "duration": "60 Sek"}
+      ]
+    },
+    {
+      "day": "Freitag",
+      "focus": "🥋 Judo - Kampftraining",
+      "intensity": "Hoch",
+      "duration": "2h",
+      "warmup": [
+        {"name": "ADIM", "sets": 3, "duration": "30 Sek"},
+        {"name": "Schulterkreisen", "sets": 1, "reps": 15},
+        {"name": "Hip Circles", "sets": 1, "reps": 20}
+      ],
+      "exercises": [
+        {"name": "Ne-waza", "sets": 3, "duration": "8 Min", "muscle": "Judo"},
+        {"name": "Grip Fighting", "sets": 3, "duration": "8 Min", "muscle": "Judo"},
+        {"name": "Randori", "sets": 1, "duration": "30 Min", "muscle": "Judo"},
+        {"name": "Kata", "sets": 2, "reps": 1, "muscle": "Judo"}
+      ],
+      "cooldown": [
+        {"name": "Kindhaltung", "sets": 1, "duration": "90 Sek"},
+        {"name": "Hüftbeuger-Dehnung", "sets": 1, "duration": "60 Sek"},
+        {"name": "Tiefe Atmung", "sets": 1, "duration": "3 Min"}
+      ]
+    },
+    {
+      "day": "Samstag",
+      "focus": "💪 Core (Anti-Rotation)",
+      "intensity": "Mittel",
+      "duration": "45 Min",
+      "warmup": [
+        {"name": "ADIM", "sets": 3, "reps": 10, "hold": "5 Sek"},
+        {"name": "Kindhaltung", "sets": 1, "duration": "60 Sek"}
+      ],
+      "exercises": [
+        {"name": "Plank", "sets": 3, "duration": "45 Sek", "muscle": "Core"},
+        {"name": "Side Plank", "sets": 3, "duration": "30 Sek pro Seite", "muscle": "Core"},
+        {"name": "Dead Bug", "sets": 3, "reps": 10, "muscle": "Core"},
+        {"name": "Bird Dog", "sets": 3, "reps": 10, "muscle": "Core"},
+        {"name": "Pallof Press", "sets": 3, "reps": 12, "muscle": "Core"},
+        {"name": "Glute Bridge", "sets": 3, "reps": 15, "muscle": "Rücken"},
+        {"name": "Beinheben", "sets": 3, "reps": 15, "muscle": "Bauch"}
+      ],
+      "cooldown": [
+        {"name": "90/90 Hip Stretch", "sets": 1, "duration": "90 Sek"},
+        {"name": "Piriformis-Dehnung", "sets": 1, "duration": "60 Sek"}
+      ]
+    },
+    {
+      "day": "Sonntag",
+      "focus": "☀️ Aktive Erholung",
+      "intensity": "Niedrig",
+      "duration": "30 Min",
+      "warmup": [
+        {"name": "Leichter Spaziergang", "sets": 1, "duration": "10 Min"}
+      ],
+      "exercises": [
+        {"name": "Ganzkörper-Dehnen", "sets": 1, "duration": "15 Min"},
+        {"name": "Tiefe Atmung", "sets": 1, "duration": "5 Min"}
+      ],
+      "cooldown": []
+    }
+  ]
+}

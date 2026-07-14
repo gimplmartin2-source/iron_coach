@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>SQLite Workouts Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #output { white-space: pre-wrap; background: #f5f5f5; padding: 15px; border-radius: 5px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #4CAF50; color: white; }
+        tr:nth-child(even) { background: #f2f2f2; }
+        h2 { color: #333; }
+        .loading { color: #666; font-style: italic; }
+    </style>
+</head>
+<body>
+    <h1>💪 SQLite Workouts Database Viewer</h1>
+    <div id="status" class="loading">⏳ Lade Datenbank...</div>
+    <div id="schema"></div>
+    <div id="data"></div>
+
+    <script>
+        const dbUrl = 'https://drive.usercontent.google.com/download?id=1Zk1CUxCc0RjFpBy-Q28xvWML5NPn_HTR&export=download';
+
+        initSQLJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` })
+            .then(SQL => {
+                document.getElementById('status').innerHTML = '⏳ Lade Daten von Google Drive...';
+                
+                fetch(dbUrl)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Download failed: ' + response.status);
+                        return response.arrayBuffer();
+                    })
+                    .then(data => {
+                        document.getElementById('status').innerHTML = '✅ Datenbank geladen! Analysiere...';
+                        
+                        const db = new SQL.Database(new Uint8Array(data));
+                        
+                        // Get table schema
+                        const schemaResult = db.exec("PRAGMA table_info(workouts)");
+                        let schemaHTML = '<h2>📋 Tabellen-Schema (workouts)</h2><table>';
+                        schemaHTML += '<tr><th>CID</th><th>Name</th><th>Type</th><th>Not Null</th><th>Default</th><th>PK</th></tr>';
+                        
+                        if (schemaResult.length > 0) {
+                            schemaResult[0].values.forEach(col => {
+                                schemaHTML += `<tr><td>${col[0]}</td><td><b>${col[1]}</b></td><td>${col[2]}</td><td>${col[3]}</td><td>${col[4]}</td><td>${col[5]}</td></tr>`;
+                            });
+                        }
+                        schemaHTML += '</table>';
+                        document.getElementById('schema').innerHTML = schemaHTML;
+                        
+                        // Get all data
+                        const dataResult = db.exec('SELECT * FROM workouts');
+                        
+                        if (dataResult.length > 0) {
+                            const columns = dataResult[0].columns;
+                            const values = dataResult[0].values;
+                            
+                            let dataHTML = `<h2>📊 Workout Einträge (${values.length} Zeilen)</h2><table><tr>`;
+                            columns.forEach(col => dataHTML += `<th>${col}</th>`);
+                            dataHTML += '</tr>';
+                            
+                            values.forEach((row, idx) => {
+                                dataHTML += '<tr>';
+                                row.forEach(cell => {
+                                    dataHTML += `<td>${cell !== null ? cell : 'NULL'}</td>`;
+                                });
+                                dataHTML += '</tr>';
+                            });
+                            
+                            dataHTML += '</table>';
+                            document.getElementById('data').innerHTML = dataHTML;
+                            document.getElementById('status').innerHTML = '✅ Analyse abgeschlossen!';
+                        } else {
+                            document.getElementById('data').innerHTML = '<p>Keine Daten in der Tabelle gefunden.</p>';
+                        }
+                    })
+                    .catch(err => {
+                        document.getElementById('status').innerHTML = '❌ Fehler: ' + err.message;
+                    });
+            })
+            .catch(err => {
+                document.getElementById('status').innerHTML = '❌ SQL.js Fehler: ' + err.message;
+            });
+    </script>
+</body>
+</html>
