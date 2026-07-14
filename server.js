@@ -562,8 +562,12 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
 // Health Check
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
+    app: 'IronCoach',
+    version: '1.2.0',
+    defaultExerciseCount: 78,
+    commit: '9035852',
     timestamp: new Date().toISOString(),
     database: 'SQLite',
     environment: process.env.NODE_ENV || 'development',
@@ -1507,6 +1511,8 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🔒 IronCoach Server läuft auf http://localhost:${PORT}`);
   console.log(`📊 Umgebung: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📦 Version: 1.2.0 | Standardübungen: 78`);
+  console.log(`🏥 Health-Check: http://localhost:${PORT}/api/health`);
 });
 
 // Graceful shutdown
