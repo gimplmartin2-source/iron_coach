@@ -256,7 +256,9 @@ function showTab(tabName) {
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
     
     document.getElementById(tabName + '-tab').classList.add('active');
-    event.target.classList.add('active');
+    // currentTarget = der Button, auch wenn auf ein inneres Element (z.B. span) geklickt wurde
+    const target = event && event.currentTarget ? event.currentTarget : null;
+    if (target) target.classList.add('active');
     
     if (tabName === 'stats') {
         loadProgressChart();
@@ -1183,12 +1185,11 @@ function editWorkout(id) {
     const sets = parseInt(workout.sets) || 0;
     const reps = parseInt(workout.reps) || 0;
     
-    // Neues Format: duration_seconds > 0 oder exercise_type === 'time'
-    // Altes Format: sets=1, weight=0, reps=Zeit in Sekunden
-    const isTimeBased = (exercise && exercise.exercise_type === 'time') || 
-                       (duration > 0 && weight === 0) ||
-                       (duration === 0 && weight === 0 && sets === 1 && reps > 0);
-    
+    // Zeit-Übung nur anhand des Übungstyps erkennen.
+    // Frühere Fallbacks auf duration/weight/sets/reps haben Kraft-Übungen
+    // mit Körpergewicht (weight=0) fälschlich als Zeit-Übung angezeigt.
+    const isTimeBased = exercise && exercise.exercise_type === 'time';
+
     // Nutze duration_seconds wenn verfügbar, sonst reps (altes Format)
     const effectiveDuration = duration > 0 ? duration : (isTimeBased && reps > 0 ? reps : 0);
     
@@ -1324,12 +1325,9 @@ function renderWorkoutsList() {
             const sets = parseInt(w.sets) || 0;
             const reps = parseInt(w.reps) || 0;
             
-            // Zeit-Übung nur wenn:
-            // 1. exercise_type explizit 'time' ist, ODER
-            // 2. duration_seconds > 0 und kein Gewicht (altes Format)
-            const isTimeBased = (w.exercise_type === 'time') || 
-                               (duration > 0 && weight === 0);
-            
+            // Zeit-Übung nur anhand des gespeicherten Übungstyps erkennen
+            const isTimeBased = w.exercise_type === 'time';
+
             // Nutze duration_seconds wenn verfügbar, sonst reps (altes Format)
             const effectiveDuration = duration > 0 ? duration : (isTimeBased && reps > 0 ? reps : 0);
             

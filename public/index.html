@@ -13,7 +13,7 @@
     <meta http-equiv="Expires" content="0">
     <meta name="description" content="IronCoach - Dein persönlicher Trainings-Tracker für Judo und Fitness">
     <title>IronCoach 💪 Trainings-Tracker</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -361,13 +361,6 @@
             </div>
         </section>
 
-        <!-- Navigation -->
-        <nav class="tabs">
-            <button class="tab-btn active" onclick="showTab('workouts')">📝 Workouts</button>
-            <button class="tab-btn" onclick="showTab('exercises')">🏋️ Übungen</button>
-            <button class="tab-btn" onclick="showTab('stats')">📊 Statistiken</button>
-        </nav>
-
         <!-- Workouts Tab -->
         <section id="workouts-tab" class="tab-content active">
             <div class="card">
@@ -595,12 +588,19 @@
                 </div>
             </div>
         </section>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-tabs">
+            <button class="tab-btn active" onclick="showTab('workouts')">📝<span>Workouts</span></button>
+            <button class="tab-btn" onclick="showTab('exercises')">🏋️<span>Übungen</span></button>
+            <button class="tab-btn" onclick="showTab('stats')">📊<span>Statistik</span></button>
+        </nav>
     </div>
 
     <script src="video-mappings.js"></script>
     <script src="gif-click-handler.js"></script>
     <script src="training-plans.js"></script>
-    <script src="app.js?v=3"></script>
+    <script src="app.js?v=4"></script>
     
     <script>
     // Service Worker für Offline-GIFs registrieren

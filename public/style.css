@@ -189,6 +189,58 @@ header p {
     display: block;
 }
 
+/* Bottom Navigation */
+.bottom-tabs {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background: rgba(26, 26, 46, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    z-index: 1000;
+}
+
+.bottom-tabs .tab-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: auto;
+    padding: 8px 4px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: #888;
+    font-size: 0.75rem;
+    transition: all 0.2s;
+}
+
+.bottom-tabs .tab-btn.active {
+    background: rgba(0,212,255,0.15);
+    color: #00d4ff;
+}
+
+/* Container-Padding unten vergrößern, damit Inhalt nicht hinter der Bottom-Leiste verschwindet */
+.container {
+    padding-bottom: 80px;
+}
+
+@media (max-width: 400px) {
+    .container {
+        padding-bottom: 75px;
+    }
+}
+
 /* Cards - Mobile optimized */
 .card {
     background: rgba(255,255,255,0.05);
