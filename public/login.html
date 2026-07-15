@@ -4,7 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IronCoach - Login</title>
-    <link rel="stylesheet" href="style.css">
+
+    <!-- Branding / PWA Icons -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico?v=1">
+    <link rel="icon" type="image/svg+xml" href="icon.svg?v=1">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=1">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=1">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=1">
+    <link rel="manifest" href="site.webmanifest?v=1">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <link rel="stylesheet" href="style.css?v=3">
     <style>
         .auth-container {
             max-width: 400px;
@@ -93,8 +105,8 @@
     <div class="container">
         <div class="card auth-container">
             <header style="text-align: center; margin-bottom: 30px;">
-                <h1>💪 IronCoach</h1>
-                <p>Dein persönlicher Trainings-Tracker</p>
+                <img src="logo.svg?v=1" alt="IronCoach" class="app-logo" style="margin: 0 auto 10px;" loading="eager">
+                <p class="app-tagline">Dein persönlicher Trainings-Tracker</p>
             </header>
 
             <!-- Google Login (wird ausgeblendet wenn nicht verfügbar) -->

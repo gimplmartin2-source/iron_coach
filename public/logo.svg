@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 160" width="720" height="160">
+  <defs>
+    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff"/>
+      <stop offset="50%" stop-color="#00a8ff"/>
+      <stop offset="100%" stop-color="#7c2ae8"/>
+    </linearGradient>
+    <linearGradient id="barGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2a2a4a"/>
+      <stop offset="50%" stop-color="#4a4a7a"/>
+      <stop offset="100%" stop-color="#2a2a4a"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Icon badge -->
+  <g transform="translate(80,80)">
+    <!-- Outer ring -->
+    <circle r="58" fill="#0f0f1a" stroke="url(#brandGradient)" stroke-width="4" filter="url(#glow)"/>
+    <circle r="54" fill="#151528" opacity="0.9"/>
+
+    <!-- Dumbbell -->
+    <g transform="rotate(-45)">
+      <!-- Bar -->
+      <rect x="-38" y="-5" width="76" height="10" rx="3" fill="url(#barGradient)" stroke="#00f0ff" stroke-width="0.8"/>
+      <!-- Left weight -->
+      <rect x="-50" y="-13" width="14" height="26" rx="4" fill="#1f1f3a" stroke="url(#brandGradient)" stroke-width="2"/>
+      <rect x="-47" y="-9" width="8" height="18" rx="2" fill="url(#brandGradient)" opacity="0.25"/>
+      <!-- Right weight -->
+      <rect x="36" y="-13" width="14" height="26" rx="4" fill="#1f1f3a" stroke="url(#brandGradient)" stroke-width="2"/>
+      <rect x="39" y="-9" width="8" height="18" rx="2" fill="url(#brandGradient)" opacity="0.25"/>
+    </g>
+
+    <!-- AI neural nodes -->
+    <circle cx="0" cy="0" r="4" fill="#00f0ff" filter="url(#glow)"/>
+    <circle cx="-28" cy="-20" r="2.5" fill="#7c2ae8" filter="url(#glow)"/>
+    <circle cx="28" cy="20" r="2.5" fill="#00f0ff" filter="url(#glow)"/>
+    <line x1="0" y1="0" x2="-28" y2="-20" stroke="#00f0ff" stroke-width="1" opacity="0.6"/>
+    <line x1="0" y1="0" x2="28" y2="20" stroke="#7c2ae8" stroke-width="1" opacity="0.6"/>
+  </g>
+
+  <!-- Brand text -->
+  <text x="160" y="95" font-family="'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif" font-size="72" font-weight="800" fill="url(#brandGradient)" letter-spacing="1">IronCoach</text>
+  <text x="162" y="125" font-family="'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif" font-size="16" font-weight="600" fill="#8892b0" letter-spacing="3">AI POWERED FITNESS</text>
+</svg>

@@ -67,6 +67,21 @@ header p {
     font-size: 1rem;
 }
 
+.app-logo {
+    display: block;
+    max-width: 280px;
+    width: 80%;
+    height: auto;
+    margin: 0 auto 12px;
+    filter: drop-shadow(0 4px 12px rgba(0, 240, 255, 0.15));
+}
+
+.app-tagline {
+    color: #888;
+    font-size: 1rem;
+    letter-spacing: 0.5px;
+}
+
 @media (min-width: 480px) {
     header {
         padding: 30px 0;

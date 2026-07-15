@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f0f1a"/>
+      <stop offset="100%" stop-color="#1a1a2e"/>
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff"/>
+      <stop offset="100%" stop-color="#7c2ae8"/>
+    </linearGradient>
+    <linearGradient id="metalGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3a3a5c"/>
+      <stop offset="50%" stop-color="#5a5a8c"/>
+      <stop offset="100%" stop-color="#3a3a5c"/>
+    </linearGradient>
+    <filter id="iconGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect x="16" y="16" width="480" height="480" rx="96" fill="url(#bgGradient)"/>
+  <rect x="16" y="16" width="480" height="480" rx="96" fill="url(#accentGradient)" opacity="0.08"/>
+  <rect x="28" y="28" width="456" height="456" rx="84" fill="none" stroke="url(#accentGradient)" stroke-width="4" opacity="0.6" filter="url(#softGlow)"/>
+  <rect x="28" y="28" width="456" height="456" rx="84" fill="none" stroke="url(#accentGradient)" stroke-width="2"/>
+
+  <!-- Rotated dumbbell group -->
+  <g transform="translate(256,256) rotate(-45)" filter="url(#iconGlow)">
+    <!-- Bar -->
+    <rect x="-120" y="-14" width="240" height="28" rx="8" fill="url(#metalGradient)" stroke="#00f0ff" stroke-width="2"/>
+    <!-- Inner highlight on bar -->
+    <rect x="-100" y="-4" width="200" height="8" rx="4" fill="#ffffff" opacity="0.15"/>
+
+    <!-- Left weight -->
+    <rect x="-160" y="-34" width="44" height="68" rx="10" fill="#151528" stroke="url(#accentGradient)" stroke-width="4"/>
+    <rect x="-152" y="-22" width="28" height="44" rx="6" fill="url(#accentGradient)" opacity="0.25"/>
+    <rect x="-146" y="-12" width="16" height="24" rx="4" fill="#00f0ff" opacity="0.4"/>
+
+    <!-- Right weight -->
+    <rect x="116" y="-34" width="44" height="68" rx="10" fill="#151528" stroke="url(#accentGradient)" stroke-width="4"/>
+    <rect x="124" y="-22" width="28" height="44" rx="6" fill="url(#accentGradient)" opacity="0.25"/>
+    <rect x="130" y="-12" width="16" height="24" rx="4" fill="#7c2ae8" opacity="0.5"/>
+  </g>
+
+  <!-- AI core / neural ring -->
+  <g transform="translate(256,256)">
+    <circle r="22" fill="none" stroke="#00f0ff" stroke-width="3" opacity="0.4"/>
+    <circle r="12" fill="#00f0ff" filter="url(#iconGlow)"/>
+    <circle cx="-70" cy="-50" r="7" fill="#7c2ae8" filter="url(#iconGlow)"/>
+    <circle cx="70" cy="50" r="7" fill="#00f0ff" filter="url(#iconGlow)"/>
+    <line x1="0" y1="0" x2="-70" y2="-50" stroke="#00f0ff" stroke-width="2.5" opacity="0.5"/>
+    <line x1="0" y1="0" x2="70" y2="50" stroke="#7c2ae8" stroke-width="2.5" opacity="0.5"/>
+  </g>
+</svg>
