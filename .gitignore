@@ -1,28 +1,6 @@
-# Dependencies
-node_modules/
-
-# Environment files
+memory/
+*.bak.*
 .env
-.env.local
-
-# Database
-training.db
+node_modules/
 *.db
 
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# OS
-.DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Railway (optional)
-.railway/
