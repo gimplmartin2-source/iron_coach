@@ -1447,3 +1447,38 @@ input[type="checkbox"],
         font-size: 0.8rem;
     }
 }
+
+/* Metrik-Toggles unter dem Chart */
+.stats-metric-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 15px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stats-metric-toggles .btn-secondary {
+    flex: 1 1 auto;
+    min-width: 110px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    min-height: 40px;
+    transition: all 0.2s;
+}
+
+.stats-metric-toggles .btn-secondary.active {
+    background: rgba(0, 212, 255, 0.25);
+    border-color: #00d4ff;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+}
+
+@media (max-width: 400px) {
+    .stats-metric-toggles .btn-secondary {
+        min-width: 90px;
+        font-size: 0.8rem;
+    }
+}

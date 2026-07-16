@@ -22,7 +22,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
     <link rel="manifest" href="site.webmanifest?v=2">
 
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=5">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -580,6 +580,19 @@
                 <div class="chart-container" style="height: 350px;">
                     <canvas id="all-workouts-chart"></canvas>
                 </div>
+                <!-- Metrik-Toggles -->
+                <div class="stats-metric-toggles">
+                    <span style="color: #888; font-size: 0.85rem;">Anzeigen:</span>
+                    <button type="button" class="btn-secondary active" id="stats-metric-weight" onclick="toggleStatsMetric('weight')">
+                        ⚖️ Gewicht
+                    </button>
+                    <button type="button" class="btn-secondary" id="stats-metric-reps" onclick="toggleStatsMetric('reps')">
+                        🔁 Wiederholungen
+                    </button>
+                    <button type="button" class="btn-secondary active" id="stats-metric-volume" onclick="toggleStatsMetric('volume')">
+                        📦 Volumen
+                    </button>
+                </div>
             </div>
         </section>
 
@@ -594,7 +607,7 @@
     <script src="video-mappings.js"></script>
     <script src="gif-click-handler.js"></script>
     <script src="training-plans.js"></script>
-    <script src="app.js?v=7"></script>
+    <script src="app.js?v=8"></script>
     
     <script>
     // Service Worker für Offline-GIFs registrieren

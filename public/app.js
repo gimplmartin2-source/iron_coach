@@ -2404,6 +2404,7 @@ let statsDateRangeEnd = null;
 let statsRangePreset = 30;
 let selectedStatsExercises = new Set();
 let allWorkoutsChart = null;
+let statsMetrics = { weight: true, reps: false, volume: true };
 
 async function initStats() {
     // Sicherstellen, dass die Übungen geladen sind, bevor der Filter aufgebaut wird
@@ -2718,6 +2719,18 @@ function updateStatsView() {
     updateAllWorkoutsChart(filteredWorkouts);
 }
 
+function toggleStatsMetric(metric) {
+    if (!statsMetrics.hasOwnProperty(metric)) return;
+    statsMetrics[metric] = !statsMetrics[metric];
+
+    const btn = document.getElementById(`stats-metric-${metric}`);
+    if (btn) {
+        btn.classList.toggle('active', statsMetrics[metric]);
+    }
+
+    updateStatsView();
+}
+
 function updateAllWorkoutsChart(rangeWorkouts) {
     const ctx = document.getElementById('all-workouts-chart')?.getContext('2d');
     if (!ctx) return;
@@ -2725,8 +2738,20 @@ function updateAllWorkoutsChart(rangeWorkouts) {
     // Nach Datum sortieren
     const sortedWorkouts = [...rangeWorkouts].sort((a, b) => new Date(a.date) - new Date(b.date));
 
+    // Zeit-basierte Workouts in diesem Chart ausblenden (Gewicht/Reps/Volumen = 0)
+    const metricWorkouts = sortedWorkouts.filter(w => {
+        const ex = exercises.find(e => e.id === w.exercise_id);
+        return ex && ex.exercise_type !== 'time';
+    });
+
+    const metricConfig = {
+        weight: { label: 'Gewicht', unit: 'kg', axis: 'y', dash: [], icon: '⚖️' },
+        volume: { label: 'Volumen', unit: 'kg', axis: 'y1', dash: [5, 5], icon: '📦' },
+        reps: { label: 'Wdh', unit: '', axis: 'y2', dash: [2, 3], icon: '🔁' }
+    };
+
     const dataByExercise = {};
-    sortedWorkouts.forEach(w => {
+    metricWorkouts.forEach(w => {
         if (!selectedStatsExercises.has(w.exercise_id)) return;
 
         if (!dataByExercise[w.exercise_name]) {
@@ -2734,23 +2759,35 @@ function updateAllWorkoutsChart(rangeWorkouts) {
         }
         dataByExercise[w.exercise_name].push({
             x: formatDate(w.date),
-            y: w.weight,
-            volume: w.weight * w.sets * w.reps
+            weight: w.weight || 0,
+            reps: w.reps || 0,
+            volume: (w.weight || 0) * (w.sets || 0) * (w.reps || 0)
         });
     });
 
-    const datasets = Object.entries(dataByExercise).map(([name, data], index) => {
-        const colors = ['#00d4ff', '#7b2cbf', '#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff8b94'];
-        const color = colors[index % colors.length];
+    const colors = ['#00d4ff', '#7b2cbf', '#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff8b94'];
+    const datasets = [];
 
-        return {
-            label: name,
-            data: data.map(d => ({ x: d.x, y: d.y })),
-            borderColor: color,
-            backgroundColor: color + '33',
-            tension: 0.3,
-            fill: false
-        };
+    Object.entries(dataByExercise).forEach(([name, data], index) => {
+        const baseColor = colors[index % colors.length];
+
+        Object.entries(metricConfig).forEach(([metric, config]) => {
+            if (!statsMetrics[metric]) return;
+
+            datasets.push({
+                label: `${name} (${config.label})`,
+                metricKey: metric,
+                data: data.map(d => ({ x: d.x, y: d[metric] })),
+                borderColor: baseColor,
+                backgroundColor: baseColor + '22',
+                borderDash: config.dash,
+                tension: 0.3,
+                fill: false,
+                yAxisID: config.axis,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            });
+        });
     });
 
     if (allWorkoutsChart) {
@@ -2766,6 +2803,45 @@ function updateAllWorkoutsChart(rangeWorkouts) {
         return;
     }
 
+    // Skalen je nach aktiven Metriken aufbauen
+    const scales = {
+        x: {
+            type: 'category',
+            grid: { color: 'rgba(255,255,255,0.1)' },
+            ticks: { color: '#888', maxRotation: 45, minRotation: 45 }
+        }
+    };
+
+    if (statsMetrics.weight) {
+        scales.y = {
+            beginAtZero: true,
+            position: 'left',
+            grid: { color: 'rgba(255,255,255,0.1)' },
+            ticks: { color: '#888' },
+            title: { display: true, text: 'Gewicht (kg)', color: '#888' }
+        };
+    }
+
+    if (statsMetrics.volume) {
+        scales.y1 = {
+            beginAtZero: true,
+            position: 'right',
+            grid: { display: false },
+            ticks: { color: '#888' },
+            title: { display: true, text: 'Volumen (kg)', color: '#888' }
+        };
+    }
+
+    if (statsMetrics.reps) {
+        scales.y2 = {
+            beginAtZero: true,
+            position: 'right',
+            grid: { display: false },
+            ticks: { color: '#888' },
+            title: { display: true, text: 'Wiederholungen', color: '#888' }
+        };
+    }
+
     allWorkoutsChart = new Chart(ctx, {
         type: 'line',
         data: { datasets },
@@ -2773,21 +2849,17 @@ function updateAllWorkoutsChart(rangeWorkouts) {
             responsive: true,
             maintainAspectRatio: false,
             interaction: { intersect: false, mode: 'index' },
-            scales: {
-                x: {
-                    type: 'category',
-                    grid: { color: 'rgba(255,255,255,0.1)' },
-                    ticks: { color: '#888', maxRotation: 45, minRotation: 45 }
-                },
-                y: {
-                    beginAtZero: true,
-                    grid: { color: 'rgba(255,255,255,0.1)' },
-                    ticks: { color: '#888' },
-                    title: { display: true, text: 'Gewicht (kg)', color: '#888' }
-                }
-            },
+            scales: scales,
             plugins: {
-                legend: { labels: { color: '#fff' }, position: 'top' }
+                legend: { labels: { color: '#fff' }, position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const config = metricConfig[context.dataset.metricKey || 'weight'];
+                            return `${context.dataset.label}: ${context.parsed.y} ${config ? config.unit : ''}`;
+                        }
+                    }
+                }
             }
         }
     });
