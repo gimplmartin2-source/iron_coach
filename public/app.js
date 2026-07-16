@@ -604,8 +604,7 @@ function closeExerciseSelector() {
 function updateExerciseSelects() {
     const workoutSelect = document.getElementById('workout-exercise');
     const statsSelect = document.getElementById('stats-exercise');
-    const singleSelect = document.getElementById('single-exercise-select');
-    
+
     // ALLE Übungen nach Muskelgruppe gruppieren (keine Judo-Sonderbehandlung mehr)
     const grouped = {};
     exercises.forEach(e => {
@@ -614,7 +613,7 @@ function updateExerciseSelects() {
         }
         grouped[e.muscle_group].push(e);
     });
-    
+
     // Sortierreihenfolge der Muskelgruppen
     const muscleOrder = ['Brust', 'Rücken', 'Schultern', 'Beine', 'Arme', 'Bauch', 'Ganzkörper', 'Dehnen', 'Mobilität', 'Judo', 'Core'];
     const sortedMuscles = Object.keys(grouped).sort((a, b) => {
@@ -625,15 +624,15 @@ function updateExerciseSelects() {
         if (idxB === -1) return -1;
         return idxA - idxB;
     });
-    
+
     // Innerhalb jeder Gruppe nach Name sortieren
     sortedMuscles.forEach(muscle => {
         grouped[muscle].sort((a, b) => a.name.localeCompare(b.name, 'de'));
     });
-    
+
     // Optgroups erstellen - nur nach Muskelgruppen
     let options = '';
-    
+
     sortedMuscles.forEach(muscle => {
         options += `<optgroup label="${muscle}">`;
         grouped[muscle].forEach(e => {
@@ -641,15 +640,12 @@ function updateExerciseSelects() {
         });
         options += '</optgroup>';
     });
-    
+
     if (workoutSelect) {
         workoutSelect.innerHTML = '<option value="">-- Wähle Übung --</option>' + options;
     }
     if (statsSelect) {
         statsSelect.innerHTML = '<option value="">-- Wähle Übung --</option>' + options;
-    }
-    if (singleSelect) {
-        singleSelect.innerHTML = '<option value="">-- Optional: Einzelne Übung --</option>' + options;
     }
 }
 
@@ -2392,150 +2388,194 @@ function selectTodayInPlan() {
 
 // ===================== NEUE STATISTIK-FUNKTIONEN =====================
 
-let currentWeekOffset = 0;
-let selectedExercises = new Set();
-let allExercisesList = [];
+let statsDateRangeStart = null;
+let statsDateRangeEnd = null;
+let statsRangePreset = 30;
+let selectedStatsExercises = new Set();
 let allWorkoutsChart = null;
-let dailyVolumeChart = null;
-let singleExerciseChart = null;
 
-function changeWeek(offset) {
-    currentWeekOffset += offset;
-    updateWeekView();
+function initStats() {
+    initStatsExerciseFilter();
+    initStatsDateRange();
+    updateExerciseSelects();
+    updateStatsView();
 }
 
-function resetToCurrentWeek() {
-    currentWeekOffset = 0;
-    updateWeekView();
-}
+// ===================== STATISTIK-FUNKTIONEN =====================
 
-function updateWeekView() {
-    const now = new Date();
-    const currentWeekStart = getWeekStart(now);
-    currentWeekStart.setDate(currentWeekStart.getDate() + (currentWeekOffset * 7));
-    
-    const weekEnd = new Date(currentWeekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    
-    const label = document.getElementById('current-week-label');
-    if (currentWeekOffset === 0) {
-        label.textContent = 'Diese Woche';
-    } else if (currentWeekOffset === -1) {
-        label.textContent = 'Letzte Woche';
-    } else if (currentWeekOffset === 1) {
-        label.textContent = 'Nächste Woche';
-    } else {
-        const options = { month: 'short', day: 'numeric' };
-        label.textContent = `${currentWeekStart.toLocaleDateString('de-DE', options)} - ${weekEnd.toLocaleDateString('de-DE', options)}`;
-    }
-    
-    const weekWorkouts = workouts.filter(w => {
-        const workoutDate = new Date(w.date);
-        return workoutDate >= currentWeekStart && workoutDate <= weekEnd;
-    });
-    
-    updateWeekStats(weekWorkouts);
-    updateAllWorkoutsChart(weekWorkouts);
-    updateDailyVolumeChart(weekWorkouts, currentWeekStart);
-}
+function initStatsExerciseFilter() {
+    const select = document.getElementById('stats-exercise-filter');
+    if (!select) return;
 
-function getWeekStart(date) {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    d.setDate(diff);
-    d.setHours(0, 0, 0, 0);
-    return d;
-}
+    selectedStatsExercises.clear();
+    select.innerHTML = '';
 
-function updateWeekStats(weekWorkouts) {
-    let totalVolume = 0;
-    const uniqueExercises = new Set();
-    
-    weekWorkouts.forEach(w => {
-        totalVolume += w.weight * w.sets * w.reps;
-        if (w.exercise_id) uniqueExercises.add(w.exercise_id);
-    });
-    
-    document.getElementById('week-total-volume').textContent = formatWeight(totalVolume);
-    document.getElementById('week-workout-count').textContent = weekWorkouts.length;
-    document.getElementById('week-exercise-count').textContent = uniqueExercises.size;
-}
-
-function initExerciseFilter() {
-    const container = document.getElementById('exercise-filter-list');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    allExercisesList = exercises;
-    
     if (exercises.length === 0) {
-        container.innerHTML = '<div style="color: #666; font-style: italic;">Noch keine Übungen vorhanden</div>';
+        select.innerHTML = '<option value="" disabled>Noch keine Übungen vorhanden</option>';
         return;
     }
-    
-    exercises.forEach(ex => {
-        selectedExercises.add(ex.id);
+
+    // Gruppierung nach Muskelgruppe wie bei der Workout-Übungsauswahl
+    const grouped = {};
+    exercises.forEach(e => {
+        if (!grouped[e.muscle_group]) grouped[e.muscle_group] = [];
+        grouped[e.muscle_group].push(e);
     });
-    
-    exercises.forEach(ex => {
-        const label = document.createElement('label');
-        label.style.cssText = 'display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(255,255,255,0.05); border-radius: 6px; cursor: pointer; font-size: 0.85rem;';
-        
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.checked = true;
-        checkbox.value = ex.id;
-        checkbox.onchange = (e) => {
-            if (e.target.checked) {
-                selectedExercises.add(parseInt(e.target.value));
-            } else {
-                selectedExercises.delete(parseInt(e.target.value));
-            }
-            updateWeekView();
-        };
-        
-        label.appendChild(checkbox);
-        label.appendChild(document.createTextNode(ex.name));
-        container.appendChild(label);
+
+    const muscleOrder = ['Brust', 'Rücken', 'Schultern', 'Beine', 'Arme', 'Bauch', 'Ganzkörper', 'Dehnen', 'Mobilität', 'Judo', 'Core'];
+    const sortedMuscles = Object.keys(grouped).sort((a, b) => {
+        const idxA = muscleOrder.indexOf(a);
+        const idxB = muscleOrder.indexOf(b);
+        if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+        if (idxA === -1) return 1;
+        if (idxB === -1) return -1;
+        return idxA - idxB;
+    });
+
+    sortedMuscles.forEach(muscle => {
+        grouped[muscle].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = muscle;
+        grouped[muscle].forEach(e => {
+            const option = document.createElement('option');
+            option.value = e.id;
+            option.textContent = e.name;
+            option.selected = true;
+            selectedStatsExercises.add(e.id);
+            optgroup.appendChild(option);
+        });
+        select.appendChild(optgroup);
     });
 }
 
-function selectAllExercises(select) {
-    const checkboxes = document.querySelectorAll('#exercise-filter-list input[type="checkbox"]');
-    checkboxes.forEach(cb => {
-        cb.checked = select;
-        if (select) {
-            selectedExercises.add(parseInt(cb.value));
-        } else {
-            selectedExercises.delete(parseInt(cb.value));
+function selectAllStatsExercises(select) {
+    const selectEl = document.getElementById('stats-exercise-filter');
+    if (!selectEl) return;
+
+    Array.from(selectEl.options).forEach(opt => {
+        opt.selected = select;
+        const id = parseInt(opt.value);
+        if (!isNaN(id)) {
+            if (select) {
+                selectedStatsExercises.add(id);
+            } else {
+                selectedStatsExercises.delete(id);
+            }
         }
     });
-    updateWeekView();
+    updateStatsView();
 }
 
-function updateAllWorkoutsChart(weekWorkouts) {
+function getStatsFilteredWorkouts() {
+    const startInput = document.getElementById('stats-start-date')?.value;
+    const endInput = document.getElementById('stats-end-date')?.value;
+
+    if (!startInput || !endInput) return [];
+
+    const startDate = new Date(startInput);
+    const endDate = new Date(endInput);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+
+    return workouts.filter(w => {
+        const workoutDate = new Date(w.date);
+        return workoutDate >= startDate && workoutDate <= endDate;
+    });
+}
+
+function initStatsDateRange() {
+    applyStatsRangePreset(statsRangePreset);
+}
+
+function applyStatsRangePreset(days) {
+    statsRangePreset = days;
+
+    const endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+
+    let startDate;
+    if (days === 0) {
+        // Alles: Start = ältestes Workout oder heute
+        const dates = workouts.map(w => new Date(w.date));
+        startDate = dates.length > 0 ? new Date(Math.min(...dates)) : new Date();
+    } else {
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - days + 1);
+    }
+    startDate.setHours(0, 0, 0, 0);
+
+    document.getElementById('stats-start-date').value = formatDateForInput(startDate);
+    document.getElementById('stats-end-date').value = formatDateForInput(endDate);
+
+    // Preset-Buttons visuell markieren
+    document.querySelectorAll('[id^="stats-range-"]').forEach(btn => {
+        btn.style.background = 'rgba(0,212,255,0.1)';
+        btn.style.color = '#00d4ff';
+        btn.style.borderColor = 'rgba(0,212,255,0.3)';
+    });
+    const activeBtn = document.getElementById(`stats-range-${days === 0 ? 'all' : days}`);
+    if (activeBtn) {
+        activeBtn.style.background = 'rgba(0,212,255,0.3)';
+        activeBtn.style.color = '#fff';
+        activeBtn.style.borderColor = '#00d4ff';
+    }
+
+    updateStatsView();
+}
+
+function updateStatsDateRange() {
+    statsRangePreset = null;
+
+    // Button-Markierung entfernen
+    document.querySelectorAll('[id^="stats-range-"]').forEach(btn => {
+        btn.style.background = 'rgba(0,212,255,0.1)';
+        btn.style.color = '#00d4ff';
+        btn.style.borderColor = 'rgba(0,212,255,0.3)';
+    });
+
+    updateStatsView();
+}
+
+function updateStatsView() {
+    // Ausgewählte Übungen aus dem Multi-Select aktualisieren
+    const selectEl = document.getElementById('stats-exercise-filter');
+    if (selectEl) {
+        selectedStatsExercises.clear();
+        Array.from(selectEl.selectedOptions).forEach(opt => {
+            const id = parseInt(opt.value);
+            if (!isNaN(id)) selectedStatsExercises.add(id);
+        });
+    }
+
+    const filteredWorkouts = getStatsFilteredWorkouts();
+    updateAllWorkoutsChart(filteredWorkouts);
+}
+
+function updateAllWorkoutsChart(rangeWorkouts) {
     const ctx = document.getElementById('all-workouts-chart')?.getContext('2d');
     if (!ctx) return;
-    
+
+    // Nach Datum sortieren
+    const sortedWorkouts = [...rangeWorkouts].sort((a, b) => new Date(a.date) - new Date(b.date));
+
     const dataByExercise = {};
-    weekWorkouts.forEach(w => {
-        if (!selectedExercises.has(w.exercise_id)) return;
-        
+    sortedWorkouts.forEach(w => {
+        if (!selectedStatsExercises.has(w.exercise_id)) return;
+
         if (!dataByExercise[w.exercise_name]) {
             dataByExercise[w.exercise_name] = [];
         }
         dataByExercise[w.exercise_name].push({
-            x: w.date,
+            x: formatDate(w.date),
             y: w.weight,
             volume: w.weight * w.sets * w.reps
         });
     });
-    
+
     const datasets = Object.entries(dataByExercise).map(([name, data], index) => {
         const colors = ['#00d4ff', '#7b2cbf', '#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff8b94'];
         const color = colors[index % colors.length];
-        
+
         return {
             label: name,
             data: data.map(d => ({ x: d.x, y: d.y })),
@@ -2545,20 +2585,20 @@ function updateAllWorkoutsChart(weekWorkouts) {
             fill: false
         };
     });
-    
+
     if (allWorkoutsChart) {
         allWorkoutsChart.destroy();
     }
-    
+
     if (datasets.length === 0) {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
         ctx.fillStyle = '#666';
         ctx.font = '14px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('Keine Workouts in dieser Woche', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        ctx.fillText('Keine Workouts im gewählten Zeitraum', ctx.canvas.width / 2, ctx.canvas.height / 2);
         return;
     }
-    
+
     allWorkoutsChart = new Chart(ctx, {
         type: 'line',
         data: { datasets },
@@ -2570,7 +2610,7 @@ function updateAllWorkoutsChart(weekWorkouts) {
                 x: {
                     type: 'category',
                     grid: { color: 'rgba(255,255,255,0.1)' },
-                    ticks: { color: '#888' }
+                    ticks: { color: '#888', maxRotation: 45, minRotation: 45 }
                 },
                 y: {
                     beginAtZero: true,
@@ -2586,154 +2626,11 @@ function updateAllWorkoutsChart(weekWorkouts) {
     });
 }
 
-function updateDailyVolumeChart(weekWorkouts, weekStart) {
-    const ctx = document.getElementById('daily-volume-chart')?.getContext('2d');
-    if (!ctx) return;
-    
-    const volumeByDay = {};
-    const dayNames = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-    
-    for (let i = 0; i < 7; i++) {
-        const day = new Date(weekStart);
-        day.setDate(day.getDate() + i);
-        // FIX: Verwende lokale Zeit statt UTC (toISOString) um 1-Tag-Versatz zu vermeiden
-        const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
-        volumeByDay[dayKey] = { volume: 0, label: dayNames[i], hasWorkouts: false };
-    }
-    
-    weekWorkouts.forEach(w => {
-        if (!selectedExercises.has(w.exercise_id)) return;
-        
-        const dayVolume = w.weight * w.sets * w.reps;
-        if (volumeByDay[w.date]) {
-            volumeByDay[w.date].volume += dayVolume;
-            volumeByDay[w.date].hasWorkouts = true;
-        }
-    });
-    
-    const labels = Object.values(volumeByDay).map(d => d.label);
-    const volumes = Object.values(volumeByDay).map(d => d.volume);
-    
-    if (dailyVolumeChart) {
-        dailyVolumeChart.destroy();
-    }
-    
-    // Alle Werte sind 0? Dann zeigen wir trotzdem das Diagramm
-    const hasAnyWorkouts = volumes.some(v => v > 0);
-    
-    dailyVolumeChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Tagesvolumen',
-                data: volumes,
-                backgroundColor: volumes.map(v => v > 0 ? 'rgba(0,212,255,0.6)' : 'rgba(255,255,255,0.05)'),
-                borderColor: '#00d4ff',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: { color: 'rgba(255,255,255,0.1)' },
-                    ticks: { 
-                        color: '#888', 
-                        callback: (v) => hasAnyWorkouts ? formatWeight(v) : '0 kg'
-                    }
-                },
-                x: {
-                    grid: { display: false },
-                    ticks: { color: '#888' }
-                }
-            },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: (ctx) => `Volumen: ${formatWeight(ctx.raw)}`
-                    },
-                    enabled: hasAnyWorkouts
-                },
-                annotation: hasAnyWorkouts ? {} : {
-                    annotations: {
-                        text: {
-                            type: 'label',
-                            content: 'Keine Workouts diese Woche',
-                            position: 'center'
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-async function loadSingleExerciseChart() {
-    const exerciseId = document.getElementById('single-exercise-select')?.value;
-    const container = document.getElementById('single-exercise-chart-container');
-    
-    if (!exerciseId) {
-        container.style.display = 'none';
-        return;
-    }
-    
-    container.style.display = 'block';
-    
-    try {
-        const res = await apiFetch(`/api/progress/${exerciseId}`);
-        if (!res) return;
-        const data = await res.json();
-        
-        if (data.length === 0) {
-            if (singleExerciseChart) singleExerciseChart.destroy();
-            return;
-        }
-        
-        const ctx = document.getElementById('single-exercise-chart').getContext('2d');
-        
-        if (singleExerciseChart) singleExerciseChart.destroy();
-        
-        singleExerciseChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: data.map(d => formatDate(d.date)),
-                datasets: [{
-                    label: 'Gewicht (kg)',
-                    data: data.map(d => d.weight),
-                    borderColor: '#00d4ff',
-                    backgroundColor: 'rgba(0,212,255,0.1)',
-                    tension: 0.3,
-                    fill: true
-                }, {
-                    label: 'Wiederholungen',
-                    data: data.map(d => d.reps),
-                    borderColor: '#7b2cbf',
-                    backgroundColor: 'rgba(123,44,191,0.1)',
-                    tension: 0.3,
-                    fill: true,
-                    yAxisID: 'y1'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#888' } },
-                    y1: { position: 'right', beginAtZero: true, grid: { display: false }, ticks: { color: '#888' } },
-                    x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#888' } }
-                },
-                plugins: {
-                    legend: { labels: { color: '#fff' } }
-                }
-            }
-        });
-    } catch (err) {
-        console.error('Fehler beim Laden des Charts:', err);
-    }
+function formatDateForInput(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 function formatWeight(kg) {
@@ -2741,12 +2638,6 @@ function formatWeight(kg) {
         return (kg / 1000).toFixed(1) + 'k';
     }
     return Math.round(kg) + ' kg';
-}
-
-function initStats() {
-    initExerciseFilter();
-    updateExerciseSelects();
-    resetToCurrentWeek();
 }
 
 // ===================== TIMER FUNKTIONEN =====================
