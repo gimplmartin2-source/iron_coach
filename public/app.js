@@ -2404,7 +2404,7 @@ let statsDateRangeEnd = null;
 let statsRangePreset = 30;
 let selectedStatsExercises = new Set();
 let allWorkoutsChart = null;
-let statsMetrics = { weight: true, reps: false, volume: true };
+let statsMetrics = { weight: true, reps: true };
 
 async function initStats() {
     // Sicherstellen, dass die Übungen geladen sind, bevor der Filter aufgebaut wird
@@ -2738,7 +2738,7 @@ function updateAllWorkoutsChart(rangeWorkouts) {
     // Nach Datum sortieren
     const sortedWorkouts = [...rangeWorkouts].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // Zeit-basierte Workouts in diesem Chart ausblenden (Gewicht/Reps/Volumen = 0)
+    // Zeit-basierte Workouts ausblenden (Gewicht/Reps machen hier keinen Sinn)
     const metricWorkouts = sortedWorkouts.filter(w => {
         const ex = exercises.find(e => e.id === w.exercise_id);
         return ex && ex.exercise_type !== 'time';
@@ -2746,49 +2746,74 @@ function updateAllWorkoutsChart(rangeWorkouts) {
 
     const metricConfig = {
         weight: { label: 'Gewicht', unit: 'kg', axis: 'y', dash: [], icon: '⚖️' },
-        volume: { label: 'Volumen', unit: 'kg', axis: 'y1', dash: [5, 5], icon: '📦' },
-        reps: { label: 'Wdh', unit: '', axis: 'y2', dash: [2, 3], icon: '🔁' }
+        reps: { label: 'Wiederholungen', unit: '', axis: 'y1', dash: [5, 5], icon: '🔁' }
     };
 
     const dataByExercise = {};
+    const dailyReps = {};
+    const allDates = new Set();
+
     metricWorkouts.forEach(w => {
         if (!selectedStatsExercises.has(w.exercise_id)) return;
 
+        const isoDate = w.date.split('T')[0];
+        allDates.add(isoDate);
+
+        // Gewicht pro Übung
         if (!dataByExercise[w.exercise_name]) {
             dataByExercise[w.exercise_name] = [];
         }
-        dataByExercise[w.exercise_name].push({
-            x: formatDate(w.date),
-            weight: w.weight || 0,
-            reps: w.reps || 0,
-            volume: (w.weight || 0) * (w.sets || 0) * (w.reps || 0)
-        });
+        dataByExercise[w.exercise_name].push({ x: isoDate, y: w.weight || 0 });
+
+        // Wiederholungen tageweise summieren: Sätze × Wiederholungen
+        const repsSum = (w.sets || 0) * (w.reps || 0);
+        dailyReps[isoDate] = (dailyReps[isoDate] || 0) + repsSum;
     });
 
     const colors = ['#00d4ff', '#7b2cbf', '#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff8b94'];
     const datasets = [];
 
-    Object.entries(dataByExercise).forEach(([name, data], index) => {
-        const baseColor = colors[index % colors.length];
-
-        Object.entries(metricConfig).forEach(([metric, config]) => {
-            if (!statsMetrics[metric]) return;
-
+    // Gewicht pro Übung
+    if (statsMetrics.weight) {
+        Object.entries(dataByExercise).forEach(([name, data], index) => {
+            const baseColor = colors[index % colors.length];
             datasets.push({
-                label: `${name} (${config.label})`,
-                metricKey: metric,
-                data: data.map(d => ({ x: d.x, y: d[metric] })),
+                label: name,
+                metricKey: 'weight',
+                data: data,
                 borderColor: baseColor,
                 backgroundColor: baseColor + '22',
-                borderDash: config.dash,
+                borderDash: metricConfig.weight.dash,
                 tension: 0.3,
                 fill: false,
-                yAxisID: config.axis,
+                yAxisID: metricConfig.weight.axis,
                 pointRadius: 4,
                 pointHoverRadius: 6
             });
         });
-    });
+    }
+
+    // Wiederholungen tageweise als einzelne Linie
+    if (statsMetrics.reps && Object.keys(dailyReps).length > 0) {
+        const repsData = Object.entries(dailyReps)
+            .map(([date, reps]) => ({ x: date, y: reps }))
+            .sort((a, b) => new Date(a.x) - new Date(b.x));
+        repsData.forEach(d => allDates.add(d.x));
+
+        datasets.push({
+            label: `${metricConfig.reps.icon} ${metricConfig.reps.label} (Sätze × Wdh)`,
+            metricKey: 'reps',
+            data: repsData,
+            borderColor: '#ff9f43',
+            backgroundColor: 'rgba(255, 159, 67, 0.15)',
+            borderDash: metricConfig.reps.dash,
+            tension: 0.3,
+            fill: false,
+            yAxisID: metricConfig.reps.axis,
+            pointRadius: 4,
+            pointHoverRadius: 6
+        });
+    }
 
     if (allWorkoutsChart) {
         allWorkoutsChart.destroy();
@@ -2803,12 +2828,22 @@ function updateAllWorkoutsChart(rangeWorkouts) {
         return;
     }
 
-    // Skalen je nach aktiven Metriken aufbauen
+    // Einheitliche, chronologische X-Achse
+    const labels = Array.from(allDates).sort((a, b) => new Date(a) - new Date(b));
+
     const scales = {
         x: {
             type: 'category',
+            labels: labels,
             grid: { color: 'rgba(255,255,255,0.1)' },
-            ticks: { color: '#888', maxRotation: 45, minRotation: 45 }
+            ticks: {
+                color: '#888',
+                maxRotation: 45,
+                minRotation: 45,
+                callback: function(value) {
+                    return formatDate(value);
+                }
+            }
         }
     };
 
@@ -2822,18 +2857,8 @@ function updateAllWorkoutsChart(rangeWorkouts) {
         };
     }
 
-    if (statsMetrics.volume) {
-        scales.y1 = {
-            beginAtZero: true,
-            position: 'right',
-            grid: { display: false },
-            ticks: { color: '#888' },
-            title: { display: true, text: 'Volumen (kg)', color: '#888' }
-        };
-    }
-
     if (statsMetrics.reps) {
-        scales.y2 = {
+        scales.y1 = {
             beginAtZero: true,
             position: 'right',
             grid: { display: false },
@@ -2844,7 +2869,7 @@ function updateAllWorkoutsChart(rangeWorkouts) {
 
     allWorkoutsChart = new Chart(ctx, {
         type: 'line',
-        data: { datasets },
+        data: { labels, datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -2854,6 +2879,10 @@ function updateAllWorkoutsChart(rangeWorkouts) {
                 legend: { labels: { color: '#fff' }, position: 'top' },
                 tooltip: {
                     callbacks: {
+                        title: function(context) {
+                            const iso = context[0]?.label;
+                            return iso ? formatDate(iso) : '';
+                        },
                         label: function(context) {
                             const config = metricConfig[context.dataset.metricKey || 'weight'];
                             return `${context.dataset.label}: ${context.parsed.y} ${config ? config.unit : ''}`;
