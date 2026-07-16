@@ -409,6 +409,19 @@ async function loadExercises() {
         // Sicherstellen dass data ein Array ist
         if (Array.isArray(data)) {
             exercises = data;
+            updateExerciseSelects();
+            renderExercisesList();
+
+            // Statistik-Filter vorbelegen, falls noch keine Auswahl getroffen wurde
+            if (selectedStatsExercises.size === 0 && exercises.length > 0) {
+                initStatsExerciseFilter();
+            }
+
+            // Falls der Nutzer gerade auf dem Statistik-Tab ist, sofort aktualisieren
+            const statsTab = document.getElementById('stats-tab');
+            if (statsTab && statsTab.classList.contains('active')) {
+                updateStatsView();
+            }
         } else if (data.error) {
             console.error('❌ API Fehler:', data.error);
             exercises = [];
@@ -416,8 +429,6 @@ async function loadExercises() {
             console.error('❌ Ungültige API Antwort:', data);
             exercises = [];
         }
-        updateExerciseSelects();
-        renderExercisesList();
     } catch (err) {
         console.error('Fehler beim Laden der Übungen:', err);
         exercises = [];
@@ -2394,7 +2405,12 @@ let statsRangePreset = 30;
 let selectedStatsExercises = new Set();
 let allWorkoutsChart = null;
 
-function initStats() {
+async function initStats() {
+    // Sicherstellen, dass die Übungen geladen sind, bevor der Filter aufgebaut wird
+    if (exercises.length === 0) {
+        await loadExercises();
+    }
+
     initStatsExerciseFilter();
     initStatsDateRange();
     updateExerciseSelects();
@@ -2452,10 +2468,13 @@ function renderSelectedStatsExercises() {
     });
 }
 
-function openStatsExerciseSelector() {
+async function openStatsExerciseSelector() {
     if (!exercises || exercises.length === 0) {
-        alert('Übungen werden geladen... bitte warte einen Moment und versuche es erneut.');
-        loadExercises();
+        await loadExercises();
+    }
+
+    if (!exercises || exercises.length === 0) {
+        alert('Keine Übungen verfügbar. Bitte prüfe deine Verbindung oder erstelle zuerst eine Übung.');
         return;
     }
 
