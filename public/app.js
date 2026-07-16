@@ -2404,65 +2404,223 @@ function initStats() {
 // ===================== STATISTIK-FUNKTIONEN =====================
 
 function initStatsExerciseFilter() {
-    const select = document.getElementById('stats-exercise-filter');
-    if (!select) return;
-
     selectedStatsExercises.clear();
-    select.innerHTML = '';
 
     if (exercises.length === 0) {
-        select.innerHTML = '<option value="" disabled>Noch keine Übungen vorhanden</option>';
+        renderSelectedStatsExercises();
         return;
     }
 
-    // Gruppierung nach Muskelgruppe wie bei der Workout-Übungsauswahl
+    // Standardmäßig ALLE Übungen auswählen
+    exercises.forEach(e => selectedStatsExercises.add(e.id));
+    renderSelectedStatsExercises();
+}
+
+function renderSelectedStatsExercises() {
+    const container = document.getElementById('stats-selected-exercises');
+    const btnText = document.getElementById('stats-exercise-btn-text');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (selectedStatsExercises.size === 0) {
+        container.innerHTML = '<span class="stats-selected-empty">Keine Übung ausgewählt</span>';
+        if (btnText) btnText.textContent = '➕ Übungen auswählen...';
+        return;
+    }
+
+    if (btnText) {
+        btnText.textContent = `${selectedStatsExercises.size} Übung${selectedStatsExercises.size !== 1 ? 'en' : ''} ausgewählt`;
+    }
+
+    // Nach Namen sortiert anzeigen
+    const selectedList = exercises
+        .filter(e => selectedStatsExercises.has(e.id))
+        .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+
+    selectedList.forEach(e => {
+        const tag = document.createElement('span');
+        tag.className = 'stats-selected-tag';
+        tag.textContent = e.name;
+        tag.title = 'Klicken zum Entfernen';
+        tag.onclick = () => {
+            selectedStatsExercises.delete(e.id);
+            renderSelectedStatsExercises();
+            updateStatsView();
+        };
+        container.appendChild(tag);
+    });
+}
+
+function openStatsExerciseSelector() {
+    if (!exercises || exercises.length === 0) {
+        alert('Übungen werden geladen... bitte warte einen Moment und versuche es erneut.');
+        loadExercises();
+        return;
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'stats-exercise-selector-modal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.92);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 3000;
+        animation: fadeIn 0.2s ease-out;
+    `;
+
+    // Nach Muskelgruppe gruppieren
     const grouped = {};
     exercises.forEach(e => {
-        if (!grouped[e.muscle_group]) grouped[e.muscle_group] = [];
-        grouped[e.muscle_group].push(e);
+        const category = e.muscle_group;
+        if (!grouped[category]) grouped[category] = [];
+        grouped[category].push(e);
     });
 
-    const muscleOrder = ['Brust', 'Rücken', 'Schultern', 'Beine', 'Arme', 'Bauch', 'Ganzkörper', 'Dehnen', 'Mobilität', 'Judo', 'Core'];
-    const sortedMuscles = Object.keys(grouped).sort((a, b) => {
-        const idxA = muscleOrder.indexOf(a);
-        const idxB = muscleOrder.indexOf(b);
+    const categoryOrder = ['Brust', 'Rücken', 'Schultern', 'Beine', 'Arme', 'Bauch', 'Ganzkörper', 'Dehnen', 'Mobilität', 'Judo', 'Core'];
+    const sortedCategories = Object.keys(grouped).sort((a, b) => {
+        const idxA = categoryOrder.indexOf(a);
+        const idxB = categoryOrder.indexOf(b);
         if (idxA === -1 && idxB === -1) return a.localeCompare(b);
         if (idxA === -1) return 1;
         if (idxB === -1) return -1;
         return idxA - idxB;
     });
 
-    sortedMuscles.forEach(muscle => {
-        grouped[muscle].sort((a, b) => a.name.localeCompare(b.name, 'de'));
-        const optgroup = document.createElement('optgroup');
-        optgroup.label = muscle;
-        grouped[muscle].forEach(e => {
-            const option = document.createElement('option');
-            option.value = e.id;
-            option.textContent = e.name;
-            option.selected = true;
-            selectedStatsExercises.add(e.id);
-            optgroup.appendChild(option);
-        });
-        select.appendChild(optgroup);
+    sortedCategories.forEach(cat => {
+        grouped[cat].sort((a, b) => a.name.localeCompare(b.name, 'de'));
     });
+
+    let categoriesHtml = '';
+    let exercisesHtml = '';
+
+    sortedCategories.forEach((cat, index) => {
+        const isFirst = index === 0;
+        categoriesHtml += `<button type="button" class="category-btn ${isFirst ? 'active' : ''}" data-category="${cat}" onclick="selectStatsCategory('${cat}')" style="padding: 10px 18px; margin: 5px; background: ${isFirst ? 'linear-gradient(45deg, #00d4ff, #7b2cbf)' : 'rgba(255,255,255,0.1)'}; border: none; border-radius: 8px; color: #fff; cursor: pointer; transition: all 0.2s; font-size: 0.9rem;">${cat}</button>`;
+
+        const display = isFirst ? 'grid' : 'none';
+        exercisesHtml += `<div class="stats-exercise-grid" id="stats-exercises-${cat}" style="display: ${display}; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 15px;">`;
+
+        grouped[cat].forEach(e => {
+            const isSelected = selectedStatsExercises.has(e.id);
+            const media = getExerciseMedia(e.name);
+            const videoHtml = media ? `<video src="${media.src}" muted playsinline loop autoplay style="width: 100%; height: 80px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;" onerror="this.style.display='none'"></video>` : '';
+            exercisesHtml += `
+                <button type="button" class="stats-exercise-option ${isSelected ? 'selected' : ''}" onclick="toggleStatsExerciseSelection(${e.id}, this)" data-exercise-id="${e.id}"
+                    onmouseover="this.style.background='${isSelected ? 'rgba(0,212,255,0.25)' : 'rgba(0,212,255,0.15)'}'; this.style.borderColor='#00d4ff';"
+                    onmouseout="if (!this.classList.contains('selected')) { this.style.background='rgba(255,255,255,0.08)'; this.style.borderColor='rgba(255,255,255,0.15)'; } else { this.style.background='rgba(0,212,255,0.2)'; this.style.borderColor='#00d4ff'; }">
+                    <span class="selection-indicator"></span>
+                    ${videoHtml}
+                    <div style="font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; padding-right: 28px;">${e.name}</div>
+                    <div style="font-size: 0.75rem; color: #888;">${e.muscle_group}</div>
+                </button>`;
+        });
+
+        exercisesHtml += '</div>';
+    });
+
+    modal.innerHTML = `
+        <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 1px solid rgba(0,212,255,0.3); border-radius: 16px; padding: 20px; max-width: 600px; width: 92%; max-height: 85vh; overflow-y: auto; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0;">
+                <h3 style="color: #00d4ff; margin: 0; font-size: 1.1rem;">🏋️ Übungen auswählen</h3>
+                <button type="button" onclick="closeStatsExerciseSelector()" style="background: rgba(255,100,100,0.2); border: 1px solid rgba(255,100,100,0.5); color: #f66; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 1.2rem;">✕</button>
+            </div>
+
+            <div style="margin-bottom: 12px; flex-shrink: 0;">
+                <span style="color: #888; font-size: 0.85rem;">Schritt 1: Kategorie wählen</span>
+                <div style="margin-top: 8px; display: flex; flex-wrap: wrap;">
+                    ${categoriesHtml}
+                </div>
+            </div>
+
+            <div style="flex: 1; overflow-y: auto; min-height: 0;">
+                <span style="color: #888; font-size: 0.85rem;">Schritt 2: Übungen antippen (mehrfach möglich)</span>
+                ${exercisesHtml}
+            </div>
+
+            <div style="margin-top: 15px; display: flex; gap: 10px; flex-shrink: 0; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                <button type="button" class="btn-secondary" onclick="selectAllStatsExercisesFromModal(true)" style="flex: 1;">Alle an</button>
+                <button type="button" class="btn-secondary" onclick="selectAllStatsExercisesFromModal(false)" style="flex: 1;">Alle aus</button>
+                <button type="button" class="btn-primary" onclick="closeStatsExerciseSelector()" style="flex: 2;">Fertig</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+function selectStatsCategory(category) {
+    document.querySelectorAll('#stats-exercise-selector-modal .category-btn').forEach(btn => {
+        if (btn.dataset.category === category) {
+            btn.style.background = 'linear-gradient(45deg, #00d4ff, #7b2cbf)';
+            btn.classList.add('active');
+        } else {
+            btn.style.background = 'rgba(255,255,255,0.1)';
+            btn.classList.remove('active');
+        }
+    });
+
+    document.querySelectorAll('.stats-exercise-grid').forEach(grid => {
+        grid.style.display = 'none';
+    });
+    const selectedGrid = document.getElementById(`stats-exercises-${category}`);
+    if (selectedGrid) {
+        selectedGrid.style.display = 'grid';
+    }
+}
+
+function toggleStatsExerciseSelection(exerciseId, element) {
+    if (selectedStatsExercises.has(exerciseId)) {
+        selectedStatsExercises.delete(exerciseId);
+        element.classList.remove('selected');
+        element.style.background = 'rgba(0,212,255,0.15)';
+    } else {
+        selectedStatsExercises.add(exerciseId);
+        element.classList.add('selected');
+        element.style.background = 'rgba(0,212,255,0.2)';
+    }
+    renderSelectedStatsExercises();
+    updateStatsView();
+}
+
+function selectAllStatsExercisesFromModal(select) {
+    if (select) {
+        exercises.forEach(e => selectedStatsExercises.add(e.id));
+    } else {
+        selectedStatsExercises.clear();
+    }
+
+    // Sichtbare Options im Modal aktualisieren
+    document.querySelectorAll('.stats-exercise-option').forEach(btn => {
+        const id = parseInt(btn.dataset.exerciseId);
+        const isSelected = selectedStatsExercises.has(id);
+        btn.classList.toggle('selected', isSelected);
+        btn.style.background = isSelected ? 'rgba(0,212,255,0.2)' : 'rgba(255,255,255,0.08)';
+        btn.style.borderColor = isSelected ? '#00d4ff' : 'rgba(255,255,255,0.15)';
+    });
+
+    renderSelectedStatsExercises();
+    updateStatsView();
+}
+
+function closeStatsExerciseSelector() {
+    const modal = document.getElementById('stats-exercise-selector-modal');
+    if (modal) modal.remove();
 }
 
 function selectAllStatsExercises(select) {
-    const selectEl = document.getElementById('stats-exercise-filter');
-    if (!selectEl) return;
-
-    Array.from(selectEl.options).forEach(opt => {
-        opt.selected = select;
-        const id = parseInt(opt.value);
-        if (!isNaN(id)) {
-            if (select) {
-                selectedStatsExercises.add(id);
-            } else {
-                selectedStatsExercises.delete(id);
-            }
-        }
-    });
+    if (select) {
+        exercises.forEach(e => selectedStatsExercises.add(e.id));
+    } else {
+        selectedStatsExercises.clear();
+    }
+    renderSelectedStatsExercises();
     updateStatsView();
 }
 
@@ -2537,16 +2695,6 @@ function updateStatsDateRange() {
 }
 
 function updateStatsView() {
-    // Ausgewählte Übungen aus dem Multi-Select aktualisieren
-    const selectEl = document.getElementById('stats-exercise-filter');
-    if (selectEl) {
-        selectedStatsExercises.clear();
-        Array.from(selectEl.selectedOptions).forEach(opt => {
-            const id = parseInt(opt.value);
-            if (!isNaN(id)) selectedStatsExercises.add(id);
-        });
-    }
-
     const filteredWorkouts = getStatsFilteredWorkouts();
     updateAllWorkoutsChart(filteredWorkouts);
 }
