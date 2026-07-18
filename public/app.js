@@ -57,8 +57,12 @@ const API_URL = '';
 // Token aus URL lesen (nach Google OAuth Redirect)
 const urlParams = new URLSearchParams(window.location.search);
 const urlToken = urlParams.get('token');
+const urlRefreshToken = urlParams.get('refreshToken');
 if (urlToken) {
     localStorage.setItem('token', urlToken);
+    if (urlRefreshToken) {
+        localStorage.setItem('refreshToken', urlRefreshToken);
+    }
     // URL bereinigen (token entfernen)
     window.history.replaceState({}, document.title, window.location.pathname);
 }
@@ -69,11 +73,57 @@ if (!token && !window.location.pathname.includes('login')) {
     window.location.href = '/login.html';
 }
 
-// API Helper mit Auth Header
-async function apiFetch(url, options = {}) {
-    const token = localStorage.getItem('token');
+// Hilfsfunktion: Access Token via Refresh Token erneuern
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+function onRefreshed(newToken) {
+    refreshSubscribers.forEach(callback => callback(newToken));
+    refreshSubscribers = [];
+}
+
+function addRefreshSubscriber(callback) {
+    refreshSubscribers.push(callback);
+}
+
+async function refreshAccessToken() {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) {
+        throw new Error('Kein Refresh Token vorhanden');
+    }
+
     try {
-        const res = await fetch(`${API_URL}${url}`, {
+        const res = await fetch(`${API_URL}/api/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken })
+        });
+
+        if (!res.ok) {
+            throw new Error('Refresh fehlgeschlagen');
+        }
+
+        const data = await res.json();
+        localStorage.setItem('token', data.token);
+        if (data.refreshToken) {
+            localStorage.setItem('refreshToken', data.refreshToken);
+        }
+        console.log('🔑 Access Token automatisch erneuert');
+        return data.token;
+    } catch (err) {
+        console.error('❌ Token-Refresh fehlgeschlagen:', err);
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        window.location.href = '/login.html';
+        throw err;
+    }
+}
+
+// API Helper mit Auth Header + automatischem Token-Refresh
+async function apiFetch(url, options = {}) {
+    const makeRequest = async (token) => {
+        return fetch(`${API_URL}${url}`, {
             ...options,
             headers: {
                 'Content-Type': 'application/json',
@@ -81,16 +131,45 @@ async function apiFetch(url, options = {}) {
                 ...options.headers
             }
         });
-        
-        // Bei 401 oder 403 ausloggen (ungültiger Token)
-        if (res.status === 401 || res.status === 403) {
+    };
+
+    try {
+        let token = localStorage.getItem('token');
+        let res = await makeRequest(token);
+
+        // Bei 401: Versuche Token zu erneuern
+        if (res.status === 401) {
+            if (isRefreshing) {
+                // Warte auf laufenden Refresh
+                return new Promise((resolve) => {
+                    addRefreshSubscriber(async (newToken) => {
+                        resolve(await makeRequest(newToken));
+                    });
+                });
+            }
+
+            isRefreshing = true;
+            try {
+                const newToken = await refreshAccessToken();
+                onRefreshed(newToken);
+                res = await makeRequest(newToken);
+            } catch (refreshErr) {
+                return;
+            } finally {
+                isRefreshing = false;
+            }
+        }
+
+        // Bei 403 ausloggen (kein Refresh möglich)
+        if (res.status === 403) {
             console.log('🔒 Token ungültig, melde ab...');
             localStorage.removeItem('token');
+            localStorage.removeItem('refreshToken');
             localStorage.removeItem('user');
             window.location.href = '/login.html';
             return;
         }
-        
+
         return res;
     } catch (err) {
         console.error('❌ API Fehler:', err);
@@ -245,6 +324,7 @@ function showUserInfo() {
 
 function logout() {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     sessionStorage.removeItem('restoreAttempted'); // WICHTIG: Reset für nächsten Login
     window.location.href = '/login.html';
@@ -1298,17 +1378,17 @@ function renderWorkoutsList() {
         return;
     }
     
-    // Nach Datum sortieren (neueste zuerst)
+    // Nach Datum sortieren (neueste zuerst) – ISO-Strings sortieren lexikografisch korrekt
     const grouped = groupWorkoutsByDate();
-    const sortedDates = Object.keys(grouped).sort((a, b) => new Date(b) - new Date(a));
+    const sortedDates = Object.keys(grouped).sort((a, b) => String(b).localeCompare(String(a)));
     
     let html = '';
     
     sortedDates.forEach(date => {
         const dateWorkouts = grouped[date];
         const totalVolume = dateWorkouts.reduce((sum, w) => sum + ((w.weight || 0) * (w.sets || 0) * (w.reps || 0)), 0);
-        const dateObj = new Date(date);
-        const dateStr = dateObj.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+        const dateObj = parseLocalDate(date);
+        const dateStr = dateObj ? dateObj.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) : date;
         
         // Prüfe ob Trainingssession (mehrere Übungen am selben Tag)
         const isSession = dateWorkouts.length > 1;
@@ -2284,9 +2364,19 @@ function showToast(message) {
     }, 2500);
 }
 
+// Helper: Datum als lokales Datum parsen (vermeidet UTC-Verschiebung bei YYYY-MM-DD)
+function parseLocalDate(dateStr) {
+    if (!dateStr) return null;
+    const iso = String(dateStr).split('T')[0];
+    const [year, month, day] = iso.split('-').map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+}
+
 // Helper: Format date
 function formatDate(dateStr) {
-    const d = new Date(dateStr);
+    const d = parseLocalDate(dateStr);
+    if (!d) return dateStr || '';
     return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
 }
 
@@ -2650,13 +2740,15 @@ function getStatsFilteredWorkouts() {
 
     if (!startInput || !endInput) return [];
 
-    const startDate = new Date(startInput);
-    const endDate = new Date(endInput);
+    const startDate = parseLocalDate(startInput);
+    const endDate = parseLocalDate(endInput);
+    if (!startDate || !endDate) return [];
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(23, 59, 59, 999);
 
     return workouts.filter(w => {
-        const workoutDate = new Date(w.date);
+        const workoutDate = parseLocalDate(w.date);
+        if (!workoutDate) return false;
         return workoutDate >= startDate && workoutDate <= endDate;
     });
 }
@@ -2674,7 +2766,7 @@ function applyStatsRangePreset(days) {
     let startDate;
     if (days === 0) {
         // Alles: Start = ältestes Workout oder heute
-        const dates = workouts.map(w => new Date(w.date));
+        const dates = workouts.map(w => parseLocalDate(w.date)).filter(Boolean);
         startDate = dates.length > 0 ? new Date(Math.min(...dates)) : new Date();
     } else {
         startDate = new Date();
@@ -2735,8 +2827,8 @@ function updateAllWorkoutsChart(rangeWorkouts) {
     const ctx = document.getElementById('all-workouts-chart')?.getContext('2d');
     if (!ctx) return;
 
-    // Nach Datum sortieren
-    const sortedWorkouts = [...rangeWorkouts].sort((a, b) => new Date(a.date) - new Date(b.date));
+    // Nach Datum sortieren (ISO-Strings direkt vergleichen, um UTC-Probleme zu vermeiden)
+    const sortedWorkouts = [...rangeWorkouts].sort((a, b) => String(a.date).split('T')[0].localeCompare(String(b.date).split('T')[0]));
 
     // Zeit-basierte Workouts ausblenden (Gewicht/Reps machen hier keinen Sinn)
     const metricWorkouts = sortedWorkouts.filter(w => {
@@ -2749,33 +2841,44 @@ function updateAllWorkoutsChart(rangeWorkouts) {
         reps: { label: 'Wiederholungen', unit: '', axis: 'y1', dash: [5, 5], icon: '🔁' }
     };
 
-    const dataByExercise = {};
-    const dailyReps = {};
+    // Pro Übung & Tag aggregieren, damit mehrere Einträge derselben Übung am selben Tag zusammengefasst werden
+    const dataByExercise = {}; // { exerciseName: { isoDate: { weight: max, reps: sum } } }
+    const dailyReps = {};      // { isoDate: Gesamtreps (alle Übungen) }
     const allDates = new Set();
 
     metricWorkouts.forEach(w => {
         if (!selectedStatsExercises.has(w.exercise_id)) return;
 
-        const isoDate = w.date.split('T')[0];
+        const isoDate = String(w.date).split('T')[0];
         allDates.add(isoDate);
 
-        // Gewicht pro Übung
         if (!dataByExercise[w.exercise_name]) {
-            dataByExercise[w.exercise_name] = [];
+            dataByExercise[w.exercise_name] = {};
         }
-        dataByExercise[w.exercise_name].push({ x: isoDate, y: w.weight || 0 });
+        if (!dataByExercise[w.exercise_name][isoDate]) {
+            dataByExercise[w.exercise_name][isoDate] = { weight: 0, reps: 0 };
+        }
 
-        // Wiederholungen tageweise summieren: Sätze × Wiederholungen
-        const repsSum = (w.sets || 0) * (w.reps || 0);
-        dailyReps[isoDate] = (dailyReps[isoDate] || 0) + repsSum;
+        const entry = dataByExercise[w.exercise_name][isoDate];
+        // Gewicht: höchstes Gewicht am Tag behalten (bei mehreren Sätzen/Einträgen)
+        entry.weight = Math.max(entry.weight, w.weight || 0);
+        // Wiederholungen: Sätze × Wiederholungen pro Eintrag, pro Übung & Tag summieren
+        entry.reps += (w.sets || 0) * (w.reps || 0);
+
+        // Tägliche Gesamtwiederholungen über alle Übungen
+        dailyReps[isoDate] = (dailyReps[isoDate] || 0) + (w.sets || 0) * (w.reps || 0);
     });
 
     const colors = ['#00d4ff', '#7b2cbf', '#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff8b94'];
     const datasets = [];
 
-    // Gewicht pro Übung
+    // Gewicht pro Übung (pro Tag aggregiert)
     if (statsMetrics.weight) {
-        Object.entries(dataByExercise).forEach(([name, data], index) => {
+        Object.entries(dataByExercise).forEach(([name, byDate], index) => {
+            const data = Object.entries(byDate)
+                .map(([date, vals]) => ({ x: date, y: vals.weight }))
+                .sort((a, b) => String(a.x).localeCompare(String(b.x)));
+
             const baseColor = colors[index % colors.length];
             datasets.push({
                 label: name,
@@ -2797,7 +2900,7 @@ function updateAllWorkoutsChart(rangeWorkouts) {
     if (statsMetrics.reps && Object.keys(dailyReps).length > 0) {
         const repsData = Object.entries(dailyReps)
             .map(([date, reps]) => ({ x: date, y: reps }))
-            .sort((a, b) => new Date(a.x) - new Date(b.x));
+            .sort((a, b) => String(a.x).localeCompare(String(b.x)));
         repsData.forEach(d => allDates.add(d.x));
 
         datasets.push({
@@ -2828,8 +2931,8 @@ function updateAllWorkoutsChart(rangeWorkouts) {
         return;
     }
 
-    // Einheitliche, chronologische X-Achse
-    const labels = Array.from(allDates).sort((a, b) => new Date(a) - new Date(b));
+    // Einheitliche, chronologische X-Achse (ISO-Strings direkt sortieren)
+    const labels = Array.from(allDates).sort((a, b) => String(a).localeCompare(String(b)));
 
     const scales = {
         x: {

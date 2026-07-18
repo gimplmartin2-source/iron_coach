@@ -55,6 +55,8 @@ app.use(cors({
 app.use(express.json());
 
 // Session Setup
+// WICHTIG: Session-Cookie auf 1 Jahr setzen für "Eingeloggt bleiben"
+const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 app.use(session({
   secret: SESSION_SECRET,
   resave: false,
@@ -62,7 +64,7 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000
+    maxAge: ONE_YEAR_MS
   }
 }));
 
@@ -97,9 +99,27 @@ db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS user_tokens (
     user_id INTEGER PRIMARY KEY,
     google_refresh_token TEXT,
+    jwt_refresh_token TEXT,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`);
+
+  // Migration: jwt_refresh_token Spalte hinzufügen falls noch nicht vorhanden
+  db.all(`PRAGMA table_info(user_tokens)`, [], (err, columns) => {
+    if (!err && columns) {
+      const hasJwtRefresh = columns.some(col => col.name === 'jwt_refresh_token');
+      if (!hasJwtRefresh) {
+        console.log('⚠️ Migration: jwt_refresh_token Spalte fehlt, füge hinzu...');
+        db.run(`ALTER TABLE user_tokens ADD COLUMN jwt_refresh_token TEXT`, (alterErr) => {
+          if (alterErr) {
+            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
+          } else {
+            console.log('✅ jwt_refresh_token Spalte zu user_tokens hinzugefügt');
+          }
+        });
+      }
+    }
+  });
 
   // Exercises Tabelle - immer neu erstellen falls nicht existiert
   db.run(`CREATE TABLE IF NOT EXISTS exercises (
@@ -216,6 +236,51 @@ const authenticateJWT = (req, res, next) => {
     res.sendStatus(401);
   }
 };
+
+// Hilfsfunktion: JWT Refresh Token generieren und speichern
+function generateJwtRefreshToken() {
+  return require('crypto').randomBytes(64).toString('hex');
+}
+
+async function storeJwtRefreshToken(userId, refreshToken) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'INSERT OR REPLACE INTO user_tokens (user_id, jwt_refresh_token, updated_at) VALUES (?, ?, datetime("now"))',
+      [userId, refreshToken],
+      (err) => {
+        if (err) {
+          console.error('❌ Fehler beim Speichern des JWT Refresh Tokens:', err.message);
+          reject(err);
+        } else {
+          console.log('✅ JWT Refresh Token gespeichert für User:', userId);
+          resolve();
+        }
+      }
+    );
+  });
+}
+
+async function getJwtRefreshToken(userId) {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT jwt_refresh_token FROM user_tokens WHERE user_id = ?', [userId], (err, row) => {
+      if (err) {
+        console.error('❌ Fehler beim Lesen des JWT Refresh Tokens:', err.message);
+        reject(err);
+      } else {
+        resolve(row ? row.jwt_refresh_token : null);
+      }
+    });
+  });
+}
+
+async function revokeJwtRefreshToken(userId) {
+  return new Promise((resolve, reject) => {
+    db.run('UPDATE user_tokens SET jwt_refresh_token = NULL WHERE user_id = ?', [userId], (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+}
 
 // WICHTIG: Hilfsfunktion zum Erneuern des Google Access Tokens
 async function refreshGoogleAccessToken(userId) {
@@ -475,23 +540,47 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    db.run('INSERT INTO users (email, password, display_name) VALUES (?, ?, ?)',
-      [email, hashedPassword, displayName || email], function(err) {
-      if (err) {
-        if (err.message.includes('UNIQUE')) {
-          return res.status(409).json({ error: 'Email bereits registriert' });
-        }
-        return res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
+    let userId;
+    try {
+      userId = await new Promise((resolve, reject) => {
+        db.run('INSERT INTO users (email, password, display_name) VALUES (?, ?, ?)',
+          [email, hashedPassword, displayName || email], function(err) {
+          if (err) {
+            if (err.message.includes('UNIQUE')) {
+              reject(new Error('Email bereits registriert'));
+            } else {
+              reject(new Error('Datenbankfehler: ' + err.message));
+            }
+            return;
+          }
+          resolve(this.lastID);
+        });
+      });
+    } catch (insertErr) {
+      if (insertErr.message === 'Email bereits registriert') {
+        return res.status(409).json({ error: insertErr.message });
       }
+      return res.status(500).json({ error: insertErr.message });
+    }
 
-      // "Eingeloggt bleiben" -> Token 1 Jahr gültig, sonst 24h
-      const tokenExpiry = rememberMe ? TOKEN_LONG : TOKEN_SHORT;
-      const token = jwt.sign({ userId: this.lastID, email }, JWT_SECRET, { expiresIn: tokenExpiry });
+    // "Eingeloggt bleiben" -> Token 1 Jahr gültig, sonst 24h
+    const tokenExpiry = rememberMe ? TOKEN_LONG : TOKEN_SHORT;
+    const token = jwt.sign({ userId: userId, email }, JWT_SECRET, { expiresIn: tokenExpiry });
 
-      // Standardübungen erstellen
-      seedDefaultExercises(this.lastID);
+    // JWT Refresh Token für automatische Verlängerung speichern (nur bei "remember me")
+    let refreshToken = null;
+    if (rememberMe) {
+      refreshToken = generateJwtRefreshToken();
+      await storeJwtRefreshToken(userId, refreshToken);
+    }
 
-      res.json({ token, user: { id: this.lastID, email, displayName: displayName || email } });
+    // Standardübungen erstellen
+    seedDefaultExercises(userId);
+
+    res.json({
+      token,
+      refreshToken,
+      user: { id: userId, email, displayName: displayName || email }
     });
   } catch (err) {
     res.status(500).json({ error: 'Serverfehler' });
@@ -500,62 +589,97 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
 // Login
 app.post('/api/auth/login', authLimiter, (req, res, next) => {
-  passport.authenticate('local', { session: false }, (err, user, info) => {
+  passport.authenticate('local', { session: false }, async (err, user, info) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!user) return res.status(401).json({ error: info.message });
 
-    // "Eingeloggt bleiben" -> Token 1 Jahr gültig, sonst 24h
-    const rememberMe = req.body.rememberMe === true;
-    const tokenExpiry = rememberMe ? TOKEN_LONG : TOKEN_SHORT;
+    try {
+      // "Eingeloggt bleiben" -> Token 1 Jahr gültig, sonst 24h
+      const rememberMe = req.body.rememberMe === true;
+      const tokenExpiry = rememberMe ? TOKEN_LONG : TOKEN_SHORT;
 
-    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: tokenExpiry });
-    res.json({
-      token,
-      user: { id: user.id, email: user.email, displayName: user.display_name }
-    });
+      const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: tokenExpiry });
+
+      // JWT Refresh Token für automatische Verlängerung speichern (nur bei "remember me")
+      let refreshToken = null;
+      if (rememberMe) {
+        refreshToken = generateJwtRefreshToken();
+        await storeJwtRefreshToken(user.id, refreshToken);
+      }
+
+      res.json({
+        token,
+        refreshToken,
+        user: { id: user.id, email: user.email, displayName: user.display_name }
+      });
+    } catch (loginErr) {
+      console.error('❌ Fehler beim Login:', loginErr);
+      res.status(500).json({ error: 'Login fehlgeschlagen' });
+    }
   })(req, res, next);
 });
 
 // Google Auth Routes
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  app.get('/auth/google', passport.authenticate('google', { 
-    scope: ['profile', 'email', 'https://www.googleapis.com/auth/drive.file'],
-    accessType: 'offline',
-    prompt: 'consent'
-  }));
+  // Google Auth: accessType offline holt Refresh Token
+  // prompt: 'select_account' erlaubt Account-Auswahl, ohne jedes Mal neu zustimmen zu müssen
+  // Dadurch bleibt der User bei wiederholtem Login eingeloggt, solange Google-Session gültig ist
+  app.get('/auth/google', (req, res, next) => {
+    const rememberMe = req.query.remember !== 'false';
+    const state = rememberMe ? 'remember=true' : 'remember=false';
+    passport.authenticate('google', {
+      scope: ['profile', 'email', 'https://www.googleapis.com/auth/drive.file'],
+      accessType: 'offline',
+      prompt: 'select_account',
+      state: state
+    })(req, res, next);
+  });
 
-  app.get('/auth/google/callback', 
+  app.get('/auth/google/callback',
     passport.authenticate('google', { failureRedirect: '/login.html' }),
-    (req, res) => {
-      // WICHTIG: Refresh Token in DB speichern wenn vorhanden
-      if (req.authInfo && req.authInfo.refreshToken && req.user) {
-        db.run(
-          'INSERT OR REPLACE INTO user_tokens (user_id, google_refresh_token, updated_at) VALUES (?, ?, datetime("now"))',
-          [req.user.id, req.authInfo.refreshToken],
-          (err) => {
-            if (err) console.error('❌ Fehler beim Speichern des Refresh Tokens:', err.message);
-            else console.log('✅ Refresh Token in DB gespeichert für User:', req.user.id);
-          }
-        );
+    async (req, res) => {
+      try {
+        // WICHTIG: Refresh Token in DB speichern wenn vorhanden
+        if (req.authInfo && req.authInfo.refreshToken && req.user) {
+          db.run(
+            'INSERT OR REPLACE INTO user_tokens (user_id, google_refresh_token, updated_at) VALUES (?, ?, datetime("now"))',
+            [req.user.id, req.authInfo.refreshToken],
+            (err) => {
+              if (err) console.error('❌ Fehler beim Speichern des Refresh Tokens:', err.message);
+              else console.log('✅ Refresh Token in DB gespeichert für User:', req.user.id);
+            }
+          );
+        }
+
+        // Google Tokens für Drive-Backup in JWT speichern
+        const tokenPayload = {
+          userId: req.user.id,
+          email: req.user.email
+        };
+
+        // Wenn Google OAuth, zusätzliche Tokens speichern
+        if (req.authInfo && req.authInfo.accessToken) {
+          tokenPayload.googleAccessToken = req.authInfo.accessToken;
+        }
+
+        // Google-Login am Handy sollte dauerhaft gültig bleiben
+        const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: TOKEN_LONG });
+
+        // JWT Refresh Token für automatische Verlängerung speichern
+        const refreshToken = generateJwtRefreshToken();
+        await storeJwtRefreshToken(req.user.id, refreshToken);
+
+        const state = req.query.state || 'remember=true';
+        const rememberParam = state.includes('remember=true') ? '' : '&remember=false';
+
+        const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+        const host = req.headers['x-forwarded-host'] || req.headers.host;
+        const baseUrl = `${protocol}://${host}`;
+        res.redirect(`${baseUrl}/?token=${token}&refreshToken=${refreshToken}${rememberParam}`);
+      } catch (error) {
+        console.error('❌ Fehler im Google Callback:', error);
+        res.redirect('/login.html?error=google-callback-failed');
       }
-      
-      // Google Tokens für Drive-Backup in JWT speichern
-      const tokenPayload = { 
-        userId: req.user.id, 
-        email: req.user.email 
-      };
-      
-      // Wenn Google OAuth, zusätzliche Tokens speichern
-      if (req.authInfo && req.authInfo.accessToken) {
-        tokenPayload.googleAccessToken = req.authInfo.accessToken;
-      }
-      
-      // Google-Login am Handy sollte dauerhaft gültig bleiben
-      const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: TOKEN_LONG });
-      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-      const host = req.headers['x-forwarded-host'] || req.headers.host;
-      const baseUrl = `${protocol}://${host}`;
-      res.redirect(`${baseUrl}/?token=${token}`);
     }
   );
 }
@@ -578,6 +702,58 @@ app.get('/api/health', (req, res) => {
 // Verify Token
 app.get('/api/auth/verify', authenticateJWT, (req, res) => {
   res.json({ user: req.user });
+});
+
+// JWT Refresh Token Endpunkt: erneuert Access Token ohne erneutes Login
+app.post('/api/auth/refresh', async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(401).json({ error: 'Kein Refresh Token' });
+  }
+
+  try {
+    // Suche User anhand des Refresh Tokens
+    const row = await new Promise((resolve, reject) => {
+      db.get('SELECT user_id FROM user_tokens WHERE jwt_refresh_token = ?', [refreshToken], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!row) {
+      return res.status(403).json({ error: 'Ungültiger Refresh Token' });
+    }
+
+    const user = await new Promise((resolve, reject) => {
+      db.get('SELECT id, email, display_name FROM users WHERE id = ?', [row.user_id], (err, user) => {
+        if (err) reject(err);
+        else resolve(user);
+      });
+    });
+
+    if (!user) {
+      return res.status(403).json({ error: 'User nicht gefunden' });
+    }
+
+    // Neuen Access Token + Refresh Token ausstellen
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: TOKEN_LONG }
+    );
+    const newRefreshToken = generateJwtRefreshToken();
+    await storeJwtRefreshToken(user.id, newRefreshToken);
+
+    res.json({
+      token,
+      refreshToken: newRefreshToken,
+      user: { id: user.id, email: user.email, displayName: user.display_name || user.email }
+    });
+  } catch (error) {
+    console.error('❌ Fehler beim Refresh:', error);
+    res.status(500).json({ error: 'Refresh fehlgeschlagen' });
+  }
 });
 
 // === PROTECTED API ROUTES ===
