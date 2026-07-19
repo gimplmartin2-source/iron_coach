@@ -341,7 +341,8 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     return isSecure ? `https://${host}` : `http://${host}:${PORT}`;
   };
   
-  const callbackURL = `${getBaseUrl()}/auth/google/callback`;
+  // Wenn GOOGLE_CALLBACK_URL gesetzt ist, hat sie Priorität (z. B. für lokale Tests oder Render)
+  const callbackURL = process.env.GOOGLE_CALLBACK_URL || `${getBaseUrl()}/auth/google/callback`;
   console.log('🔑 Google OAuth Callback URL:', callbackURL);
   
   passport.use(new GoogleStrategy({
