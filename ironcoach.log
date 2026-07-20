@@ -1,0 +1,7 @@
+🔑 Google OAuth Callback URL: https://iron-coach-90eu.onrender.com/auth/google/callback
+📁 Serving static files from: C:\Users\maxgi\OneDrive\000_CODEX_WORK\03_ironcoach\public
+🔒 IronCoach Server läuft auf http://localhost:3000
+📊 Umgebung: production
+📦 Version: 1.2.0 | Standardübungen: 78
+🏥 Health-Check: http://localhost:3000/api/health
+✅ Datenbank verbunden: ./training.db

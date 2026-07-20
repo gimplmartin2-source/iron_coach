@@ -27,8 +27,13 @@ Memory wird jetzt in täglichen Dateien im [memory/](memory/) Ordner gespeichert
 - **Medizinisch**: Gleitwirbel (Spondylolisthesis) - Core-Training muss tiefen Rumpf (Transversus abdominis) fokussieren, KEINE Crunches/Sit-ups
 
 ### Wichtige System-Änderungen
-**2026-03-21**: Umstellung auf tägliche Memory-Dateien
+- **2026-03-21**: Umstellung auf tägliche Memory-Dateien
+- **2026-07-20**: Dauerhafter Login implementiert (Session 1 Jahr + JWT Refresh-Token)
+- **2026-07-20**: Statistik korrigiert – Datum wird als lokales Datum interpretiert, mehrfache Übungen pro Tag werden zusammengerechnet (Gewicht = Max, Wiederholungen = Sätze × Reps summiert)
+- **2026-07-20**: Cache-Buster auf `app.js?v=15` erhöht
+- **2026-07-20**: Google-Login Fix: `RENDER_EXTERNAL_URL` hat Priorität für Callback-URI, `prompt=select_account` entfernt für automatischen Account-Weiterleitung, Fehlermeldungen bei `redirect_uri_mismatch` werden angezeigt
+- **2026-07-20**: Google-Login auf Render blockiert durch `redirect_uri_mismatch`; zu hinterlegende URI: `https://iron-coach-90eu.onrender.com/auth/google/callback`. Render braucht Umgebungsvariablen: `GOOGLE_CALLBACK_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NODE_ENV=production`, `JWT_SECRET`, `SESSION_SECRET`
 
 ---
-Last updated: 2026-03-22
+Last updated: 2026-07-20
 Source: memory/MEMORY.md

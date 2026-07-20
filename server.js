@@ -341,8 +341,13 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     return isSecure ? `https://${host}` : `http://${host}:${PORT}`;
   };
   
-  // Wenn GOOGLE_CALLBACK_URL gesetzt ist, hat sie Priorität (z. B. für lokale Tests oder Render)
-  const callbackURL = process.env.GOOGLE_CALLBACK_URL || `${getBaseUrl()}/auth/google/callback`;
+  // Callback-URL: Render-Domain hat immer Priorität, damit eine lokale .env-Variable
+  // nicht versehentlich auf Render die falsche Redirect-URI erzeugt.
+  // Für lokale Tests kann GOOGLE_CALLBACK_URL gesetzt werden.
+  const dynamicCallbackURL = `${getBaseUrl()}/auth/google/callback`;
+  const callbackURL = process.env.RENDER_EXTERNAL_URL
+    ? dynamicCallbackURL
+    : (process.env.GOOGLE_CALLBACK_URL || dynamicCallbackURL);
   console.log('🔑 Google OAuth Callback URL:', callbackURL);
   
   passport.use(new GoogleStrategy({
@@ -622,65 +627,83 @@ app.post('/api/auth/login', authLimiter, (req, res, next) => {
 
 // Google Auth Routes
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  // Google Auth: accessType offline holt Refresh Token
-  // prompt: 'select_account' erlaubt Account-Auswahl, ohne jedes Mal neu zustimmen zu müssen
-  // Dadurch bleibt der User bei wiederholtem Login eingeloggt, solange Google-Session gültig ist
+  // Google Auth: accessType offline holt beim ersten Login ein Google-Refresh-Token.
+  // Kein 'prompt' -> Google wählt den aktiven Account automatisch, damit bleibt der
+  // Nutzer dauerhaft eingeloggt, solange die Google-Session gültig ist.
   app.get('/auth/google', (req, res, next) => {
     const rememberMe = req.query.remember !== 'false';
     const state = rememberMe ? 'remember=true' : 'remember=false';
     passport.authenticate('google', {
       scope: ['profile', 'email', 'https://www.googleapis.com/auth/drive.file'],
       accessType: 'offline',
-      prompt: 'select_account',
       state: state
     })(req, res, next);
   });
 
   app.get('/auth/google/callback',
-    passport.authenticate('google', { failureRedirect: '/login.html' }),
-    async (req, res) => {
-      try {
-        // WICHTIG: Refresh Token in DB speichern wenn vorhanden
-        if (req.authInfo && req.authInfo.refreshToken && req.user) {
-          db.run(
-            'INSERT OR REPLACE INTO user_tokens (user_id, google_refresh_token, updated_at) VALUES (?, ?, datetime("now"))',
-            [req.user.id, req.authInfo.refreshToken],
-            (err) => {
-              if (err) console.error('❌ Fehler beim Speichern des Refresh Tokens:', err.message);
-              else console.log('✅ Refresh Token in DB gespeichert für User:', req.user.id);
+    (req, res, next) => {
+      passport.authenticate('google', (err, user, authInfo) => {
+        if (err) {
+          console.error('❌ Google OAuth Fehler:', err.message);
+          // Hilfreiche Fehlermeldung für bekannte Probleme
+          let message = 'Google-Login ist momentan nicht möglich. Bitte versuche es später erneut.';
+          if (err.message && err.message.toLowerCase().includes('redirect_uri')) {
+            message = 'Google OAuth Redirect-URI passt nicht. Bitte in der Google Cloud Console prüfen.';
+          }
+          return res.redirect(`/login.html?google_error=${encodeURIComponent(message)}`);
+        }
+        if (!user) {
+          return res.redirect('/login.html?error=google-login-failed');
+        }
+
+        req.logIn(user, async (loginErr) => {
+          if (loginErr) {
+            console.error('❌ Fehler beim Einloggen:', loginErr);
+            return res.redirect(`/login.html?google_error=${encodeURIComponent('Login fehlgeschlagen')}`);
+          }
+
+          try {
+            // WICHTIG: Google-Refresh-Token in DB speichern wenn vorhanden
+            if (authInfo && authInfo.refreshToken) {
+              db.run(
+                'INSERT OR REPLACE INTO user_tokens (user_id, google_refresh_token, updated_at) VALUES (?, ?, datetime("now"))',
+                [user.id, authInfo.refreshToken],
+                (dbErr) => {
+                  if (dbErr) console.error('❌ Fehler beim Speichern des Refresh Tokens:', dbErr.message);
+                  else console.log('✅ Refresh Token in DB gespeichert für User:', user.id);
+                }
+              );
             }
-          );
-        }
 
-        // Google Tokens für Drive-Backup in JWT speichern
-        const tokenPayload = {
-          userId: req.user.id,
-          email: req.user.email
-        };
+            // Google Tokens für Drive-Backup in JWT speichern
+            const tokenPayload = {
+              userId: user.id,
+              email: user.email
+            };
+            if (authInfo && authInfo.accessToken) {
+              tokenPayload.googleAccessToken = authInfo.accessToken;
+            }
 
-        // Wenn Google OAuth, zusätzliche Tokens speichern
-        if (req.authInfo && req.authInfo.accessToken) {
-          tokenPayload.googleAccessToken = req.authInfo.accessToken;
-        }
+            // Google-Login dauerhaft gültig (1 Jahr)
+            const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: TOKEN_LONG });
 
-        // Google-Login am Handy sollte dauerhaft gültig bleiben
-        const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: TOKEN_LONG });
+            // JWT Refresh Token für automatische Verlängerung speichern
+            const refreshToken = generateJwtRefreshToken();
+            await storeJwtRefreshToken(user.id, refreshToken);
 
-        // JWT Refresh Token für automatische Verlängerung speichern
-        const refreshToken = generateJwtRefreshToken();
-        await storeJwtRefreshToken(req.user.id, refreshToken);
+            const state = req.query.state || 'remember=true';
+            const rememberParam = state.includes('remember=true') ? '' : '&remember=false';
 
-        const state = req.query.state || 'remember=true';
-        const rememberParam = state.includes('remember=true') ? '' : '&remember=false';
-
-        const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-        const host = req.headers['x-forwarded-host'] || req.headers.host;
-        const baseUrl = `${protocol}://${host}`;
-        res.redirect(`${baseUrl}/?token=${token}&refreshToken=${refreshToken}${rememberParam}`);
-      } catch (error) {
-        console.error('❌ Fehler im Google Callback:', error);
-        res.redirect('/login.html?error=google-callback-failed');
-      }
+            const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+            const host = req.headers['x-forwarded-host'] || req.headers.host;
+            const baseUrl = `${protocol}://${host}`;
+            res.redirect(`${baseUrl}/?token=${token}&refreshToken=${refreshToken}${rememberParam}`);
+          } catch (error) {
+            console.error('❌ Fehler im Google Callback:', error);
+            res.redirect('/login.html?error=google-callback-failed');
+          }
+        });
+      })(req, res, next);
     }
   );
 }
