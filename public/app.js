@@ -1559,7 +1559,7 @@ async function loadProgressChart() {
             return;
         }
         
-        const labels = data.map(d => formatDate(d.date));
+        const labels = data.map(d => formatDateShort(d.date));
         const weights = data.map(d => d.weight);
         const volumes = data.map(d => d.volume);
         
@@ -1627,7 +1627,7 @@ async function loadVolumeChart() {
     volumeChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: sortedDates.map(formatDate),
+            labels: sortedDates.map(formatDateShort),
             datasets: [{
                 label: 'Tagesvolumen (kg)',
                 data: volumes,
@@ -2380,6 +2380,12 @@ function formatDate(dateStr) {
     return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+function formatDateShort(dateStr) {
+    const d = parseLocalDate(dateStr);
+    if (!d) return dateStr || '';
+    return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+}
+
 function showTab(tabName) {
     // Alle Tabs ausblenden
     document.querySelectorAll('.tab-content').forEach(tab => {
@@ -2944,7 +2950,8 @@ function updateAllWorkoutsChart(rangeWorkouts) {
                 maxRotation: 45,
                 minRotation: 45,
                 callback: function(value) {
-                    return formatDate(value);
+                    const label = this.getLabelForValue(value);
+                    return formatDateShort(label);
                 }
             }
         }
