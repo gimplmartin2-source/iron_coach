@@ -2377,7 +2377,7 @@ function parseLocalDate(dateStr) {
 function formatDate(dateStr) {
     const d = parseLocalDate(dateStr);
     if (!d) return dateStr || '';
-    return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+    return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 function showTab(tabName) {
