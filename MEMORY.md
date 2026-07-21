@@ -34,6 +34,7 @@ Memory wird jetzt in täglichen Dateien im [memory/](memory/) Ordner gespeichert
 - **2026-07-20**: Google-Login Fix: `RENDER_EXTERNAL_URL` hat Priorität für Callback-URI, `prompt=select_account` entfernt für automatischen Account-Weiterleitung, Fehlermeldungen bei `redirect_uri_mismatch` werden angezeigt
 - **2026-07-20**: Google-Login auf Render blockiert durch `redirect_uri_mismatch`; zu hinterlegende URI: `https://iron-coach-90eu.onrender.com/auth/google/callback`. Render braucht Umgebungsvariablen: `GOOGLE_CALLBACK_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NODE_ENV=production`, `JWT_SECRET`, `SESSION_SECRET`
 - **2026-07-21**: Übungs-Info-Leiste hinzugefügt – `info` Spalte in `exercises`, Info-Textarea beim Erstellen/Bearbeiten, aufklappbare Info-Leiste in gespeicherten Workouts. Cache-Buster `app.js?v=16`
+- **2026-07-21**: Bugfix nach Info-Leiste: Auto-Heal für fehlende `info` Spalte in `/api/exercises` und `/api/workouts`, bessere Empty-State Meldung (Login-Hinweis/Neu-laden), HTML-Fix in Übungsliste, Cache-Buster `app.js?v=17`
 
 ---
 Last updated: 2026-07-21
