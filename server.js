@@ -127,6 +127,8 @@ db.serialize(() => {
     user_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     muscle_group TEXT NOT NULL,
+    exercise_type TEXT DEFAULT 'strength',
+    info TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`);
@@ -155,6 +157,19 @@ db.serialize(() => {
             console.error('❌ Migration fehlgeschlagen:', alterErr.message);
           } else {
             console.log('✅ exercise_type Spalte zu exercises hinzugefügt');
+          }
+        });
+      }
+
+      // Migration: Prüfe ob info Spalte existiert
+      const hasInfo = columns.some(col => col.name === 'info');
+      if (!hasInfo) {
+        console.log('⚠️ Migration: info Spalte fehlt in exercises, füge hinzu...');
+        db.run(`ALTER TABLE exercises ADD COLUMN info TEXT`, (alterErr) => {
+          if (alterErr) {
+            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
+          } else {
+            console.log('✅ info Spalte zu exercises hinzugefügt');
           }
         });
       }
@@ -784,7 +799,7 @@ app.post('/api/auth/refresh', async (req, res) => {
 
 // Alle Übungen abrufen
 app.get('/api/exercises', authenticateJWT, (req, res) => {
-  db.all('SELECT id, user_id, name, muscle_group, exercise_type, created_at FROM exercises WHERE user_id = ? ORDER BY name', [req.user.userId], (err, rows) => {
+  db.all('SELECT id, user_id, name, muscle_group, exercise_type, info, created_at FROM exercises WHERE user_id = ? ORDER BY name', [req.user.userId], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
@@ -792,30 +807,31 @@ app.get('/api/exercises', authenticateJWT, (req, res) => {
 
 // Neue Übung hinzufügen
 app.post('/api/exercises', authenticateJWT, (req, res) => {
-  const { name, muscle_group, exercise_type } = req.body;
-  
+  const { name, muscle_group, exercise_type, info } = req.body;
+
   console.log('📝 Übung hinzufügen:', { name, muscle_group, exercise_type, userId: req.user.userId });
-  
+
   if (!name || !muscle_group) {
     return res.status(400).json({ error: 'Name und Muskelgruppe erforderlich' });
   }
-  
+
   if (!req.user.userId) {
     console.error('❌ Keine userId im Token');
     return res.status(401).json({ error: 'Nicht authentifiziert' });
   }
-  
+
   // exercise_type ist optional (default: 'strength')
   const type = exercise_type || 'strength';
-  
-  db.run('INSERT INTO exercises (user_id, name, muscle_group, exercise_type) VALUES (?, ?, ?, ?)', 
-    [req.user.userId, name, muscle_group, type], function(err) {
+  const exerciseInfo = info || null;
+
+  db.run('INSERT INTO exercises (user_id, name, muscle_group, exercise_type, info) VALUES (?, ?, ?, ?, ?)',
+    [req.user.userId, name, muscle_group, type, exerciseInfo], function(err) {
     if (err) {
       console.error('❌ DB Fehler:', err);
       return res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
     }
     console.log('✅ Übung gespeichert, ID:', this.lastID);
-    res.json({ id: this.lastID, name, muscle_group, exercise_type: type });
+    res.json({ id: this.lastID, name, muscle_group, exercise_type: type, info: exerciseInfo });
   });
 });
 
@@ -829,19 +845,20 @@ app.delete('/api/exercises/:id', authenticateJWT, (req, res) => {
 
 // Übung aktualisieren (EDIT)
 app.put('/api/exercises/:id', authenticateJWT, (req, res) => {
-  const { name, muscle_group, exercise_type } = req.body;
-  
+  const { name, muscle_group, exercise_type, info } = req.body;
+
   console.log('📝 Übung aktualisieren:', { id: req.params.id, name, muscle_group, exercise_type, userId: req.user.userId });
-  
+
   if (!name || !muscle_group) {
     return res.status(400).json({ error: 'Name und Muskelgruppe erforderlich' });
   }
-  
+
   const type = exercise_type || 'strength';
-  
+  const exerciseInfo = info !== undefined ? info : null;
+
   db.run(
-    'UPDATE exercises SET name = ?, muscle_group = ?, exercise_type = ? WHERE id = ? AND user_id = ?',
-    [name, muscle_group, type, req.params.id, req.user.userId],
+    'UPDATE exercises SET name = ?, muscle_group = ?, exercise_type = ?, info = ? WHERE id = ? AND user_id = ?',
+    [name, muscle_group, type, exerciseInfo, req.params.id, req.user.userId],
     function(err) {
       if (err) {
         console.error('❌ DB Fehler beim Update:', err);
@@ -852,7 +869,7 @@ app.put('/api/exercises/:id', authenticateJWT, (req, res) => {
         return res.status(404).json({ error: 'Übung nicht gefunden oder keine Berechtigung' });
       }
       console.log('✅ Übung aktualisiert, ID:', req.params.id);
-      res.json({ message: 'Übung aktualisiert', id: parseInt(req.params.id), name, muscle_group, exercise_type: type });
+      res.json({ message: 'Übung aktualisiert', id: parseInt(req.params.id), name, muscle_group, exercise_type: type, info: exerciseInfo });
     }
   );
 });
@@ -860,9 +877,9 @@ app.put('/api/exercises/:id', authenticateJWT, (req, res) => {
 // Alle Workouts abrufen
 app.get('/api/workouts', authenticateJWT, (req, res) => {
   const query = `
-    SELECT w.*, e.name as exercise_name, e.muscle_group, e.exercise_type 
-    FROM workouts w 
-    JOIN exercises e ON w.exercise_id = e.id 
+    SELECT w.*, e.name as exercise_name, e.muscle_group, e.exercise_type, e.info as exercise_info
+    FROM workouts w
+    JOIN exercises e ON w.exercise_id = e.id
     WHERE w.user_id = ?
     ORDER BY w.date DESC, w.created_at DESC
   `;

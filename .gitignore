@@ -3,4 +3,5 @@ memory/
 .env
 node_modules/
 *.db
+ironcoach.log
 

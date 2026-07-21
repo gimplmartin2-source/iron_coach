@@ -747,21 +747,22 @@ async function addExercise(e) {
     const name = document.getElementById('exercise-name').value;
     const muscle = document.getElementById('exercise-muscle').value;
     const type = document.getElementById('exercise-type')?.value || 'strength';
-    
+    const info = document.getElementById('exercise-info')?.value?.trim() || '';
+
     if (!name || !muscle) {
         alert('Bitte Name und Muskelgruppe auswählen');
         return;
     }
-    
+
     const btn = e.target.querySelector('button[type="submit"]');
     const originalText = btn.textContent;
     btn.textContent = '⏳ Speichern...';
     btn.disabled = true;
-    
+
     try {
         const res = await apiFetch('/api/exercises', {
             method: 'POST',
-            body: JSON.stringify({ name, muscle_group: muscle, exercise_type: type })
+            body: JSON.stringify({ name, muscle_group: muscle, exercise_type: type, info })
         });
         
         if (res && res.ok) {
@@ -877,13 +878,18 @@ function editExerciseForm(exerciseId) {
                 </select>
             </div>
             
-            <div style="margin-bottom: 20px;">
+            <div style="margin-bottom: 15px;">
                 <label style="color: #888; display: block; margin-bottom: 5px;">Typ</label>
                 <select id="edit-exercise-type" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff;">
                     ${typeOptions}
                 </select>
             </div>
-            
+
+            <div style="margin-bottom: 20px;">
+                <label style="color: #888; display: block; margin-bottom: 5px;">ℹ️ Info / Hinweise</label>
+                <textarea id="edit-exercise-info" rows="4" placeholder="z.B. Ausführung, Variationen, Gewichtstipps, Verletzungsschutz..." style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; resize: vertical;">${exercise.info || ''}</textarea>
+            </div>
+
             <div style="display: flex; gap: 10px;">
                 <button onclick="closeEditModal()" style="flex: 1; padding: 12px; background: rgba(255,100,100,0.2); border: 1px solid rgba(255,100,100,0.5); border-radius: 8px; color: #f66; cursor: pointer;">❌ Abbrechen</button>
                 <button onclick="saveExerciseEdit()" style="flex: 1; padding: 12px; background: linear-gradient(45deg, #00d4ff, #7b2cbf); border: none; border-radius: 8px; color: #fff; cursor: pointer; font-weight: bold;">💾 Speichern</button>
@@ -908,16 +914,17 @@ async function saveExerciseEdit() {
     const name = document.getElementById('edit-exercise-name').value;
     const muscle_group = document.getElementById('edit-exercise-muscle').value;
     const exercise_type = document.getElementById('edit-exercise-type').value;
-    
+    const info = document.getElementById('edit-exercise-info')?.value?.trim() || '';
+
     if (!name || !muscle_group) {
         alert('Bitte Name und Muskelgruppe ausfüllen');
         return;
     }
-    
+
     try {
         const res = await apiFetch(`/api/exercises/${editingExerciseId}`, {
             method: 'PUT',
-            body: JSON.stringify({ name, muscle_group, exercise_type })
+            body: JSON.stringify({ name, muscle_group, exercise_type, info })
         });
         
         if (res && res.ok) {
@@ -1442,11 +1449,23 @@ function renderWorkoutsList() {
                 statsValue = volume > 0 ? `${volume.toLocaleString()} kg` : '-';
             }
             
+            const hasInfo = w.exercise_info && w.exercise_info.trim().length > 0;
+            const infoHtml = hasInfo ? `
+                <div class="workout-info-panel" id="workout-info-${w.id}" style="display: none; margin-top: 8px; padding: 12px; background: rgba(0,212,255,0.08); border-left: 3px solid #00d4ff; border-radius: 0 8px 8px 8px; color: #ccc; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap;">
+                    ${escapeHtml(w.exercise_info)}
+                </div>
+            ` : '';
+
             html += `
-            <div class="list-item workout-item" data-workout-id="${w.id}">
-                <div class="list-item-info">
-                    <h4>${w.exercise_name || 'Unbekannte Übung'} <span style="color: #888; font-size: 0.85rem;">(${w.muscle_group || '-'})</span></h4>
+            <div class="list-item workout-item" data-workout-id="${w.id}" style="flex-wrap: wrap;">
+                <div class="list-item-info" style="flex: 1; min-width: 200px;">
+                    <h4 style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        ${w.exercise_name || 'Unbekannte Übung'}
+                        <span style="color: #888; font-size: 0.85rem;">(${w.muscle_group || '-'})</span>
+                        ${hasInfo ? `<button type="button" class="btn-info-toggle" onclick="toggleWorkoutInfo(${w.id})" title="Info anzeigen" style="background: rgba(0,212,255,0.15); border: 1px solid rgba(0,212,255,0.4); border-radius: 6px; color: #00d4ff; padding: 2px 8px; font-size: 0.8rem; cursor: pointer;">ℹ️ Info</button>` : ''}
+                    </h4>
                     <p>${detailsText}</p>
+                    ${infoHtml}
                 </div>
                 <div class="list-item-stats">
                     <div class="volume">${statsValue}</div>
@@ -1464,6 +1483,29 @@ function renderWorkoutsList() {
     });
     
     container.innerHTML = html;
+}
+
+// HTML escapen für sichere Info-Anzeige
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Workout-Info ein-/ausklappen
+function toggleWorkoutInfo(workoutId) {
+    const panel = document.getElementById(`workout-info-${workoutId}`);
+    if (!panel) return;
+
+    const isVisible = panel.style.display === 'block';
+    panel.style.display = isVisible ? 'none' : 'block';
+
+    // Button-Text aktualisieren
+    const btn = panel.closest('.list-item-info')?.querySelector('.btn-info-toggle');
+    if (btn) {
+        btn.textContent = isVisible ? 'ℹ️ Info' : '🔼 Info';
+    }
 }
 
 // Session Typ erkennen (Judo, Gym, etc.)
