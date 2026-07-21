@@ -83,6 +83,23 @@ let db = new sqlite3.Database(DB_PATH, (err) => {
   }
 });
 
+// Hilfsfunktion: Spalte hinzufügen falls sie fehlt (Auto-Heal für Render-Deployments)
+function ensureColumn(table, column, type = 'TEXT') {
+  return new Promise((resolve, reject) => {
+    db.all(`PRAGMA table_info(${table})`, [], (err, columns) => {
+      if (err) return reject(err);
+      const exists = columns.some(col => col.name === column);
+      if (exists) return resolve();
+      console.log(`⚠️ Auto-Heal: Spalte ${column} fehlt in ${table}, füge hinzu...`);
+      db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`, (alterErr) => {
+        if (alterErr) return reject(alterErr);
+        console.log(`✅ Spalte ${column} zu ${table} hinzugefügt`);
+        resolve();
+      });
+    });
+  });
+}
+
 // Tabellen erstellen / migrieren
 db.serialize(() => {
   // Users Tabelle
@@ -798,15 +815,28 @@ app.post('/api/auth/refresh', async (req, res) => {
 // === PROTECTED API ROUTES ===
 
 // Alle Übungen abrufen
-app.get('/api/exercises', authenticateJWT, (req, res) => {
-  db.all('SELECT id, user_id, name, muscle_group, exercise_type, info, created_at FROM exercises WHERE user_id = ? ORDER BY name', [req.user.userId], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
-  });
+app.get('/api/exercises', authenticateJWT, async (req, res) => {
+  try {
+    await ensureColumn('exercises', 'info', 'TEXT');
+    db.all('SELECT id, user_id, name, muscle_group, exercise_type, info, created_at FROM exercises WHERE user_id = ? ORDER BY name', [req.user.userId], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    });
+  } catch (err) {
+    console.error('❌ Fehler beim Sicherstellen der info-Spalte:', err.message);
+    res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
+  }
 });
 
 // Neue Übung hinzufügen
-app.post('/api/exercises', authenticateJWT, (req, res) => {
+app.post('/api/exercises', authenticateJWT, async (req, res) => {
+  try {
+    await ensureColumn('exercises', 'info', 'TEXT');
+  } catch (err) {
+    console.error('❌ Fehler beim Sicherstellen der info-Spalte:', err.message);
+    return res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
+  }
+
   const { name, muscle_group, exercise_type, info } = req.body;
 
   console.log('📝 Übung hinzufügen:', { name, muscle_group, exercise_type, userId: req.user.userId });
@@ -844,7 +874,14 @@ app.delete('/api/exercises/:id', authenticateJWT, (req, res) => {
 });
 
 // Übung aktualisieren (EDIT)
-app.put('/api/exercises/:id', authenticateJWT, (req, res) => {
+app.put('/api/exercises/:id', authenticateJWT, async (req, res) => {
+  try {
+    await ensureColumn('exercises', 'info', 'TEXT');
+  } catch (err) {
+    console.error('❌ Fehler beim Sicherstellen der info-Spalte:', err.message);
+    return res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
+  }
+
   const { name, muscle_group, exercise_type, info } = req.body;
 
   console.log('📝 Übung aktualisieren:', { id: req.params.id, name, muscle_group, exercise_type, userId: req.user.userId });
@@ -875,7 +912,14 @@ app.put('/api/exercises/:id', authenticateJWT, (req, res) => {
 });
 
 // Alle Workouts abrufen
-app.get('/api/workouts', authenticateJWT, (req, res) => {
+app.get('/api/workouts', authenticateJWT, async (req, res) => {
+  try {
+    await ensureColumn('exercises', 'info', 'TEXT');
+  } catch (err) {
+    console.error('❌ Fehler beim Sicherstellen der info-Spalte:', err.message);
+    return res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
+  }
+
   const query = `
     SELECT w.*, e.name as exercise_name, e.muscle_group, e.exercise_type, e.info as exercise_info
     FROM workouts w

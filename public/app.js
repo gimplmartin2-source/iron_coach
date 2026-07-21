@@ -945,12 +945,23 @@ async function saveExerciseEdit() {
 // Render exercises list
 function renderExercisesList() {
     const container = document.getElementById('exercises-list');
-    
+
     if (exercises.length === 0) {
-        container.innerHTML = '<p class="empty-state">Noch keine Übungen vorhanden.</p>';
+        const token = localStorage.getItem('token');
+        if (!token) {
+            container.innerHTML = `<div class="empty-state">
+                <p>🔒 Du bist nicht eingeloggt.</p>
+                <button class="btn-primary" onclick="window.location.href='/login.html'" style="margin-top: 10px;">Zum Login</button>
+            </div>`;
+        } else {
+            container.innerHTML = `<div class="empty-state">
+                <p>Noch keine Übungen vorhanden.</p>
+                <button class="btn-primary" onclick="loadExercises()" style="margin-top: 10px;">🔄 Neu laden</button>
+            </div>`;
+        }
         return;
     }
-    
+
     // Gruppiere nach Muskelgruppe
     const grouped = {};
     exercises.forEach(e => {
@@ -959,10 +970,10 @@ function renderExercisesList() {
         }
         grouped[e.muscle_group].push(e);
     });
-    
+
     let html = '';
     Object.entries(grouped).forEach(([muscleGroup, exerciseList]) => {
-        html += `<div style="margin-bottom: 20px;"></h3>${muscleGroup}</h3></div>`;
+        html += `<div style="margin-bottom: 20px;"><h3>${muscleGroup}</h3></div>`;
         html += exerciseList.map(e => {
             const typeIcon = e.exercise_type === 'time' ? '⏱️' : '💪';
             const media = getExerciseMedia(e.name);
