@@ -1177,7 +1177,8 @@ async function addWorkout(e) {
         exercise_id: parseInt(exerciseId),
         rest_seconds: parseInt(document.getElementById('workout-rest').value) || 60,
         feeling: parseInt(document.getElementById('workout-feeling').value) || 5,
-        date: document.getElementById('workout-date').value || new Date().toISOString().split('T')[0]
+        date: document.getElementById('workout-date').value || new Date().toISOString().split('T')[0],
+        info: document.getElementById('workout-info')?.value?.trim() || ''
     };
     
     if (isTimeBased) {
@@ -1306,7 +1307,9 @@ function editWorkout(id) {
     document.getElementById('workout-date').value = workout.date;
     document.getElementById('workout-rest').value = workout.rest_seconds || '';
     document.getElementById('workout-feeling').value = workout.feeling || '';
-    
+    const workoutInfoField = document.getElementById('workout-info');
+    if (workoutInfoField) workoutInfoField.value = workout.info || '';
+
     if (isTimeBased) {
         // Zeit-basierte Übung: Dauer in Min:Sek Format
         const durationSec = effectiveDuration;
@@ -1460,10 +1463,13 @@ function renderWorkoutsList() {
                 statsValue = volume > 0 ? `${volume.toLocaleString()} kg` : '-';
             }
             
-            const hasInfo = w.exercise_info && w.exercise_info.trim().length > 0;
-            const infoHtml = hasInfo ? `
+            const hasExerciseInfo = w.exercise_info && w.exercise_info.trim().length > 0;
+            const hasWorkoutInfo = w.info && w.info.trim().length > 0;
+            const hasAnyInfo = hasExerciseInfo || hasWorkoutInfo;
+            const infoHtml = hasAnyInfo ? `
                 <div class="workout-info-panel" id="workout-info-${w.id}" style="display: none; margin-top: 8px; padding: 12px; background: rgba(0,212,255,0.08); border-left: 3px solid #00d4ff; border-radius: 0 8px 8px 8px; color: #ccc; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap;">
-                    ${escapeHtml(w.exercise_info)}
+                    ${hasExerciseInfo ? `<div style="margin-bottom: 10px;"><strong style="color: #00d4ff;">🏋️ Übungs-Info:</strong><br>${escapeHtml(w.exercise_info)}</div>` : ''}
+                    ${hasWorkoutInfo ? `<div><strong style="color: #00d4ff;">📝 Workout-Notiz:</strong><br>${escapeHtml(w.info)}</div>` : ''}
                 </div>
             ` : '';
 
@@ -1473,7 +1479,7 @@ function renderWorkoutsList() {
                     <h4 style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         ${w.exercise_name || 'Unbekannte Übung'}
                         <span style="color: #888; font-size: 0.85rem;">(${w.muscle_group || '-'})</span>
-                        ${hasInfo ? `<button type="button" class="btn-info-toggle" onclick="toggleWorkoutInfo(${w.id})" title="Info anzeigen" style="background: rgba(0,212,255,0.15); border: 1px solid rgba(0,212,255,0.4); border-radius: 6px; color: #00d4ff; padding: 2px 8px; font-size: 0.8rem; cursor: pointer;">ℹ️ Info</button>` : ''}
+                        ${hasAnyInfo ? `<button type="button" class="btn-info-toggle" onclick="toggleWorkoutInfo(${w.id})" title="Info anzeigen" style="background: rgba(0,212,255,0.15); border: 1px solid rgba(0,212,255,0.4); border-radius: 6px; color: #00d4ff; padding: 2px 8px; font-size: 0.8rem; cursor: pointer;">ℹ️ Info</button>` : ''}
                     </h4>
                     <p>${detailsText}</p>
                     ${infoHtml}
