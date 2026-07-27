@@ -95,16 +95,34 @@
                     <div style="flex: 1; min-width: 200px;">
                         <label style="display: block; margin-bottom: 5px; color: #888; font-size: 0.9rem;">Aktiver Plan:</label>
                         <select id="plan-select" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff;">
-                            <option>Standard-Plan laden...</option>
+                            <option>Mein Trainingsplan</option>
                         </select>
                     </div>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button onclick="downloadPlanTemplate()" class="btn-secondary" style="padding: 8px 14px; font-size: 0.9rem;">📥 Vorlage</button>
-                        <button onclick="document.getElementById('plan-upload').click()" class="btn-secondary" style="padding: 8px 14px; font-size: 0.9rem;">📤 Hochladen</button>
-                        <input type="file" id="plan-upload" accept=".json" style="display: none;" onchange="uploadTrainingPlan(this)">
+                        <button id="btn-edit-plan" onclick="togglePlanEditor()" class="btn-secondary" style="padding: 8px 14px; font-size: 0.9rem;">✏️ Bearbeiten</button>
+                        <button id="btn-save-plan" onclick="saveCurrentPlan()" class="btn-primary" style="padding: 8px 14px; font-size: 0.9rem; display: none;">💾 Speichern</button>
+                        <button id="btn-cancel-edit" onclick="cancelPlanEdit()" class="btn-secondary" style="padding: 8px 14px; font-size: 0.9rem; display: none;">❌ Abbrechen</button>
                     </div>
                 </div>
+                <div id="plan-sync-status" style="margin-top: 10px; font-size: 0.85rem; color: #888;"></div>
             </div>
+
+            <!-- Plan Editor (initially hidden) -->
+            <div id="plan-editor" class="card" style="display: none; margin-bottom: 20px; background: rgba(0,0,0,0.15); border: 1px solid rgba(100,200,100,0.2);">
+                <h3>✏️ Trainingsplan bearbeiten</h3>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: #888; font-size: 0.9rem;">Plan-Name:</label>
+                    <input type="text" id="plan-edit-name" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: #888; font-size: 0.9rem;">Beschreibung:</label>
+                    <input type="text" id="plan-edit-description" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff;">
+                </div>
+                <div id="plan-days-editor">
+                    <!-- Tage werden per JS eingefügt -->
+                </div>
+            </div>
+
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2>📋 Dein Trainingsplan</h2>
                 <span style="font-size: 0.8rem; color: #888;">Gleitwirbel-kompatibel • Judo-optimiert</span>
@@ -616,8 +634,8 @@
 
     <script src="video-mappings.js"></script>
     <script src="gif-click-handler.js"></script>
-    <script src="training-plans.js"></script>
-    <script src="app.js?v=18"></script>
+    <script src="training-plans.js?v=2"></script>
+    <script src="app.js?v=19"></script>
     
     <script>
     // Service Worker für Offline-GIFs registrieren
