@@ -21,6 +21,7 @@ logs/
 
 # Backups
 *.bak
+*.bak.*
 *.backup
 backup.db
 martin_backup.db
