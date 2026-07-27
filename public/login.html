@@ -120,6 +120,11 @@
                 Mit Google anmelden
             </a>
 
+            <!-- OAuth Diagnose-Box -->
+            <div id="oauth-status" style="display:none; margin-top:12px; padding:10px; border-radius:6px; background:#1a1a1a; border:1px solid #333; font-size:0.85rem; color:#aaa;">
+                <div id="oauth-status-text"></div>
+            </div>
+
             <div class="divider" id="google-divider">
                 <span>ODER</span>
             </div>
@@ -231,6 +236,28 @@
                     }
                 })
                 .catch(err => console.log('ℹ️ Health Check fehlgeschlagen:', err));
+
+            // Detaillierte OAuth-Diagnose anzeigen
+            fetch('/api/auth/status')
+                .then(res => res.json())
+                .then(status => {
+                    const box = document.getElementById('oauth-status');
+                    const text = document.getElementById('oauth-status-text');
+                    if (!status.googleOAuthEnabled) {
+                        text.innerHTML = 'ℹ️ Google-Login ist auf diesem Server nicht konfiguriert (fehlende Client-ID/Secret). Du kannst dich trotzdem mit Email/Passwort anmelden.';
+                        box.style.display = 'block';
+                        box.style.borderColor = '#555';
+                        return;
+                    }
+                    text.innerHTML = `
+                        ✅ Google-Login ist konfiguriert.
+                        <br><strong>Callback URL:</strong> ${status.callbackURL}
+                        <br><small>Diese URL muss EXAKT in der Google Cloud Console unter "Autorisierte Weiterleitungs-URIs" stehen.</small>
+                    `;
+                    box.style.display = 'block';
+                    box.style.borderColor = '#2e7d32';
+                })
+                .catch(err => console.log('ℹ️ OAuth Status Check fehlgeschlagen:', err));
         }
 
         function switchAuthTab(tab, event) {

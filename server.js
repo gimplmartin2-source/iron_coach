@@ -694,10 +694,16 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       passport.authenticate('google', (err, user, authInfo) => {
         if (err) {
           console.error('❌ Google OAuth Fehler:', err.message);
+          console.error('❌ Google OAuth Fehler-Details:', err.code || 'kein code', err.stack || '');
           // Hilfreiche Fehlermeldung für bekannte Probleme
           let message = 'Google-Login ist momentan nicht möglich. Bitte versuche es später erneut.';
-          if (err.message && err.message.toLowerCase().includes('redirect_uri')) {
-            message = 'Google OAuth Redirect-URI passt nicht. Bitte in der Google Cloud Console prüfen.';
+          const errMsg = (err.message || '').toLowerCase();
+          if (errMsg.includes('redirect_uri') || err.code === 'redirect_uri_mismatch') {
+            message = 'Google OAuth Redirect-URI passt nicht. In der Google Cloud Console muss EXAKT diese URL hinterlegt sein: https://iron-coach-90eu.onrender.com/auth/google/callback';
+          } else if (errMsg.includes('access_denied')) {
+            message = 'Google hat den Zugriff abgelehnt. App ist evtl. noch im Test-Modus – Martin muss als Testnutzer hinzugefügt sein oder die App verifizieren.';
+          } else if (errMsg.includes('invalid_client') || errMsg.includes('unauthorized_client')) {
+            message = 'Google Client-ID oder Client-Secret ist ungültig. Bitte Render-Umgebungsvariablen prüfen.';
           }
           return res.redirect(`/login.html?google_error=${encodeURIComponent(message)}`);
         }
@@ -769,6 +775,27 @@ app.get('/api/health', (req, res) => {
     database: 'SQLite',
     environment: process.env.NODE_ENV || 'development',
     googleOAuth: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
+  });
+});
+
+// Google OAuth Diagnose-Endpoint (keine Secrets ausgeben!)
+app.get('/api/auth/status', (req, res) => {
+  const googleEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+  const callbackURL = process.env.RENDER_EXTERNAL_URL
+    ? `${process.env.RENDER_EXTERNAL_URL}/auth/google/callback`
+    : (process.env.GOOGLE_CALLBACK_URL || `http://localhost:${PORT}/auth/google/callback`);
+  const clientId = process.env.GOOGLE_CLIENT_ID || '';
+  res.json({
+    googleOAuthEnabled: googleEnabled,
+    callbackURL: callbackURL,
+    renderExternalUrl: process.env.RENDER_EXTERNAL_URL || null,
+    environment: process.env.NODE_ENV || 'development',
+    // Nur Anfang und Ende der Client-ID (ohne Standard-Suffix), damit Martin
+    // prüfen kann, ob auf Render die gleiche ID wie lokal hinterlegt ist.
+    googleClientIdHint: clientId
+      ? `${clientId.split('-')[0]}-...-${clientId.replace('.apps.googleusercontent.com', '').split('-').pop()}`
+      : null,
+    requiredRedirectUriInConsole: callbackURL
   });
 });
 
