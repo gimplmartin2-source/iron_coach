@@ -298,7 +298,10 @@ function collectPlanFromEditor() {
     const name = document.getElementById('plan-edit-name')?.value || 'Mein Trainingsplan';
     const description = document.getElementById('plan-edit-description')?.value || '';
 
-    const days = currentPlan.days.map((day, dayIndex) => {
+    // Sicherstellen, dass immer 7 Tage vorhanden sind (auch wenn der Plan ein anderes Format hat)
+    const baseDays = (currentPlan && currentPlan.days) || [];
+    const days = dayLabels.map((label, dayIndex) => {
+        const day = baseDays[dayIndex] || { day: label, focus: label, intensity: 'Mittel', duration: '60 Min' };
         const focus = document.querySelector(`[data-plan-field="focus"][data-day="${dayIndex}"]`)?.value || day.day;
         const intensity = document.querySelector(`[data-plan-field="intensity"][data-day="${dayIndex}"]`)?.value || 'Mittel';
         const duration = document.querySelector(`[data-plan-field="duration"][data-day="${dayIndex}"]`)?.value || '';
@@ -368,7 +371,16 @@ async function saveCurrentPlan() {
             })
         });
 
-        if (!saveRes.ok) throw new Error('Speichern in DB fehlgeschlagen');
+        if (!saveRes.ok) {
+            let errMsg = 'Speichern in DB fehlgeschlagen';
+            try {
+                const errBody = await saveRes.json();
+                errMsg = errBody.error || errBody.message || errMsg;
+            } catch (e) {
+                errMsg = saveRes.status + ' ' + saveRes.statusText;
+            }
+            throw new Error(errMsg);
+        }
         const saveResult = await saveRes.json();
         planId = saveResult.id || planId;
 

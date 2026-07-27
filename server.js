@@ -80,6 +80,9 @@ let db = new sqlite3.Database(DB_PATH, (err) => {
     console.log('✅ Datenbank verbunden:', DB_PATH);
     // Foreign Keys aktivieren
     db.run('PRAGMA foreign_keys = ON');
+    // WICHTIG: SQLite robuster gegen OneDrive-/Cloud-Sync-Sperren machen
+    db.run('PRAGMA busy_timeout = 5000');
+    db.run('PRAGMA journal_mode = WAL');
   }
 });
 
