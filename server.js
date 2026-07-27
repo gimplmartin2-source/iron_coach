@@ -1315,42 +1315,70 @@ app.get('/api/training-plans/:id', authenticateJWT, (req, res) => {
 
 // Neuen Plan erstellen
 app.post('/api/training-plans', authenticateJWT, (req, res) => {
-  const { name, description, plan_data, is_active } = req.body;
-  if (!name || !plan_data) return res.status(400).json({ error: 'Name und Plan-Daten erforderlich' });
-  
-  const planDataJson = typeof plan_data === 'string' ? plan_data : JSON.stringify(plan_data);
-  const isActive = is_active ? 1 : 0;
-  
-  if (isActive) db.run('UPDATE training_plans SET is_active = 0 WHERE user_id = ?', [req.user.userId]);
-  
-  db.run('INSERT INTO training_plans (user_id, name, description, plan_data, is_active) VALUES (?, ?, ?, ?, ?)',
-    [req.user.userId, name, description || '', planDataJson, isActive],
-    function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ id: this.lastID, name, description, is_active: isActive });
+  try {
+    const { name, description, plan_data, is_active } = req.body;
+    if (!name || !plan_data) return res.status(400).json({ error: 'Name und Plan-Daten erforderlich' });
+
+    let planDataJson;
+    try {
+      planDataJson = typeof plan_data === 'string' ? plan_data : JSON.stringify(plan_data);
+    } catch (jsonErr) {
+      console.error('❌ Ungültige Plan-Daten (JSON.stringify):', jsonErr.message);
+      return res.status(400).json({ error: 'Plan-Daten können nicht serialisiert werden: ' + jsonErr.message });
     }
-  );
+    const isActive = is_active ? 1 : 0;
+
+    if (isActive) db.run('UPDATE training_plans SET is_active = 0 WHERE user_id = ?', [req.user.userId]);
+
+    db.run('INSERT INTO training_plans (user_id, name, description, plan_data, is_active) VALUES (?, ?, ?, ?, ?)',
+      [req.user.userId, name, description || '', planDataJson, isActive],
+      function(err) {
+        if (err) {
+          console.error('❌ Fehler beim Erstellen des Plans:', err.message);
+          return res.status(500).json({ error: err.message });
+        }
+        res.json({ id: this.lastID, name, description, is_active: isActive });
+      }
+    );
+  } catch (err) {
+    console.error('❌ Unbehandelter Fehler POST /api/training-plans:', err);
+    res.status(500).json({ error: 'Interner Serverfehler beim Speichern des Plans' });
+  }
 });
 
 // Plan aktualisieren
 app.put('/api/training-plans/:id', authenticateJWT, (req, res) => {
-  const { name, description, plan_data, is_active } = req.body;
-  if (!name || !plan_data) return res.status(400).json({ error: 'Name und Plan-Daten erforderlich' });
-  
-  const planDataJson = typeof plan_data === 'string' ? plan_data : JSON.stringify(plan_data);
-  const isActive = is_active ? 1 : 0;
-  const planId = req.params.id;
-  
-  if (isActive) db.run('UPDATE training_plans SET is_active = 0 WHERE user_id = ? AND id != ?', [req.user.userId, planId]);
-  
-  db.run('UPDATE training_plans SET name = ?, description = ?, plan_data = ?, is_active = ?, updated_at = datetime("now") WHERE id = ? AND user_id = ?',
-    [name, description || '', planDataJson, isActive, planId, req.user.userId],
-    function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      if (this.changes === 0) return res.status(404).json({ error: 'Plan nicht gefunden' });
-      res.json({ message: 'Plan aktualisiert', id: parseInt(planId) });
+  try {
+    const { name, description, plan_data, is_active } = req.body;
+    if (!name || !plan_data) return res.status(400).json({ error: 'Name und Plan-Daten erforderlich' });
+
+    let planDataJson;
+    try {
+      planDataJson = typeof plan_data === 'string' ? plan_data : JSON.stringify(plan_data);
+    } catch (jsonErr) {
+      console.error('❌ Ungültige Plan-Daten (JSON.stringify):', jsonErr.message);
+      return res.status(400).json({ error: 'Plan-Daten können nicht serialisiert werden: ' + jsonErr.message });
     }
-  );
+    const isActive = is_active ? 1 : 0;
+    const planId = req.params.id;
+
+    if (isActive) db.run('UPDATE training_plans SET is_active = 0 WHERE user_id = ? AND id != ?', [req.user.userId, planId]);
+
+    db.run('UPDATE training_plans SET name = ?, description = ?, plan_data = ?, is_active = ?, updated_at = datetime("now") WHERE id = ? AND user_id = ?',
+      [name, description || '', planDataJson, isActive, planId, req.user.userId],
+      function(err) {
+        if (err) {
+          console.error('❌ Fehler beim Aktualisieren des Plans:', err.message);
+          return res.status(500).json({ error: err.message });
+        }
+        if (this.changes === 0) return res.status(404).json({ error: 'Plan nicht gefunden' });
+        res.json({ message: 'Plan aktualisiert', id: parseInt(planId) });
+      }
+    );
+  } catch (err) {
+    console.error('❌ Unbehandelter Fehler PUT /api/training-plans/:id:', err);
+    res.status(500).json({ error: 'Interner Serverfehler beim Aktualisieren des Plans' });
+  }
 });
 
 // Plan löschen
@@ -1367,6 +1395,10 @@ app.delete('/api/training-plans/:id', authenticateJWT, (req, res) => {
 
 // === GOOGLE DRIVE TRAINING PLAN SYNC ===
 
+// Konstanten für Google Drive API Timeouts (Render-Gateway bricht nach 30-60s ab)
+const DRIVE_TIMEOUT_MS = 20000;
+const DRIVE_TIMEOUT_ERR = 'Google Drive Anfrage hat das Zeitlimit überschritten';
+
 // Hilfsfunktion: Google Drive Ordner suchen oder erstellen
 async function getOrCreateDriveFolder(drive, name) {
   let response;
@@ -1374,7 +1406,8 @@ async function getOrCreateDriveFolder(drive, name) {
     response = await drive.files.list({
       q: `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
       fields: 'files(id, name)',
-      spaces: 'drive'
+      spaces: 'drive',
+      timeout: DRIVE_TIMEOUT_MS
     });
   } catch (err) {
     if (err.code === 401) throw err;
@@ -1387,7 +1420,8 @@ async function getOrCreateDriveFolder(drive, name) {
 
   const folder = await drive.files.create({
     requestBody: { name, mimeType: 'application/vnd.google-apps.folder' },
-    fields: 'id'
+    fields: 'id',
+    timeout: DRIVE_TIMEOUT_MS
   });
   return folder.data.id;
 }
@@ -1399,7 +1433,8 @@ async function savePlanToDrive(drive, folderId, filename, planData) {
   // Prüfe ob Datei existiert
   const existing = await drive.files.list({
     q: `name='${filename}' and '${folderId}' in parents and trashed=false`,
-    fields: 'files(id, name)'
+    fields: 'files(id, name)',
+    timeout: DRIVE_TIMEOUT_MS
   });
 
   if (existing.data.files.length > 0) {
@@ -1407,14 +1442,16 @@ async function savePlanToDrive(drive, folderId, filename, planData) {
     const file = await drive.files.update({
       fileId,
       media: { mimeType: 'application/json', body: buffer },
-      fields: 'id, name, modifiedTime'
+      fields: 'id, name, modifiedTime',
+      timeout: DRIVE_TIMEOUT_MS
     });
     return { id: file.data.id, updated: true, modifiedTime: file.data.modifiedTime };
   } else {
     const file = await drive.files.create({
       requestBody: { name: filename, parents: [folderId] },
       media: { mimeType: 'application/json', body: buffer },
-      fields: 'id, name, modifiedTime'
+      fields: 'id, name, modifiedTime',
+      timeout: DRIVE_TIMEOUT_MS
     });
     return { id: file.data.id, created: true, modifiedTime: file.data.modifiedTime };
   }
@@ -1425,13 +1462,14 @@ async function loadPlanFromDrive(drive, folderId, filename) {
   const response = await drive.files.list({
     q: `name='${filename}' and '${folderId}' in parents and trashed=false`,
     fields: 'files(id, name, modifiedTime)',
-    orderBy: 'modifiedTime desc'
+    orderBy: 'modifiedTime desc',
+    timeout: DRIVE_TIMEOUT_MS
   });
 
   if (response.data.files.length === 0) return null;
 
   const fileId = response.data.files[0].id;
-  const download = await drive.files.get({ fileId, alt: 'media' }, { responseType: 'json' });
+  const download = await drive.files.get({ fileId, alt: 'media' }, { responseType: 'json', timeout: DRIVE_TIMEOUT_MS });
   return {
     data: download.data,
     modifiedTime: response.data.files[0].modifiedTime
@@ -1989,8 +2027,17 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Globale Error-Handler: Verhindern, dass der Prozess bei unerwarteten Fehlern crasht (Render -> 502)
+process.on('uncaughtException', (err) => {
+  console.error('❌ Unbehandelte Exception:', err);
+  // Server weiterlaufen lassen, aber Admin informieren
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unbehandeltes Promise-Rejection:', reason);
+});
+
 // Server starten
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🔒 IronCoach Server läuft auf http://localhost:${PORT}`);
   console.log(`📊 Umgebung: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📦 Version: 1.2.0 | Standardübungen: 78`);
@@ -2000,5 +2047,7 @@ app.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGINT', () => {
   db.close();
-  process.exit(0);
+  server.close(() => {
+    process.exit(0);
+  });
 });

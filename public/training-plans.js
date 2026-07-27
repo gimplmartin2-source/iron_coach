@@ -384,21 +384,33 @@ async function saveCurrentPlan() {
         const saveResult = await saveRes.json();
         planId = saveResult.id || planId;
 
-        // 2. In Google Drive synchronisieren
+        // 2. In Google Drive synchronisieren (optional, mit Timeout - verhindert 502/504 Hänger)
         try {
+            const syncController = new AbortController();
+            const syncTimeout = setTimeout(() => syncController.abort(), 15000);
             const syncRes = await fetch('/api/training-plans/' + planId + '/sync-drive', {
                 method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + token }
+                headers: { 'Authorization': 'Bearer ' + token },
+                signal: syncController.signal
             });
+            clearTimeout(syncTimeout);
             const syncResult = await syncRes.json();
             if (syncRes.ok) {
                 updateSyncStatus('✅ Gespeichert & mit Google Drive synchronisiert');
+            } else if (syncRes.status >= 500) {
+                updateSyncStatus('✅ Lokal gespeichert (Drive-Server temporär nicht erreichbar)');
+                console.warn('Drive-Sync Server-Fehler:', syncResult.error || syncRes.statusText);
             } else {
                 updateSyncStatus('✅ Lokal gespeichert (Drive: ' + (syncResult.error || 'nicht verfügbar') + ')');
             }
         } catch (syncErr) {
-            console.warn('Drive-Sync fehlgeschlagen:', syncErr);
-            updateSyncStatus('✅ Lokal gespeichert (Drive-Sync fehlgeschlagen)');
+            if (syncErr.name === 'AbortError') {
+                updateSyncStatus('✅ Lokal gespeichert (Drive-Sync Zeitüberschreitung)');
+                console.warn('Drive-Sync Timeout (15s)');
+            } else {
+                updateSyncStatus('✅ Lokal gespeichert (Drive-Sync fehlgeschlagen)');
+                console.warn('Drive-Sync fehlgeschlagen:', syncErr);
+            }
         }
 
         // Aktuellen Plan aktualisieren und Editor schließen
