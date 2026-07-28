@@ -1312,7 +1312,7 @@ app.get('/api/training-plans/:id', authenticateJWT, (req, res) => {
 });
 
 // Neuen Plan erstellen
-app.post('/api/training-plans', authenticateJWT, (req, res) => {
+app.post('/api/training-plans', authenticateJWT, async (req, res) => {
   try {
     const { name, description, plan_data, is_active } = req.body;
     if (!name || !plan_data) return res.status(400).json({ error: 'Name und Plan-Daten erforderlich' });
@@ -1326,26 +1326,25 @@ app.post('/api/training-plans', authenticateJWT, (req, res) => {
     }
     const isActive = is_active ? 1 : 0;
 
-    if (isActive) db.run('UPDATE training_plans SET is_active = 0 WHERE user_id = ?', [req.user.userId]);
+    // Aktive Pläne zurücksetzen, falls der neue Plan aktiv werden soll
+    if (isActive) {
+      await runAsync('UPDATE training_plans SET is_active = 0 WHERE user_id = ?', [req.user.userId]);
+    }
 
-    db.run('INSERT INTO training_plans (user_id, name, description, plan_data, is_active) VALUES (?, ?, ?, ?, ?)',
-      [req.user.userId, name, description || '', planDataJson, isActive],
-      function(err) {
-        if (err) {
-          console.error('❌ Fehler beim Erstellen des Plans:', err.message);
-          return res.status(500).json({ error: err.message });
-        }
-        res.json({ id: this.lastID, name, description, is_active: isActive });
-      }
+    const result = await runAsync(
+      'INSERT INTO training_plans (user_id, name, description, plan_data, is_active) VALUES (?, ?, ?, ?, ?)',
+      [req.user.userId, name, description || '', planDataJson, isActive]
     );
+
+    res.json({ id: result.lastID, name, description, is_active: isActive });
   } catch (err) {
-    console.error('❌ Unbehandelter Fehler POST /api/training-plans:', err);
-    res.status(500).json({ error: 'Interner Serverfehler beim Speichern des Plans' });
+    console.error('❌ Fehler POST /api/training-plans:', err.message);
+    res.status(500).json({ error: err.message || 'Interner Serverfehler beim Speichern des Plans' });
   }
 });
 
 // Plan aktualisieren
-app.put('/api/training-plans/:id', authenticateJWT, (req, res) => {
+app.put('/api/training-plans/:id', authenticateJWT, async (req, res) => {
   try {
     const { name, description, plan_data, is_active } = req.body;
     if (!name || !plan_data) return res.status(400).json({ error: 'Name und Plan-Daten erforderlich' });
@@ -1360,22 +1359,21 @@ app.put('/api/training-plans/:id', authenticateJWT, (req, res) => {
     const isActive = is_active ? 1 : 0;
     const planId = req.params.id;
 
-    if (isActive) db.run('UPDATE training_plans SET is_active = 0 WHERE user_id = ? AND id != ?', [req.user.userId, planId]);
+    // Aktive Pläne zurücksetzen, falls dieser Plan aktiv werden soll
+    if (isActive) {
+      await runAsync('UPDATE training_plans SET is_active = 0 WHERE user_id = ? AND id != ?', [req.user.userId, planId]);
+    }
 
-    db.run('UPDATE training_plans SET name = ?, description = ?, plan_data = ?, is_active = ?, updated_at = datetime("now") WHERE id = ? AND user_id = ?',
-      [name, description || '', planDataJson, isActive, planId, req.user.userId],
-      function(err) {
-        if (err) {
-          console.error('❌ Fehler beim Aktualisieren des Plans:', err.message);
-          return res.status(500).json({ error: err.message });
-        }
-        if (this.changes === 0) return res.status(404).json({ error: 'Plan nicht gefunden' });
-        res.json({ message: 'Plan aktualisiert', id: parseInt(planId) });
-      }
+    const result = await runAsync(
+      'UPDATE training_plans SET name = ?, description = ?, plan_data = ?, is_active = ?, updated_at = datetime("now") WHERE id = ? AND user_id = ?',
+      [name, description || '', planDataJson, isActive, planId, req.user.userId]
     );
+
+    if (result.changes === 0) return res.status(404).json({ error: 'Plan nicht gefunden' });
+    res.json({ message: 'Plan aktualisiert', id: parseInt(planId) });
   } catch (err) {
-    console.error('❌ Unbehandelter Fehler PUT /api/training-plans/:id:', err);
-    res.status(500).json({ error: 'Interner Serverfehler beim Aktualisieren des Plans' });
+    console.error('❌ Fehler PUT /api/training-plans/:id:', err.message);
+    res.status(500).json({ error: err.message || 'Interner Serverfehler beim Aktualisieren des Plans' });
   }
 });
 

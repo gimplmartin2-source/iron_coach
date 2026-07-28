@@ -511,6 +511,11 @@ function cancelPlanEdit() {
 
 async function createNewPlan() {
     const token = localStorage.getItem('token');
+    if (!token) {
+        alert('Fehler: Nicht eingeloggt. Bitte melde dich erneut an.');
+        updateSyncStatus('❌ Nicht eingeloggt');
+        return;
+    }
     const empty = createEmptyPlan();
 
     try {
@@ -528,7 +533,16 @@ async function createNewPlan() {
                 is_active: true
             })
         });
-        if (!res.ok) throw new Error('Neuer Plan konnte nicht angelegt werden');
+        if (!res.ok) {
+            let errMsg = 'Neuer Plan konnte nicht angelegt werden';
+            try {
+                const errBody = await res.json();
+                errMsg = errBody.error || errBody.message || errMsg;
+            } catch (e) {
+                errMsg = res.status + ' ' + res.statusText;
+            }
+            throw new Error(errMsg);
+        }
         const saved = await res.json();
         currentPlanId = saved.id;
         currentPlan = empty;
@@ -537,7 +551,7 @@ async function createNewPlan() {
     } catch (err) {
         console.error('Neuer Plan fehlgeschlagen:', err);
         alert('Fehler: ' + err.message);
-        updateSyncStatus('❌ Neuer Plan fehlgeschlagen');
+        updateSyncStatus('❌ Neuer Plan fehlgeschlagen: ' + err.message);
     }
 }
 
