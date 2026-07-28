@@ -406,7 +406,8 @@ async function saveCurrentPlan() {
             method = 'PUT';
         }
 
-        const isActive = isPlanActive(planId) || (wasNew && !trainingPlans.some(p => p.is_active));
+        // Neuer Plan oder Plan aus Editor soll immer aktiv werden, damit der Nutzer ihn sofort sieht
+        const isActive = true;
 
         const saveRes = await fetch(saveUrl, {
             method,
@@ -524,7 +525,7 @@ async function createNewPlan() {
                 name: empty.name,
                 description: '',
                 plan_data: empty,
-                is_active: trainingPlans.length === 0
+                is_active: true
             })
         });
         if (!res.ok) throw new Error('Neuer Plan konnte nicht angelegt werden');
