@@ -3,6 +3,7 @@
 
 let trainingPlans = [];
 let currentPlan = null;
+let currentPlanId = null;
 let planBeforeEdit = null;
 let isPlanEditing = false;
 
@@ -18,53 +19,71 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initTrainingPlans() {
-    await loadTrainingPlanFromDrive();
-    setupPlanSelector();
+    await loadTrainingPlansList();
 }
 
-async function loadTrainingPlanFromDrive() {
+// --- PLAN LISTE ---
+
+async function loadTrainingPlansList() {
     try {
         const token = localStorage.getItem('token');
         if (!token) return;
-        const res = await fetch('/api/training-plans/sync-drive', {
-            headers: { 'Authorization': 'Bearer ' + token }
+
+        const res = await fetch('/api/training-plans', {
+            headers: { Authorization: 'Bearer ' + token }
         });
-        if (!res.ok) {
-            if (res.status === 404) {
-                await loadDefaultPlan();
-                return;
+        if (!res.ok) throw new Error('Fehler beim Laden der Pläne');
+
+        trainingPlans = await res.json();
+
+        if (trainingPlans.length === 0) {
+            await loadDefaultPlanAndSave();
+        } else {
+            const active = trainingPlans.find(p => p.is_active);
+            if (active && active.id !== currentPlanId) {
+                await loadPlan(active.id);
+            } else if (!currentPlanId) {
+                await loadPlan(trainingPlans[0].id);
+            } else {
+                setupPlanSelector();
             }
-            throw new Error('Fehler beim Laden aus Drive');
         }
-        const plan = await res.json();
-        currentPlan = plan.plan_data || plan;
-        if (!currentPlan.days) currentPlan = plan;
-        renderPlan(currentPlan);
-        updateSyncStatus(plan.source === 'drive' ? 'Mit Google Drive synchronisiert' : 'Lokal gespeichert');
     } catch (err) {
-        console.error('Plan aus Drive laden fehlgeschlagen:', err);
+        console.error('Pläneliste laden fehlgeschlagen:', err);
+        updateSyncStatus('Fehler beim Laden der Pläne');
         await loadDefaultPlan();
     }
 }
 
-async function loadTrainingPlans() {
+async function loadDefaultPlanAndSave() {
     try {
+        const res = await fetch('/default-training-plan.json');
+        if (!res.ok) throw new Error('Default-Plan nicht gefunden');
+        const planData = await res.json();
+
         const token = localStorage.getItem('token');
-        if (!token) return;
-        const res = await fetch('/api/training-plans', {
-            headers: { 'Authorization': 'Bearer ' + token }
+        const saveRes = await fetch('/api/training-plans', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'Bearer ' + token
+            },
+            body: JSON.stringify({
+                name: planData.name || 'Mein Trainingsplan',
+                description: planData.description || '',
+                plan_data: planData,
+                is_active: true
+            })
         });
-        if (!res.ok) throw new Error('Fehler beim Laden');
-        trainingPlans = await res.json();
-        const active = trainingPlans.find(p => p.is_active) || trainingPlans[0];
-        if (active && !currentPlan) {
-            await loadPlan(active.id);
-        } else if (trainingPlans.length === 0 && !currentPlan) {
-            await loadDefaultPlan();
-        }
+        if (!saveRes.ok) throw new Error('Default-Plan speichern fehlgeschlagen');
+        const saved = await saveRes.json();
+        currentPlanId = saved.id;
+        currentPlan = planData;
+        updateSyncStatus('Standard-Plan angelegt');
+        await loadTrainingPlansList();
     } catch (err) {
-        console.error('Pläne laden fehlgeschlagen:', err);
-        if (!currentPlan) await loadDefaultPlan();
+        console.error('Default-Plan anlegen fehlgeschlagen:', err);
+        await loadDefaultPlan();
     }
 }
 
@@ -74,11 +93,13 @@ async function loadDefaultPlan() {
         if (!res.ok) throw new Error('Default-Plan nicht gefunden');
         const planData = await res.json();
         currentPlan = planData;
+        currentPlanId = null;
         renderPlan(planData);
-        updateSyncStatus('Standard-Plan geladen');
-        console.log('Default-Plan geladen:', planData.name);
+        updateSyncStatus('Standard-Plan geladen (noch nicht gespeichert)');
+        setupPlanSelector();
     } catch (err) {
         console.error('Default-Plan laden fehlgeschlagen:', err);
+        updateSyncStatus('Fehler beim Laden des Standard-Plans');
     }
 }
 
@@ -86,28 +107,51 @@ async function loadPlan(planId) {
     try {
         const token = localStorage.getItem('token');
         const res = await fetch('/api/training-plans/' + planId, {
-            headers: { 'Authorization': 'Bearer ' + token }
+            headers: { Authorization: 'Bearer ' + token }
         });
         if (!res.ok) throw new Error('Plan nicht gefunden');
-        const plan = await res.json();
-        currentPlan = plan.plan_data || plan;
+        const row = await res.json();
+
+        currentPlanId = row.id;
+        currentPlan = row.plan_data || {};
+        currentPlan.name = row.name || currentPlan.name || 'Trainingsplan';
+        currentPlan.description = row.description || currentPlan.description || '';
+
         renderPlan(currentPlan);
+        updateSyncStatus('Plan geladen');
+        setupPlanSelector();
     } catch (err) {
         console.error('Plan laden fehlgeschlagen:', err);
+        updateSyncStatus('Fehler: Plan konnte nicht geladen werden');
     }
 }
 
 function setupPlanSelector() {
     const select = document.getElementById('plan-select');
     if (!select) return;
+
     select.innerHTML = '';
-    const opt = document.createElement('option');
-    opt.value = 'active';
-    opt.textContent = currentPlan ? (currentPlan.name || 'Mein Trainingsplan') : 'Standard-Plan';
-    opt.selected = true;
-    select.appendChild(opt);
+
+    trainingPlans.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = (p.is_active ? '⭐ ' : '') + (p.name || 'Plan ' + p.id);
+        opt.selected = (p.id === currentPlanId);
+        select.appendChild(opt);
+    });
+
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ Neuer Plan';
+    select.appendChild(newOpt);
+
     select.onchange = (e) => {
-        if (e.target.value === 'active' && currentPlan) renderPlan(currentPlan);
+        const val = e.target.value;
+        if (val === '__new__') {
+            createNewPlan();
+        } else if (val) {
+            loadPlan(parseInt(val));
+        }
     };
 }
 
@@ -164,6 +208,11 @@ function renderExerciseRow(ex) {
 function updateSyncStatus(message) {
     const el = document.getElementById('plan-sync-status');
     if (el) el.textContent = message;
+}
+
+function isPlanActive(planId) {
+    const p = trainingPlans.find(x => x.id === planId);
+    return p ? p.is_active : false;
 }
 
 // --- PLAN EDITOR ---
@@ -347,27 +396,29 @@ async function saveCurrentPlan() {
         const planData = collectPlanFromEditor();
         const token = localStorage.getItem('token');
 
-        // 1. In DB speichern / aktualisieren
-        let planId = currentPlan.id;
+        let planId = currentPlanId;
         let saveUrl = '/api/training-plans';
         let method = 'POST';
+        const wasNew = !planId;
 
         if (planId) {
             saveUrl = '/api/training-plans/' + planId;
             method = 'PUT';
         }
 
+        const isActive = isPlanActive(planId) || (wasNew && !trainingPlans.some(p => p.is_active));
+
         const saveRes = await fetch(saveUrl, {
             method,
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
+                Authorization: 'Bearer ' + token
             },
             body: JSON.stringify({
                 name: planData.name,
                 description: planData.description,
                 plan_data: planData,
-                is_active: true
+                is_active: isActive
             })
         });
 
@@ -381,41 +432,44 @@ async function saveCurrentPlan() {
             }
             throw new Error(errMsg);
         }
+
         const saveResult = await saveRes.json();
         planId = saveResult.id || planId;
+        currentPlanId = planId;
 
-        // 2. In Google Drive synchronisieren (optional, mit Timeout - verhindert 502/504 Hänger)
-        try {
-            const syncController = new AbortController();
-            const syncTimeout = setTimeout(() => syncController.abort(), 15000);
-            const syncRes = await fetch('/api/training-plans/' + planId + '/sync-drive', {
-                method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + token },
-                signal: syncController.signal
-            });
-            clearTimeout(syncTimeout);
-            const syncResult = await syncRes.json();
-            if (syncRes.ok) {
-                updateSyncStatus('✅ Gespeichert & mit Google Drive synchronisiert');
-            } else if (syncRes.status >= 500) {
-                updateSyncStatus('✅ Lokal gespeichert (Drive-Server temporär nicht erreichbar)');
-                console.warn('Drive-Sync Server-Fehler:', syncResult.error || syncRes.statusText);
-            } else {
-                updateSyncStatus('✅ Lokal gespeichert (Drive: ' + (syncResult.error || 'nicht verfügbar') + ')');
+        if (isActive) {
+            try {
+                const syncController = new AbortController();
+                const syncTimeout = setTimeout(() => syncController.abort(), 15000);
+                const syncRes = await fetch('/api/training-plans/' + planId + '/sync-drive', {
+                    method: 'POST',
+                    headers: { Authorization: 'Bearer ' + token },
+                    signal: syncController.signal
+                });
+                clearTimeout(syncTimeout);
+                const syncResult = await syncRes.json();
+                if (syncRes.ok) {
+                    updateSyncStatus('✅ Gespeichert & mit Google Drive synchronisiert');
+                } else if (syncRes.status >= 500) {
+                    updateSyncStatus('✅ Lokal gespeichert (Drive-Server temporär nicht erreichbar)');
+                    console.warn('Drive-Sync Server-Fehler:', syncResult.error || syncRes.statusText);
+                } else {
+                    updateSyncStatus('✅ Lokal gespeichert (Drive: ' + (syncResult.error || 'nicht verfügbar') + ')');
+                }
+            } catch (syncErr) {
+                if (syncErr.name === 'AbortError') {
+                    updateSyncStatus('✅ Lokal gespeichert (Drive-Sync Zeitüberschreitung)');
+                    console.warn('Drive-Sync Timeout (15s)');
+                } else {
+                    updateSyncStatus('✅ Lokal gespeichert (Drive-Sync fehlgeschlagen)');
+                    console.warn('Drive-Sync fehlgeschlagen:', syncErr);
+                }
             }
-        } catch (syncErr) {
-            if (syncErr.name === 'AbortError') {
-                updateSyncStatus('✅ Lokal gespeichert (Drive-Sync Zeitüberschreitung)');
-                console.warn('Drive-Sync Timeout (15s)');
-            } else {
-                updateSyncStatus('✅ Lokal gespeichert (Drive-Sync fehlgeschlagen)');
-                console.warn('Drive-Sync fehlgeschlagen:', syncErr);
-            }
+        } else {
+            updateSyncStatus('✅ Plan gespeichert (inaktiv, keine Drive-Sync)');
         }
 
-        // Aktuellen Plan aktualisieren und Editor schließen
         currentPlan = planData;
-        currentPlan.id = planId;
         planBeforeEdit = null;
         isPlanEditing = false;
 
@@ -425,12 +479,12 @@ async function saveCurrentPlan() {
         document.getElementById('btn-cancel-edit').style.display = 'none';
 
         renderPlan(currentPlan);
-        setupPlanSelector();
+        await loadTrainingPlansList();
 
     } catch (err) {
         console.error('Fehler beim Speichern:', err);
         alert('Fehler beim Speichern: ' + err.message);
-        updateSyncStatus('❌ Fehler beim Speichern');
+        updateSyncStatus('❌ Fehler beim Speichern: ' + err.message);
     }
 }
 
@@ -452,4 +506,116 @@ function cancelPlanEdit() {
     if (btnCancel) btnCancel.style.display = 'none';
 
     if (currentPlan) renderPlan(currentPlan);
+}
+
+async function createNewPlan() {
+    const token = localStorage.getItem('token');
+    const empty = createEmptyPlan();
+
+    try {
+        updateSyncStatus('Lege neuen Plan an...');
+        const res = await fetch('/api/training-plans', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'Bearer ' + token
+            },
+            body: JSON.stringify({
+                name: empty.name,
+                description: '',
+                plan_data: empty,
+                is_active: trainingPlans.length === 0
+            })
+        });
+        if (!res.ok) throw new Error('Neuer Plan konnte nicht angelegt werden');
+        const saved = await res.json();
+        currentPlanId = saved.id;
+        currentPlan = empty;
+        await loadTrainingPlansList();
+        togglePlanEditor();
+    } catch (err) {
+        console.error('Neuer Plan fehlgeschlagen:', err);
+        alert('Fehler: ' + err.message);
+        updateSyncStatus('❌ Neuer Plan fehlgeschlagen');
+    }
+}
+
+async function duplicateCurrentPlan() {
+    if (!currentPlan) return;
+    const token = localStorage.getItem('token');
+    const copy = JSON.parse(JSON.stringify(currentPlan));
+    copy.name = (copy.name || 'Plan') + ' (Kopie)';
+
+    try {
+        updateSyncStatus('Dupliziere Plan...');
+        const res = await fetch('/api/training-plans', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'Bearer ' + token
+            },
+            body: JSON.stringify({
+                name: copy.name,
+                description: copy.description || '',
+                plan_data: copy,
+                is_active: false
+            })
+        });
+        if (!res.ok) throw new Error('Plan konnte nicht dupliziert werden');
+        const saved = await res.json();
+        await loadTrainingPlansList();
+        await loadPlan(saved.id);
+    } catch (err) {
+        console.error('Duplizieren fehlgeschlagen:', err);
+        alert('Fehler: ' + err.message);
+        updateSyncStatus('❌ Duplizieren fehlgeschlagen');
+    }
+}
+
+async function deleteCurrentPlan() {
+    if (!currentPlanId) {
+        alert('Dieser Plan ist noch nicht gespeichert.');
+        return;
+    }
+    const p = trainingPlans.find(x => x.id === currentPlanId);
+    if (!confirm('Plan "' + (p?.name || currentPlanId) + '" wirklich löschen?')) return;
+
+    const token = localStorage.getItem('token');
+    try {
+        updateSyncStatus('Lösche Plan...');
+        const res = await fetch('/api/training-plans/' + currentPlanId, {
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error('Plan konnte nicht gelöscht werden');
+        currentPlanId = null;
+        currentPlan = null;
+        await loadTrainingPlansList();
+    } catch (err) {
+        console.error('Löschen fehlgeschlagen:', err);
+        alert('Fehler: ' + err.message);
+        updateSyncStatus('❌ Löschen fehlgeschlagen');
+    }
+}
+
+async function setCurrentPlanActive() {
+    if (!currentPlanId) {
+        alert('Speichere den Plan erst, bevor du ihn als aktiv markierst.');
+        return;
+    }
+    const token = localStorage.getItem('token');
+    try {
+        updateSyncStatus('Setze Plan als aktiv...');
+        const res = await fetch('/api/training-plans/' + currentPlanId + '/activate', {
+            method: 'PATCH',
+            headers: { Authorization: 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error('Aktivieren fehlgeschlagen');
+        await loadTrainingPlansList();
+        updateSyncStatus('⭐ Dieser Plan ist jetzt aktiv');
+    } catch (err) {
+        console.error('Aktivieren fehlgeschlagen:', err);
+        alert('Fehler: ' + err.message);
+        updateSyncStatus('❌ Aktivieren fehlgeschlagen');
+    }
 }

@@ -1410,14 +1410,32 @@ app.put('/api/training-plans/:id', authenticateJWT, (req, res) => {
 
 // Plan löschen
 app.delete('/api/training-plans/:id', authenticateJWT, (req, res) => {
-  db.run('DELETE FROM training_plans WHERE id = ? AND user_id = ?', 
-    [req.params.id, req.user.userId], 
+  db.run('DELETE FROM training_plans WHERE id = ? AND user_id = ?',
+    [req.params.id, req.user.userId],
     function(err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Plan nicht gefunden' });
       res.json({ message: 'Plan gelöscht' });
     }
   );
+});
+
+// Plan als aktiv markieren
+app.patch('/api/training-plans/:id/activate', authenticateJWT, (req, res) => {
+  const userId = req.user.userId;
+  const planId = req.params.id;
+  db.run('UPDATE training_plans SET is_active = 0 WHERE user_id = ?', [userId], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    db.run(
+      'UPDATE training_plans SET is_active = 1, updated_at = datetime("now") WHERE id = ? AND user_id = ?',
+      [planId, userId],
+      function(err2) {
+        if (err2) return res.status(500).json({ error: err2.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Plan nicht gefunden' });
+        res.json({ message: 'Plan ist jetzt aktiv', id: parseInt(planId) });
+      }
+    );
+  });
 });
 
 // === GOOGLE DRIVE TRAINING PLAN SYNC ===
