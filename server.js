@@ -73,203 +73,137 @@ app.use(passport.session());
 
 // SQLite Datenbank
 const DB_PATH = process.env.DATABASE_PATH || './training.db';
-let db = new sqlite3.Database(DB_PATH, (err) => {
-  if (err) {
-    console.error('❌ Datenbank-Fehler:', err.message);
-  } else {
-    console.log('✅ Datenbank verbunden:', DB_PATH);
-    // Foreign Keys aktivieren
-    db.run('PRAGMA foreign_keys = ON');
-    // WICHTIG: SQLite robuster gegen OneDrive-/Cloud-Sync-Sperren machen
-    db.run('PRAGMA busy_timeout = 5000');
-    db.run('PRAGMA journal_mode = WAL');
-  }
-});
+let db = null;
 
-// Hilfsfunktion: Spalte hinzufügen falls sie fehlt (Auto-Heal für Render-Deployments)
-function ensureColumn(table, column, type = 'TEXT') {
+// Promise-Helfer für SQLite (ermöglicht zuverlässiges Schema-Management)
+function runAsync(sql, params = []) {
   return new Promise((resolve, reject) => {
-    db.all(`PRAGMA table_info(${table})`, [], (err, columns) => {
-      if (err) return reject(err);
-      const exists = columns.some(col => col.name === column);
-      if (exists) return resolve();
-      console.log(`⚠️ Auto-Heal: Spalte ${column} fehlt in ${table}, füge hinzu...`);
-      db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`, (alterErr) => {
-        if (alterErr) return reject(alterErr);
-        console.log(`✅ Spalte ${column} zu ${table} hinzugefügt`);
-        resolve();
-      });
+    db.run(sql, params, function(err) {
+      if (err) reject(err);
+      else resolve({ lastID: this.lastID, changes: this.changes });
     });
   });
 }
 
-// Tabellen erstellen / migrieren
-db.serialize(() => {
-  // Users Tabelle
-  db.run(`CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT,
-    google_id TEXT UNIQUE,
-    display_name TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-  
-  // Google Refresh Tokens Tabelle (neu)
-  db.run(`CREATE TABLE IF NOT EXISTS user_tokens (
-    user_id INTEGER PRIMARY KEY,
-    google_refresh_token TEXT,
-    jwt_refresh_token TEXT,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  )`);
-
-  // Migration: jwt_refresh_token Spalte hinzufügen falls noch nicht vorhanden
-  db.all(`PRAGMA table_info(user_tokens)`, [], (err, columns) => {
-    if (!err && columns) {
-      const hasJwtRefresh = columns.some(col => col.name === 'jwt_refresh_token');
-      if (!hasJwtRefresh) {
-        console.log('⚠️ Migration: jwt_refresh_token Spalte fehlt, füge hinzu...');
-        db.run(`ALTER TABLE user_tokens ADD COLUMN jwt_refresh_token TEXT`, (alterErr) => {
-          if (alterErr) {
-            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
-          } else {
-            console.log('✅ jwt_refresh_token Spalte zu user_tokens hinzugefügt');
-          }
-        });
-      }
-    }
+function getAsync(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
   });
+}
 
-  // Exercises Tabelle - immer neu erstellen falls nicht existiert
-  db.run(`CREATE TABLE IF NOT EXISTS exercises (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    muscle_group TEXT NOT NULL,
-    exercise_type TEXT DEFAULT 'strength',
-    info TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  )`);
-
-  // Migration: Prüfe ob user_id Spalte in exercises existiert
-  db.all(`PRAGMA table_info(exercises)`, [], (err, columns) => {
-    if (!err && columns) {
-      const hasUserId = columns.some(col => col.name === 'user_id');
-      if (!hasUserId) {
-        console.log('⚠️ Migration: user_id Spalte fehlt in exercises, füge hinzu...');
-        db.run(`ALTER TABLE exercises ADD COLUMN user_id INTEGER DEFAULT 0`, (alterErr) => {
-          if (alterErr) {
-            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
-          } else {
-            console.log('✅ user_id Spalte zu exercises hinzugefügt');
-          }
-        });
-      }
-      
-      // Migration: Prüfe ob exercise_type Spalte existiert
-      const hasExerciseType = columns.some(col => col.name === 'exercise_type');
-      if (!hasExerciseType) {
-        console.log('⚠️ Migration: exercise_type Spalte fehlt in exercises, füge hinzu...');
-        db.run(`ALTER TABLE exercises ADD COLUMN exercise_type TEXT DEFAULT 'strength'`, (alterErr) => {
-          if (alterErr) {
-            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
-          } else {
-            console.log('✅ exercise_type Spalte zu exercises hinzugefügt');
-          }
-        });
-      }
-
-      // Migration: Prüfe ob info Spalte existiert
-      const hasInfo = columns.some(col => col.name === 'info');
-      if (!hasInfo) {
-        console.log('⚠️ Migration: info Spalte fehlt in exercises, füge hinzu...');
-        db.run(`ALTER TABLE exercises ADD COLUMN info TEXT`, (alterErr) => {
-          if (alterErr) {
-            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
-          } else {
-            console.log('✅ info Spalte zu exercises hinzugefügt');
-          }
-        });
-      }
-    }
+function allAsync(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
   });
+}
 
-  // Workouts Tabelle
-  db.run(`CREATE TABLE IF NOT EXISTS workouts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    exercise_id INTEGER,
-    weight REAL NOT NULL,
-    sets INTEGER NOT NULL,
-    reps INTEGER NOT NULL,
-    duration_seconds INTEGER,
-    rest_seconds INTEGER,
-    feeling INTEGER CHECK(feeling >= 1 AND feeling <= 10),
-    date TEXT NOT NULL,
-    info TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
-  )`);
+// Hilfsfunktion: Spalte hinzufügen falls sie fehlt (Auto-Heal für Render-Deployments)
+async function ensureColumn(table, column, type = 'TEXT') {
+  const columns = await allAsync(`PRAGMA table_info(${table})`).catch(() => []);
+  const exists = columns.some(col => col.name === column);
+  if (exists) return;
+  console.log(`⚠️ Auto-Heal: Spalte ${column} fehlt in ${table}, füge hinzu...`);
+  await runAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  console.log(`✅ Spalte ${column} zu ${table} hinzugefügt`);
+}
 
-  // Migration: Prüfe ob user_id Spalte in workouts existiert
-  db.all(`PRAGMA table_info(workouts)`, [], (err, columns) => {
-    if (!err && columns) {
-      const hasUserId = columns.some(col => col.name === 'user_id');
-      if (!hasUserId) {
-        console.log('⚠️ Migration: user_id Spalte fehlt in workouts, füge hinzu...');
-        db.run(`ALTER TABLE workouts ADD COLUMN user_id INTEGER DEFAULT 0`, (alterErr) => {
-          if (alterErr) {
-            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
-          } else {
-            console.log('✅ user_id Spalte zu workouts hinzugefügt');
-          }
-        });
-      }
-      
-      // Migration: Prüfe ob duration_seconds Spalte existiert
-      const hasDuration = columns.some(col => col.name === 'duration_seconds');
-      if (!hasDuration) {
-        console.log('⚠️ Migration: duration_seconds Spalte fehlt in workouts, füge hinzu...');
-        db.run(`ALTER TABLE workouts ADD COLUMN duration_seconds INTEGER`, (alterErr) => {
-          if (alterErr) {
-            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
-          } else {
-            console.log('✅ duration_seconds Spalte zu workouts hinzugefügt');
-          }
-        });
-      }
+// Robustes, asynchrones Schema-Setup – Server startet erst, wenn alles bereit ist
+async function initDatabase() {
+  return new Promise((resolve, reject) => {
+    db = new sqlite3.Database(DB_PATH, async (err) => {
+      if (err) return reject(err);
+      console.log('✅ Datenbank verbunden:', DB_PATH);
 
-      // Migration: Prüfe ob info Spalte existiert
-      const hasInfo = columns.some(col => col.name === 'info');
-      if (!hasInfo) {
-        console.log('⚠️ Migration: info Spalte fehlt in workouts, füge hinzu...');
-        db.run(`ALTER TABLE workouts ADD COLUMN info TEXT`, (alterErr) => {
-          if (alterErr) {
-            console.error('❌ Migration fehlgeschlagen:', alterErr.message);
-          } else {
-            console.log('✅ info Spalte zu workouts hinzugefügt');
-          }
-        });
+      try {
+        await runAsync('PRAGMA foreign_keys = ON');
+        await runAsync('PRAGMA busy_timeout = 5000');
+        await runAsync('PRAGMA journal_mode = WAL');
+
+        // Users Tabelle
+        await runAsync(`CREATE TABLE IF NOT EXISTS users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          email TEXT UNIQUE NOT NULL,
+          password TEXT,
+          google_id TEXT UNIQUE,
+          display_name TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+
+        // Google Refresh Tokens Tabelle
+        await runAsync(`CREATE TABLE IF NOT EXISTS user_tokens (
+          user_id INTEGER PRIMARY KEY,
+          google_refresh_token TEXT,
+          jwt_refresh_token TEXT,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`);
+        await ensureColumn('user_tokens', 'jwt_refresh_token', 'TEXT');
+
+        // Exercises Tabelle
+        await runAsync(`CREATE TABLE IF NOT EXISTS exercises (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          name TEXT NOT NULL,
+          muscle_group TEXT NOT NULL,
+          exercise_type TEXT DEFAULT 'strength',
+          info TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`);
+        await ensureColumn('exercises', 'user_id', 'INTEGER DEFAULT 0');
+        await ensureColumn('exercises', 'exercise_type', "TEXT DEFAULT 'strength'");
+        await ensureColumn('exercises', 'info', 'TEXT');
+
+        // Workouts Tabelle
+        await runAsync(`CREATE TABLE IF NOT EXISTS workouts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          exercise_id INTEGER,
+          weight REAL NOT NULL,
+          sets INTEGER NOT NULL,
+          reps INTEGER NOT NULL,
+          duration_seconds INTEGER,
+          rest_seconds INTEGER,
+          feeling INTEGER CHECK(feeling >= 1 AND feeling <= 10),
+          date TEXT NOT NULL,
+          info TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
+        )`);
+        await ensureColumn('workouts', 'user_id', 'INTEGER DEFAULT 0');
+        await ensureColumn('workouts', 'duration_seconds', 'INTEGER');
+        await ensureColumn('workouts', 'info', 'TEXT');
+
+        // Training Plans Tabelle
+        await runAsync(`CREATE TABLE IF NOT EXISTS training_plans (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT,
+          plan_data TEXT NOT NULL,
+          is_active INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )`);
+        await ensureColumn('training_plans', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
+
+        console.log('✅ Datenbank-Schema initialisiert');
+        resolve();
+      } catch (initErr) {
+        console.error('❌ Datenbank-Initialisierung fehlgeschlagen:', initErr.message);
+        reject(initErr);
       }
-    }
+    });
   });
-
-  // Training Plans Tabelle
-  db.run(`CREATE TABLE IF NOT EXISTS training_plans (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    description TEXT,
-    plan_data TEXT NOT NULL,
-    is_active INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  )`);
-});
+}
 
 // JWT Middleware
 const authenticateJWT = (req, res, next) => {
@@ -453,9 +387,10 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
           );
         }
         
-        // Standardübungen erstellen
+        // Standardübungen und Default-Trainingsplan erstellen
         seedDefaultExercises(newUserId);
-        
+        seedDefaultTrainingPlan(newUserId);
+
         db.get('SELECT * FROM users WHERE id = ?', [newUserId], (err, newUser) => {
           done(err, newUser, authInfo);
         });
@@ -584,6 +519,38 @@ function seedDefaultExercises(userId) {
   console.log(`✅ ${defaultExercises.length} Standardübungen für User ${userId} erstellt`);
 }
 
+// Hilfsfunktion: Standard-Trainingsplan für neuen User anlegen, falls noch keiner existiert
+async function seedDefaultTrainingPlan(userId) {
+  try {
+    const existing = await getAsync(
+      'SELECT id FROM training_plans WHERE user_id = ? LIMIT 1',
+      [userId]
+    );
+    if (existing) {
+      console.log(`ℹ️ User ${userId} hat bereits einen Trainingsplan – kein Default nötig`);
+      return;
+    }
+
+    const planPath = path.join(__dirname, 'public', 'default-training-plan.json');
+    if (!fs.existsSync(planPath)) {
+      console.warn('⚠️ default-training-plan.json nicht gefunden');
+      return;
+    }
+
+    const raw = fs.readFileSync(planPath, 'utf8');
+    const defaultPlan = JSON.parse(raw);
+    const planDataJson = JSON.stringify(defaultPlan);
+
+    await runAsync(
+      'INSERT INTO training_plans (user_id, name, description, plan_data, is_active) VALUES (?, ?, ?, ?, ?)',
+      [userId, defaultPlan.name, defaultPlan.description || '', planDataJson, 1]
+    );
+    console.log(`✅ Default-Trainingsplan für User ${userId} erstellt`);
+  } catch (err) {
+    console.error('❌ Fehler beim Erstellen des Default-Trainingsplans:', err.message);
+  }
+}
+
 // Register
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   const { email, password, displayName, rememberMe } = req.body;
@@ -629,8 +596,9 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       await storeJwtRefreshToken(userId, refreshToken);
     }
 
-    // Standardübungen erstellen
+    // Standardübungen und Default-Trainingsplan erstellen
     seedDefaultExercises(userId);
+    await seedDefaultTrainingPlan(userId);
 
     res.json({
       token,
@@ -661,6 +629,9 @@ app.post('/api/auth/login', authLimiter, (req, res, next) => {
         refreshToken = generateJwtRefreshToken();
         await storeJwtRefreshToken(user.id, refreshToken);
       }
+
+      // Sicherstellen, dass jeder User mindestens einen Default-Trainingsplan hat
+      await seedDefaultTrainingPlan(user.id);
 
       res.json({
         token,
@@ -768,7 +739,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     app: 'IronCoach',
-    version: '1.2.0',
+    version: '1.2.1',
     defaultExerciseCount: 78,
     commit: '9035852',
     timestamp: new Date().toISOString(),
@@ -2081,18 +2052,26 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('❌ Unbehandeltes Promise-Rejection:', reason);
 });
 
-// Server starten
-const server = app.listen(PORT, () => {
-  console.log(`🔒 IronCoach Server läuft auf http://localhost:${PORT}`);
-  console.log(`📊 Umgebung: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📦 Version: 1.2.0 | Standardübungen: 78`);
-  console.log(`🏥 Health-Check: http://localhost:${PORT}/api/health`);
-});
+// Server starten – erst nach erfolgreicher Datenbank-Initialisierung
+let server = null;
+initDatabase()
+  .then(() => {
+    server = app.listen(PORT, () => {
+      console.log(`🔒 IronCoach Server läuft auf http://localhost:${PORT}`);
+      console.log(`📊 Umgebung: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`📦 Version: 1.2.1 | Standardübungen: 78`);
+      console.log(`🏥 Health-Check: http://localhost:${PORT}/api/health`);
+    });
 
-// Graceful shutdown
-process.on('SIGINT', () => {
-  db.close();
-  server.close(() => {
-    process.exit(0);
+    // Graceful shutdown
+    process.on('SIGINT', () => {
+      db.close();
+      server.close(() => {
+        process.exit(0);
+      });
+    });
+  })
+  .catch(err => {
+    console.error('❌ Server konnte nicht starten:', err.message);
+    process.exit(1);
   });
-});
