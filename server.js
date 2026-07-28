@@ -113,6 +113,26 @@ async function ensureColumn(table, column, type = 'TEXT') {
   console.log(`✅ Spalte ${column} zu ${table} hinzugefügt`);
 }
 
+// Hilfsfunktion: Prüfen ob Tabelle existiert
+async function tableExists(table) {
+  const row = await getAsync(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+    [table]
+  ).catch(() => null);
+  return !!row;
+}
+
+// Auto-Heal: Tabelle anlegen falls sie komplett fehlt
+async function ensureTable(name, ddl) {
+  if (await tableExists(name)) return;
+  console.log(`⚠️ Auto-Heal: Tabelle ${name} fehlt, lege an...`);
+  await runAsync(ddl);
+  if (!(await tableExists(name))) {
+    throw new Error(`Auto-Heal fehlgeschlagen: Tabelle ${name} konnte nicht angelegt werden`);
+  }
+  console.log(`✅ Tabelle ${name} angelegt`);
+}
+
 // Robustes, asynchrones Schema-Setup – Server startet erst, wenn alles bereit ist
 async function initDatabase() {
   return new Promise((resolve, reject) => {
@@ -126,7 +146,7 @@ async function initDatabase() {
         await runAsync('PRAGMA journal_mode = WAL');
 
         // Users Tabelle
-        await runAsync(`CREATE TABLE IF NOT EXISTS users (
+        await ensureTable('users', `CREATE TABLE IF NOT EXISTS users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           email TEXT UNIQUE NOT NULL,
           password TEXT,
@@ -136,7 +156,7 @@ async function initDatabase() {
         )`);
 
         // Google Refresh Tokens Tabelle
-        await runAsync(`CREATE TABLE IF NOT EXISTS user_tokens (
+        await ensureTable('user_tokens', `CREATE TABLE IF NOT EXISTS user_tokens (
           user_id INTEGER PRIMARY KEY,
           google_refresh_token TEXT,
           jwt_refresh_token TEXT,
@@ -146,7 +166,7 @@ async function initDatabase() {
         await ensureColumn('user_tokens', 'jwt_refresh_token', 'TEXT');
 
         // Exercises Tabelle
-        await runAsync(`CREATE TABLE IF NOT EXISTS exercises (
+        await ensureTable('exercises', `CREATE TABLE IF NOT EXISTS exercises (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           user_id INTEGER NOT NULL,
           name TEXT NOT NULL,
@@ -161,7 +181,7 @@ async function initDatabase() {
         await ensureColumn('exercises', 'info', 'TEXT');
 
         // Workouts Tabelle
-        await runAsync(`CREATE TABLE IF NOT EXISTS workouts (
+        await ensureTable('workouts', `CREATE TABLE IF NOT EXISTS workouts (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           user_id INTEGER NOT NULL,
           exercise_id INTEGER,
@@ -182,7 +202,7 @@ async function initDatabase() {
         await ensureColumn('workouts', 'info', 'TEXT');
 
         // Training Plans Tabelle
-        await runAsync(`CREATE TABLE IF NOT EXISTS training_plans (
+        await ensureTable('training_plans', `CREATE TABLE IF NOT EXISTS training_plans (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           user_id INTEGER NOT NULL,
           name TEXT NOT NULL,
@@ -194,6 +214,14 @@ async function initDatabase() {
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )`);
         await ensureColumn('training_plans', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
+
+        // Finale Validierung: alle erwarteten Tabellen müssen existieren
+        const expectedTables = ['users', 'user_tokens', 'exercises', 'workouts', 'training_plans'];
+        for (const tbl of expectedTables) {
+          if (!(await tableExists(tbl))) {
+            throw new Error(`Validierung fehlgeschlagen: Tabelle ${tbl} existiert nicht nach Init`);
+          }
+        }
 
         console.log('✅ Datenbank-Schema initialisiert');
         resolve();
@@ -739,7 +767,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     app: 'IronCoach',
-    version: '1.2.1',
+    version: '1.2.2',
     defaultExerciseCount: 78,
     commit: '9035852',
     timestamp: new Date().toISOString(),
@@ -1184,6 +1212,29 @@ app.get('/api/progress/:exercise_id', authenticateJWT, (req, res) => {
 });
 
 // === TRAINING PLANS API ===
+
+// Auto-Heal: Sicherstellen, dass die Tabelle existiert, bevor eine Anfrage verarbeitet wird
+async function ensureTrainingPlansTable(req, res, next) {
+  try {
+    if (!db) throw new Error('Datenbank nicht verbunden');
+    await ensureTable('training_plans', `CREATE TABLE IF NOT EXISTS training_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      plan_data TEXT NOT NULL,
+      is_active INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`);
+    next();
+  } catch (err) {
+    console.error('❌ Auto-Heal training_plans fehlgeschlagen:', err.message);
+    res.status(500).json({ error: 'Datenbank-Tabellen konnten nicht initialisiert werden: ' + err.message });
+  }
+}
+app.use('/api/training-plans', ensureTrainingPlansTable);
 
 // Alle Trainingspläne abrufen
 app.get('/api/training-plans', authenticateJWT, (req, res) => {
