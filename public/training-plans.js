@@ -183,7 +183,7 @@ function renderDynamicPlan(planData) {
         const exercisesHtml = exercises.length > 0 ?
             '<div class="plan-content">' + warmupHtml +
             '<p style="margin-top: 15px;"><strong>Hauptübungen:</strong></p>' +
-            '<table class="plan-table interactive-plan-table"><tr><th>✓</th><th>Übung</th><th>Sätze</th><th>Wdh/Dauer</th></tr>' +
+            '<table class="plan-table interactive-plan-table"><tr><th>✓</th><th>Übung</th><th>kg</th><th>Sätze</th><th>Wdh/Dauer</th></tr>' +
             exercises.map(ex => renderExerciseRow(ex)).join('') +
             '</table>' + cooldownHtml + '</div>' :
             '<div class="plan-content">' + warmupHtml + cooldownHtml + '</div>';
@@ -195,14 +195,17 @@ function renderDynamicPlan(planData) {
 }
 
 function renderListExercise(ex) {
-    const display = ex.duration ? (ex.sets || 1) + ' x ' + ex.duration : (ex.sets || '-') + ' x ' + (ex.reps || '-');
+    const weightPart = ex.weight ? ex.weight + 'kg ' : '';
+    const display = ex.duration
+        ? weightPart + (ex.sets || 1) + ' x ' + ex.duration
+        : weightPart + (ex.sets || '-') + ' x ' + (ex.reps || '-');
     return '<li class="plan-exercise"><label class="checkbox-container"><input type="checkbox" class="plan-check" data-exercise="' + ex.name + '" data-sets="' + (ex.sets || 1) + '" data-reps="' + (ex.reps || 1) + '" data-duration="' + (ex.duration || '') + '"><span class="checkmark"></span></label>' + ex.name + ': ' + display + '</li>';
 }
 
 function renderExerciseRow(ex) {
     const hasDuration = ex.duration && (ex.duration.includes('Min') || ex.duration.includes('Sek'));
-    const repsDisplay = hasDuration ? ex.duration : ex.reps;
-    return '<tr class="plan-exercise-row" data-exercise="' + ex.name + '" data-sets="' + ex.sets + '" data-reps="' + (ex.reps || 1) + '"><td><label class="checkbox-container"><input type="checkbox" class="plan-check"><span class="checkmark"></span></label></td><td>' + ex.name + '</td><td>' + ex.sets + '</td><td>' + repsDisplay + '</td></tr>';
+    const repsDisplay = hasDuration ? ex.duration : (ex.reps || '-');
+    return '<tr class="plan-exercise-row" data-exercise="' + ex.name + '" data-sets="' + (ex.sets || '') + '" data-reps="' + (ex.reps || '') + '" data-weight="' + (ex.weight || '') + '"><td><label class="checkbox-container"><input type="checkbox" class="plan-check"><span class="checkmark"></span></label></td><td>' + (ex.name || '') + '</td><td>' + (ex.weight || '-') + '</td><td>' + (ex.sets || '-') + '</td><td>' + repsDisplay + '</td></tr>';
 }
 
 function updateSyncStatus(message) {
@@ -309,13 +312,14 @@ function renderPlanEditor() {
 }
 
 function renderExerciseEditRow(type, dayIndex, exIndex, ex) {
-    ex = ex || { name: '', sets: '', reps: '', duration: '' };
+    ex = ex || { name: '', weight: '', sets: '', reps: '', duration: '' };
     return `
-    <div class="${type}-row" style="display: grid; grid-template-columns: 2fr 0.7fr 0.7fr 1.2fr auto; gap: 6px; margin-bottom: 6px;">
+    <div class="${type}-row" style="display: grid; grid-template-columns: 2fr 0.9fr 0.7fr 0.7fr 1fr auto; gap: 6px; margin-bottom: 6px;">
         <input type="text" data-${type}-name="${dayIndex}" placeholder="Übung" value="${escapeHtml(ex.name || '')}" style="padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; color: #fff;">
+        <input type="text" data-${type}-weight="${dayIndex}" placeholder="kg" value="${escapeHtml(ex.weight != null ? ex.weight : '')}" style="padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; color: #fff;">
         <input type="text" data-${type}-sets="${dayIndex}" placeholder="Sätze" value="${escapeHtml(ex.sets != null ? ex.sets : '')}" style="padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; color: #fff;">
         <input type="text" data-${type}-reps="${dayIndex}" placeholder="Wdh" value="${escapeHtml(ex.reps != null ? ex.reps : '')}" style="padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; color: #fff;">
-        <input type="text" data-${type}-duration="${dayIndex}" placeholder="Dauer (z.B. 30 Sek)" value="${escapeHtml(ex.duration || '')}" style="padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; color: #fff;">
+        <input type="text" data-${type}-duration="${dayIndex}" placeholder="Dauer" value="${escapeHtml(ex.duration || '')}" style="padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; color: #fff;">
         <button type="button" onclick="removeExerciseRow(this)" class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem;">🗑️</button>
     </div>`;
 }
@@ -377,12 +381,18 @@ function collectExercises(dayIndex, type) {
     const container = document.querySelector(`.${type}-rows[data-day="${dayIndex}"]`);
     if (!container) return [];
     return Array.from(container.children).map(row => {
-        const name = row.querySelector(`[data-${type}-name="${dayIndex}"]`)?.value || '';
-        if (!name) return null;
+        const name = row.querySelector(`[data-${type}-name="${dayIndex}"]`)?.value?.trim() || '';
+        const weight = row.querySelector(`[data-${type}-weight="${dayIndex}"]`)?.value || '';
         const sets = row.querySelector(`[data-${type}-sets="${dayIndex}"]`)?.value || '';
         const reps = row.querySelector(`[data-${type}-reps="${dayIndex}"]`)?.value || '';
         const duration = row.querySelector(`[data-${type}-duration="${dayIndex}"]`)?.value || '';
+
+        // Übung wird gespeichert, wenn mindestens ein Feld ausgefüllt ist.
+        // Felder dürfen einzeln leer bleiben und werden dann nicht im JSON gesetzt.
+        if (!name && !weight && !sets && !reps && !duration) return null;
+
         const ex = { name };
+        if (weight) ex.weight = isNaN(weight) ? weight : parseFloat(weight);
         if (sets) ex.sets = isNaN(sets) ? sets : parseInt(sets);
         if (reps) ex.reps = isNaN(reps) ? reps : parseInt(reps);
         if (duration) ex.duration = duration;
