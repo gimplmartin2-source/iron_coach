@@ -390,15 +390,22 @@ async function importBackup() {
         resultEl.style.background = 'rgba(100,200,100,0.15)';
         resultEl.style.border = '1px solid rgba(100,200,100,0.4)';
         resultEl.style.color = '#6c6';
+        const failedInfo = [];
+        if (data.failedExercises) failedInfo.push(`⚠️ ${data.failedExercises} Übungen fehlerhaft`);
+        if (data.failedWorkouts) failedInfo.push(`⚠️ ${data.failedWorkouts} Workouts fehlerhaft`);
+        if (data.failedPlans) failedInfo.push(`⚠️ ${data.failedPlans} Pläne fehlerhaft`);
+
         resultEl.innerHTML = `
             ✅ Import erfolgreich!
             <br>📦 ${data.totalWorkoutsInBackup || 0} Workouts im Backup
             <br>✔️ ${data.importedWorkouts || 0} Workouts importiert
             <br>🏋️ ${data.createdExercises || 0} fehlende Übungen neu angelegt
             <br>⚠️ ${data.skippedWorkouts || 0} Workouts übersprungen (keine passende Übung)
+            ${data.failedWorkouts || data.failedExercises ? `<br>${failedInfo.join('<br>')}` : ''}
             <br>📋 ${data.totalPlansInBackup || 0} Trainingspläne im Backup
             <br>✔️ ${data.importedPlans || 0} Trainingspläne importiert
             ${data.skippedPlans ? `<br>⚠️ ${data.skippedPlans} Pläne übersprungen` : ''}
+            ${data.failedPlans ? `<br>⚠️ ${data.failedPlans} Pläne fehlerhaft` : ''}
             <br>💾 Lokale Sicherung: ${data.localBackupPath || '-'}
         `;
 

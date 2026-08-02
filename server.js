@@ -794,9 +794,9 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     app: 'IronCoach',
-    version: '1.2.4',
+    version: '1.2.6',
     defaultExerciseCount: 78,
-    commit: '9035852',
+    commit: 'aba1bab',
     timestamp: new Date().toISOString(),
     database: 'SQLite',
     environment: process.env.NODE_ENV || 'development',
@@ -2155,6 +2155,7 @@ app.post('/api/import/merge-backup', authenticateJWT, async (req, res) => {
 
   let tempPath = null;
   let backupDb = null;
+  let fkDisabled = false;
 
   try {
     // Temporaeres Backup aus Base64 erzeugen
@@ -2166,6 +2167,12 @@ app.post('/api/import/merge-backup', authenticateJWT, async (req, res) => {
 
     const exerciseCols = await getColumns(backupDb, 'exercises');
     const workoutCols = await getColumns(backupDb, 'workouts');
+
+    // Fremdschluessel-Checks waehrend des Imports abschalten, damit
+    // inkonsistente oder aeltere Backups trotzdem importiert werden koennen.
+    // Wird am Ende in finally wieder eingeschaltet.
+    await runAsync('PRAGMA foreign_keys = OFF');
+    fkDisabled = true;
 
     // Uebungen aus Backup laden
     const backupExercises = await new Promise((resolve, reject) => {
@@ -2194,25 +2201,31 @@ app.post('/api/import/merge-backup', authenticateJWT, async (req, res) => {
 
     const exerciseIdMap = new Map(); // backupId -> currentId
     let createdExercises = 0;
+    let failedExercises = 0;
 
     for (const be of backupExercises) {
-      const normalizedName = (be.name || '').trim().toLowerCase();
-      if (!normalizedName) continue;
+      try {
+        const normalizedName = (be.name || '').trim().toLowerCase();
+        if (!normalizedName) continue;
 
-      let currentId = currentByName.get(normalizedName);
-      if (!currentId) {
-        const type = be.exercise_type || 'strength';
-        const muscle = be.muscle_group || 'Sonstiges';
-        const info = be.info || null;
-        const result = await runAsync(
-          'INSERT INTO exercises (user_id, name, muscle_group, exercise_type, info) VALUES (?, ?, ?, ?, ?)',
-          [userId, be.name.trim(), muscle, type, info]
-        );
-        currentId = result.lastID;
-        currentByName.set(normalizedName, currentId);
-        createdExercises++;
+        let currentId = currentByName.get(normalizedName);
+        if (!currentId) {
+          const type = be.exercise_type || 'strength';
+          const muscle = be.muscle_group || 'Sonstiges';
+          const info = be.info || null;
+          const result = await runAsync(
+            'INSERT INTO exercises (user_id, name, muscle_group, exercise_type, info) VALUES (?, ?, ?, ?, ?)',
+            [userId, be.name.trim(), muscle, type, info]
+          );
+          currentId = result.lastID;
+          currentByName.set(normalizedName, currentId);
+          createdExercises++;
+        }
+        exerciseIdMap.set(be.id, currentId);
+      } catch (exErr) {
+        failedExercises++;
+        console.warn('⚠️ Übung aus Backup übersprungen:', exErr.message, '| Übung:', be.name);
       }
-      exerciseIdMap.set(be.id, currentId);
     }
 
     // Workouts aus Backup laden
@@ -2231,6 +2244,7 @@ app.post('/api/import/merge-backup', authenticateJWT, async (req, res) => {
 
     let importedWorkouts = 0;
     let skippedWorkouts = 0;
+    let failedWorkouts = 0;
 
     for (const bw of backupWorkouts) {
       const currentExerciseId = exerciseIdMap.get(bw.exercise_id);
@@ -2239,29 +2253,35 @@ app.post('/api/import/merge-backup', authenticateJWT, async (req, res) => {
         continue;
       }
 
-      await runAsync(
-        `INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date, info, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          userId,
-          currentExerciseId,
-          bw.weight || 0,
-          bw.sets || 0,
-          bw.reps || 0,
-          bw.duration_seconds || null,
-          bw.rest_seconds || null,
-          bw.feeling || null,
-          bw.date || new Date().toISOString().split('T')[0],
-          bw.info || null,
-          bw.created_at || new Date().toISOString()
-        ]
-      );
-      importedWorkouts++;
+      try {
+        await runAsync(
+          `INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date, info, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            userId,
+            currentExerciseId,
+            bw.weight || 0,
+            bw.sets || 0,
+            bw.reps || 0,
+            bw.duration_seconds || null,
+            bw.rest_seconds || null,
+            bw.feeling || null,
+            bw.date || new Date().toISOString().split('T')[0],
+            bw.info || null,
+            bw.created_at || new Date().toISOString()
+          ]
+        );
+        importedWorkouts++;
+      } catch (woErr) {
+        failedWorkouts++;
+        console.warn('⚠️ Workout aus Backup übersprungen:', woErr.message, '| exercise_id:', bw.exercise_id);
+      }
     }
 
     // Trainingspläne aus Backup laden (falls Tabelle existiert)
     let importedPlans = 0;
     let skippedPlans = 0;
+    let failedPlans = 0;
     let totalPlansInBackup = 0;
     try {
       const planCols = await getColumns(backupDb, 'training_plans');
@@ -2297,33 +2317,38 @@ app.post('/api/import/merge-backup', authenticateJWT, async (req, res) => {
             skippedPlans++;
             continue;
           }
-          let baseName = (bp.name || 'Trainingsplan').trim();
-          if (!baseName) baseName = 'Trainingsplan';
+          try {
+            let baseName = (bp.name || 'Trainingsplan').trim();
+            if (!baseName) baseName = 'Trainingsplan';
 
-          let uniqueName = baseName;
-          let suffix = 1;
-          while (currentPlanNames.has(uniqueName.toLowerCase())) {
-            suffix++;
-            uniqueName = `${baseName} (Import${suffix > 2 ? ' ' + suffix : ''})`;
+            let uniqueName = baseName;
+            let suffix = 1;
+            while (currentPlanNames.has(uniqueName.toLowerCase())) {
+              suffix++;
+              uniqueName = `${baseName} (Import${suffix > 2 ? ' ' + suffix : ''})`;
+            }
+            currentPlanNames.add(uniqueName.toLowerCase());
+
+            await runAsync(
+              'INSERT INTO training_plans (user_id, name, description, plan_data, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?)',
+              [
+                userId,
+                uniqueName,
+                bp.description || null,
+                bp.plan_data,
+                bp.created_at || new Date().toISOString(),
+                bp.updated_at || new Date().toISOString()
+              ]
+            );
+            importedPlans++;
+          } catch (plErr) {
+            failedPlans++;
+            console.warn('⚠️ Trainingsplan aus Backup übersprungen:', plErr.message, '| Name:', bp.name);
           }
-          currentPlanNames.add(uniqueName.toLowerCase());
-
-          await runAsync(
-            'INSERT INTO training_plans (user_id, name, description, plan_data, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?)',
-            [
-              userId,
-              uniqueName,
-              bp.description || null,
-              bp.plan_data,
-              bp.created_at || new Date().toISOString(),
-              bp.updated_at || new Date().toISOString()
-            ]
-          );
-          importedPlans++;
         }
       }
     } catch (planErr) {
-      console.warn('⚠️ Trainingspläne aus Backup konnten nicht importiert werden:', planErr.message);
+      console.warn('⚠️ Trainingspläne aus Backup konnten nicht gelesen werden:', planErr.message);
     }
 
     backupDb.close();
@@ -2344,21 +2369,32 @@ app.post('/api/import/merge-backup', authenticateJWT, async (req, res) => {
       importedWorkouts,
       createdExercises,
       skippedWorkouts,
+      failedWorkouts,
       totalExercisesInBackup: backupExercises.length,
       totalWorkoutsInBackup: backupWorkouts.length,
+      failedExercises,
       importedPlans,
       skippedPlans,
+      failedPlans,
       totalPlansInBackup,
       localBackupPath: path.basename(localBackupPath)
     });
 
   } catch (error) {
     console.error('❌ Merge-Backup Fehler:', error);
+    res.status(500).json({ error: 'Import fehlgeschlagen: ' + error.message });
+  } finally {
     if (backupDb) backupDb.close();
     if (tempPath && fs.existsSync(tempPath)) {
       try { fs.unlinkSync(tempPath); } catch (_) {}
     }
-    res.status(500).json({ error: 'Import fehlgeschlagen: ' + error.message });
+    if (fkDisabled) {
+      try {
+        await runAsync('PRAGMA foreign_keys = ON');
+      } catch (fkErr) {
+        console.warn('⚠️ Fremdschluessel-Checks konnten nicht wieder aktiviert werden:', fkErr.message);
+      }
+    }
   }
 });
 
