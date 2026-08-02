@@ -2259,6 +2259,73 @@ app.post('/api/import/merge-backup', authenticateJWT, async (req, res) => {
       importedWorkouts++;
     }
 
+    // Trainingspläne aus Backup laden (falls Tabelle existiert)
+    let importedPlans = 0;
+    let skippedPlans = 0;
+    let totalPlansInBackup = 0;
+    try {
+      const planCols = await getColumns(backupDb, 'training_plans');
+      if (planCols.includes('name') && planCols.includes('plan_data')) {
+        const backupPlans = await new Promise((resolve, reject) => {
+          const fields = [
+            { name: 'name', fallback: "'' as name" },
+            { name: 'description', fallback: 'null as description' },
+            { name: 'plan_data', fallback: 'null as plan_data' },
+            { name: 'is_active', fallback: '0 as is_active' },
+            { name: 'created_at', fallback: "datetime('now') as created_at" },
+            { name: 'updated_at', fallback: "datetime('now') as updated_at" }
+          ]
+            .map(f => planCols.includes(f.name) ? f.name : f.fallback)
+            .join(', ');
+          backupDb.all(`SELECT ${fields} FROM training_plans`, [], (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows);
+          });
+        });
+
+        totalPlansInBackup = backupPlans.length;
+
+        // Aktuelle Plannamen des Users (case-insensitive) für eindeutige Namen
+        const currentPlans = await allAsync(
+          'SELECT id, name FROM training_plans WHERE user_id = ?',
+          [userId]
+        );
+        const currentPlanNames = new Set(currentPlans.map(p => p.name.trim().toLowerCase()));
+
+        for (const bp of backupPlans) {
+          if (!bp.plan_data) {
+            skippedPlans++;
+            continue;
+          }
+          let baseName = (bp.name || 'Trainingsplan').trim();
+          if (!baseName) baseName = 'Trainingsplan';
+
+          let uniqueName = baseName;
+          let suffix = 1;
+          while (currentPlanNames.has(uniqueName.toLowerCase())) {
+            suffix++;
+            uniqueName = `${baseName} (Import${suffix > 2 ? ' ' + suffix : ''})`;
+          }
+          currentPlanNames.add(uniqueName.toLowerCase());
+
+          await runAsync(
+            'INSERT INTO training_plans (user_id, name, description, plan_data, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?)',
+            [
+              userId,
+              uniqueName,
+              bp.description || null,
+              bp.plan_data,
+              bp.created_at || new Date().toISOString(),
+              bp.updated_at || new Date().toISOString()
+            ]
+          );
+          importedPlans++;
+        }
+      }
+    } catch (planErr) {
+      console.warn('⚠️ Trainingspläne aus Backup konnten nicht importiert werden:', planErr.message);
+    }
+
     backupDb.close();
 
     // Temporaere Datei aufraeumen
@@ -2279,6 +2346,9 @@ app.post('/api/import/merge-backup', authenticateJWT, async (req, res) => {
       skippedWorkouts,
       totalExercisesInBackup: backupExercises.length,
       totalWorkoutsInBackup: backupWorkouts.length,
+      importedPlans,
+      skippedPlans,
+      totalPlansInBackup,
       localBackupPath: path.basename(localBackupPath)
     });
 

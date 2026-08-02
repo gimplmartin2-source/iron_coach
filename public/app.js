@@ -396,6 +396,9 @@ async function importBackup() {
             <br>✔️ ${data.importedWorkouts || 0} Workouts importiert
             <br>🏋️ ${data.createdExercises || 0} fehlende Übungen neu angelegt
             <br>⚠️ ${data.skippedWorkouts || 0} Workouts übersprungen (keine passende Übung)
+            <br>📋 ${data.totalPlansInBackup || 0} Trainingspläne im Backup
+            <br>✔️ ${data.importedPlans || 0} Trainingspläne importiert
+            ${data.skippedPlans ? `<br>⚠️ ${data.skippedPlans} Pläne übersprungen` : ''}
             <br>💾 Lokale Sicherung: ${data.localBackupPath || '-'}
         `;
 
@@ -403,6 +406,9 @@ async function importBackup() {
         await loadExercises();
         await loadWorkouts();
         await loadStats();
+        if (typeof loadTrainingPlansList === 'function') {
+            await loadTrainingPlansList();
+        }
 
     } catch (err) {
         console.error('❌ Backup-Import Fehler:', err);
