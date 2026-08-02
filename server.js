@@ -1004,7 +1004,7 @@ app.get('/api/workouts', authenticateJWT, async (req, res) => {
   const query = `
     SELECT w.*, e.name as exercise_name, e.muscle_group, e.exercise_type, e.info as exercise_info
     FROM workouts w
-    JOIN exercises e ON w.exercise_id = e.id
+    LEFT JOIN exercises e ON w.exercise_id = e.id
     WHERE w.user_id = ?
     ORDER BY w.date DESC, w.created_at DESC
   `;
