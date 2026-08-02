@@ -1,4 +1,4 @@
-# IronCoach - Google OAuth auf Render einrichten (v1.2.3)
+# IronCoach - Google OAuth auf Render einrichten (v1.2.7)
 
 Diese Anleitung gilt für das Render-Deployment unter:
 
@@ -21,9 +21,11 @@ Im [Render Dashboard](https://dashboard.render.com/) für den IronCoach-Service 
 | `GOOGLE_CLIENT_SECRET` | *(aus Google Cloud Console)* | Gleiches Secret wie lokal |
 | `JWT_SECRET` | *(mindestens 32 Zeichen, zufällig)* | Nicht das lokale Secret wiederverwenden |
 | `SESSION_SECRET` | *(mindestens 32 Zeichen, zufällig)* | Nicht das lokale Secret wiederverwenden |
-| `GOOGLE_DRIVE_ENABLED` | `false` | Auf `true` setzen, wenn Backup/Restore nach Google Drive genutzt werden soll |
+| `GOOGLE_DRIVE_ENABLED` | `true` | Damit Google-Login + automatisches Backup wieder zusammen funktionieren (wie vorher). Nur `false`, wenn du Backup nicht willst. |
 
 > **Wichtig:** `.env` wird wegen `.gitignore` nicht mit gepusht. Die Werte müssen im Render Dashboard eingetragen werden.
+
+> **Neu ab v1.2.7:** `GOOGLE_DRIVE_ENABLED` ist wieder standardmäßig `true`. Nach dem Deploy musst du dich **ab- und neu mit Google einloggen**, damit Google den `drive.file`-Scope neu genehmigt.
 
 > **Neu ab v1.2.3:** `GOOGLE_CALLBACK_URL` ist nicht mehr zwingend nötig, weil Render automatisch `RENDER_EXTERNAL_URL` setzt. IronCoach nutzt diese Variable bevorzugt. Du kannst `GOOGLE_CALLBACK_URL` trotzdem als Fallback setzen.
 
@@ -43,7 +45,7 @@ Im [Render Dashboard](https://dashboard.render.com/) für den IronCoach-Service 
 - **Test-Modus:** Google-Login funktioniert nur für als **Testnutzer** hinzugefügte Accounts. Füge deine E-Mail als Testnutzer hinzu.
 - **Produktions-Modus:** App muss verifiziert sein. Dann funktioniert der Login für alle Nutzer.
 
-> **Hinweis:** Ab v1.2.3 wird der `drive.file`-Scope nur noch verwendet, wenn `GOOGLE_DRIVE_ENABLED=true` gesetzt ist. Der reine Google-Login braucht nur `profile` + `email` und funktioniert daher auch ohne Verifizierung im Test-Modus.
+> **Hinweis:** Ab v1.2.7 ist `GOOGLE_DRIVE_ENABLED` wieder standardmäßig `true`. Der `drive.file`-Scope wird beim Google-Login angefordert, damit automatisches Backup/Restore funktioniert. Im Test-Modus muss Martin als Testnutzer hinzugefügt sein. Soll nur der reine Login ohne Drive funktionieren, setze `GOOGLE_DRIVE_ENABLED=false`.
 
 ### 4. Render-Service neu starten
 

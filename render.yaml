@@ -21,3 +21,5 @@ services:
         sync: false
       - key: GOOGLE_CALLBACK_URL
         sync: false
+      - key: GOOGLE_DRIVE_ENABLED
+        value: true

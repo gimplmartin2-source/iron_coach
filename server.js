@@ -19,6 +19,11 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dein-geheimer-schluessel-mindestens-32-zeichen-lang';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'session-secret-mindestens-32-zeichen-lang-hier';
 
+// Google Drive Backup ist standardmäßig AKTIV, damit Login + automatisches Backup
+// wieder zusammen funktionieren wie vorher. Nur mit GOOGLE_DRIVE_ENABLED=false
+// explizit deaktivieren.
+const GOOGLE_DRIVE_ENABLED = process.env.GOOGLE_DRIVE_ENABLED !== 'false';
+
 // Token-Laufzeiten (in Sekunden oder als String)
 const TOKEN_SHORT = '24h';      // Standard-Session
 const TOKEN_LONG = '365d';      // "Eingeloggt bleiben" (1 Jahr)
@@ -692,23 +697,30 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   // Kein 'prompt' -> Google wählt den aktiven Account automatisch, damit bleibt der
   // Nutzer dauerhaft eingeloggt, solange die Google-Session gültig ist.
   //
-  // WICHTIG: drive.file erfordert eine Google-App-Prüfung und macht den Login
-  // in Test-Modus komplizierter. Deshalb ist er standardmäßig deaktiviert und
-  // kann über GOOGLE_DRIVE_ENABLED=true wieder aktiviert werden.
+  // Google Drive Backup ist standardmäßig aktiv (wie vorher). Mit
+  // GOOGLE_DRIVE_ENABLED=false kann der drive.file-Scope abgeschaltet werden.
   const googleScopes = ['profile', 'email'];
-  if (process.env.GOOGLE_DRIVE_ENABLED === 'true') {
+  if (GOOGLE_DRIVE_ENABLED) {
     googleScopes.push('https://www.googleapis.com/auth/drive.file');
   }
   console.log('🔑 Google OAuth Scopes:', googleScopes.join(', '));
+  console.log('☁️ Google Drive Backup:', GOOGLE_DRIVE_ENABLED ? 'aktiv' : 'deaktiviert');
 
   app.get('/auth/google', (req, res, next) => {
     const rememberMe = req.query.remember !== 'false';
     const state = rememberMe ? 'remember=true' : 'remember=false';
-    passport.authenticate('google', {
+    const authOptions = {
       scope: googleScopes,
       accessType: 'offline',
       state: state
-    })(req, res, next);
+    };
+    // Wenn Drive-Backup aktiv ist, müssen wir Google zwingen, den Consent
+    // erneut anzuzeigen, damit wir einen Refresh-Token mit drive.file-Scope
+    // bekommen (sonst liefert Google bei wiederholtem Login keinen neuen Scope).
+    if (GOOGLE_DRIVE_ENABLED) {
+      authOptions.prompt = 'consent';
+    }
+    passport.authenticate('google', authOptions)(req, res, next);
   });
 
   app.get('/auth/google/callback',
@@ -794,9 +806,9 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     app: 'IronCoach',
-    version: '1.2.6',
+    version: '1.2.7',
     defaultExerciseCount: 78,
-    commit: 'aba1bab',
+    commit: 'revert-drive-default',
     timestamp: new Date().toISOString(),
     database: 'SQLite',
     environment: process.env.NODE_ENV || 'development',
@@ -822,7 +834,7 @@ app.get('/api/auth/status', (req, res) => {
     callbackURL: callbackURL,
     renderExternalUrl: process.env.RENDER_EXTERNAL_URL || null,
     environment: process.env.NODE_ENV || 'development',
-    googleDriveEnabled: process.env.GOOGLE_DRIVE_ENABLED === 'true',
+    googleDriveEnabled: GOOGLE_DRIVE_ENABLED,
     // Nur Anfang und Ende der Client-ID (ohne Standard-Suffix), damit Martin
     // prüfen kann, ob auf Render die gleiche ID wie lokal hinterlegt ist.
     googleClientIdHint: clientId
@@ -2458,7 +2470,7 @@ initDatabase()
     server = app.listen(PORT, () => {
       console.log(`🔒 IronCoach Server läuft auf http://localhost:${PORT}`);
       console.log(`📊 Umgebung: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`📦 Version: 1.2.4 | Standardübungen: 78`);
+      console.log(`📦 Version: 1.2.7 | Standardübungen: 78`);
       console.log(`🏥 Health-Check: http://localhost:${PORT}/api/health`);
     });
 
