@@ -205,7 +205,10 @@ function renderListExercise(ex) {
 function renderExerciseRow(ex) {
     const hasDuration = ex.duration && (ex.duration.includes('Min') || ex.duration.includes('Sek'));
     const repsDisplay = hasDuration ? ex.duration : (ex.reps || '-');
-    return '<tr class="plan-exercise-row" data-exercise="' + ex.name + '" data-sets="' + (ex.sets || '') + '" data-reps="' + (ex.reps || '') + '" data-weight="' + (ex.weight || '') + '"><td><label class="checkbox-container"><input type="checkbox" class="plan-check"><span class="checkmark"></span></label></td><td>' + (ex.name || '') + '</td><td>' + (ex.weight || '-') + '</td><td>' + (ex.sets || '-') + '</td><td>' + repsDisplay + '</td></tr>';
+    const mainStyle = ex.isMain ? 'background: rgba(255,215,0,0.12); border-left: 3px solid #ffd700;' : '';
+    const mainIcon = ex.isMain ? '<span title="Hauptübung" style="margin-right: 4px;">👑</span>' : '';
+    const mainClass = ex.isMain ? 'plan-main-exercise' : '';
+    return '<tr class="plan-exercise-row ' + mainClass + '" data-exercise="' + ex.name + '" data-sets="' + (ex.sets || '') + '" data-reps="' + (ex.reps || '') + '" data-weight="' + (ex.weight || '') + '" data-duration="' + (ex.duration || '') + '" data-main="' + (ex.isMain ? '1' : '0') + '" style="' + mainStyle + '"><td><label class="checkbox-container"><input type="checkbox" class="plan-check"><span class="checkmark"></span></label></td><td style="font-weight: ' + (ex.isMain ? '700' : '400') + '; color: ' + (ex.isMain ? '#ffd700' : '#fff') + ';">' + mainIcon + (ex.name || '') + '</td><td>' + (ex.weight || '-') + '</td><td>' + (ex.sets || '-') + '</td><td>' + repsDisplay + '</td></tr>';
 }
 
 function updateSyncStatus(message) {
@@ -313,13 +316,26 @@ function renderPlanEditor() {
 
 function renderExerciseEditRow(type, dayIndex, exIndex, ex) {
     ex = ex || { name: '', weight: '', sets: '', reps: '', duration: '' };
+    const isMain = type === 'exercise' && ex.isMain === true;
+    const mainIndicator = isMain ? `<span title="Hauptübung" style="color: #ffd700; font-size: 0.9rem;">👑</span>` : '';
+    const mainCheckbox = type === 'exercise' ? `
+        <label title="Als Hauptübung markieren" style="display: flex; align-items: center; justify-content: center; gap: 4px; color: #fff; cursor: pointer; font-size: 0.75rem; white-space: nowrap;">
+            <input type="checkbox" data-${type}-main="${dayIndex}" ${isMain ? 'checked' : ''} style="accent-color: #00d4ff;">
+            <span>Haupt</span>
+        </label>
+    ` : '';
+
     return `
-    <div class="${type}-row" style="display: grid; grid-template-columns: 2fr 0.9fr 0.7fr 0.7fr 1fr auto; gap: 6px; margin-bottom: 6px;">
-        <input type="text" data-${type}-name="${dayIndex}" placeholder="Übung" value="${escapeHtml(ex.name || '')}" style="padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; color: #fff;">
+    <div class="${type}-row" style="display: grid; grid-template-columns: 2fr 0.9fr 0.7fr 0.7fr 1fr auto auto; gap: 6px; margin-bottom: 6px; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+            <input type="text" data-${type}-name="${dayIndex}" placeholder="Übung" value="${escapeHtml(ex.name || '')}" style="flex: 1; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; color: #fff; ${isMain ? 'border-color: #ffd700; box-shadow: 0 0 5px rgba(255,215,0,0.3);' : ''}">
+            ${mainIndicator}
+        </div>
         <input type="text" data-${type}-weight="${dayIndex}" placeholder="kg" value="${escapeHtml(ex.weight != null ? ex.weight : '')}" style="padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; color: #fff;">
         <input type="text" data-${type}-sets="${dayIndex}" placeholder="Sätze" value="${escapeHtml(ex.sets != null ? ex.sets : '')}" style="padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; color: #fff;">
         <input type="text" data-${type}-reps="${dayIndex}" placeholder="Wdh" value="${escapeHtml(ex.reps != null ? ex.reps : '')}" style="padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; color: #fff;">
         <input type="text" data-${type}-duration="${dayIndex}" placeholder="Dauer" value="${escapeHtml(ex.duration || '')}" style="padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; color: #fff;">
+        ${mainCheckbox}
         <button type="button" onclick="removeExerciseRow(this)" class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem;">🗑️</button>
     </div>`;
 }
@@ -335,16 +351,212 @@ function escapeHtml(text) {
 }
 
 function addExerciseRow(dayIndex, type) {
-    const container = document.querySelector(`.${type}-rows[data-day="${dayIndex}"]`);
-    if (!container) return;
-    const exIndex = container.children.length;
-    const row = document.createElement('div');
-    row.innerHTML = renderExerciseEditRow(type, dayIndex, exIndex, {});
-    container.appendChild(row.firstElementChild);
+    // Neue Übung aus dem Pool der existierenden Übungen auswählen
+    openPlanExerciseSelector(dayIndex, type);
 }
 
 function removeExerciseRow(btn) {
     btn.parentElement.remove();
+}
+
+// Modal: Übung aus dem eigenen Übungspool für den Plan auswählen
+async function openPlanExerciseSelector(dayIndex, type) {
+    if (!exercises || exercises.length === 0) {
+        // Versuche, Übungen automatisch nachzuladen, falls die App sie noch nicht geladen hat
+        if (typeof loadExercises === 'function') {
+            try {
+                await loadExercises();
+            } catch (e) {
+                console.error('Fehler beim Nachladen der Übungen:', e);
+            }
+        }
+    }
+    if (!exercises || exercises.length === 0) {
+        alert('Keine Übungen verfügbar. Bitte lade die Seite neu oder erstelle zuerst eine Übung.');
+        return;
+    }
+
+    // Vorhandenes Modal schließen
+    const existing = document.getElementById('plan-exercise-selector-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'plan-exercise-selector-modal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.92);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 3000;
+        animation: fadeIn 0.2s ease-out;
+        padding: 20px;
+    `;
+
+    // Nach Muskelgruppe gruppieren
+    const grouped = {};
+    exercises.forEach(e => {
+        const category = e.muscle_group || 'Sonstige';
+        if (!grouped[category]) grouped[category] = [];
+        grouped[category].push(e);
+    });
+
+    const categoryOrder = ['Brust', 'Rücken', 'Schultern', 'Beine', 'Arme', 'Bauch', 'Ganzkörper', 'Dehnen', 'Mobilität', 'Judo', 'Core', 'Sonstige'];
+    const sortedCategories = Object.keys(grouped).sort((a, b) => {
+        const idxA = categoryOrder.indexOf(a);
+        const idxB = categoryOrder.indexOf(b);
+        if (idxA === -1 && idxB === -1) return a.localeCompare(b, 'de');
+        if (idxA === -1) return 1;
+        if (idxB === -1) return -1;
+        return idxA - idxB;
+    });
+
+    sortedCategories.forEach(cat => {
+        grouped[cat].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    });
+
+    let categoriesHtml = '';
+    let exercisesHtml = '';
+    sortedCategories.forEach((cat, index) => {
+        const isFirst = index === 0;
+        categoriesHtml += `<button type="button" class="plan-cat-btn ${isFirst ? 'active' : ''}" data-category="${escapeHtml(cat)}" onclick="selectPlanCategory('${escapeHtml(cat)}')" style="padding: 10px 18px; margin: 5px; background: ${isFirst ? 'linear-gradient(45deg, #00d4ff, #7b2cbf)' : 'rgba(255,255,255,0.1)'}; border: none; border-radius: 8px; color: #fff; cursor: pointer; transition: all 0.2s; font-size: 0.9rem;">${escapeHtml(cat)}</button>`;
+
+        const display = isFirst ? 'grid' : 'none';
+        exercisesHtml += `<div class="plan-exercise-grid" id="plan-exercises-${escapeHtml(cat)}" style="display: ${display}; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 15px;">`;
+        grouped[cat].forEach(e => {
+            exercisesHtml += `
+                <button type="button" class="plan-exercise-option" data-exercise-id="${e.id}" data-exercise-name="${escapeHtml(e.name)}" onclick="selectPlanExerciseOption(this)" style="padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; cursor: pointer; text-align: left; transition: all 0.2s;">
+                    <div style="font-weight: 600; color: #00d4ff;">${escapeHtml(e.name)}</div>
+                    <div style="font-size: 0.8rem; color: #888;">${escapeHtml(e.exercise_type || 'strength')}</div>
+                </button>`;
+        });
+        exercisesHtml += '</div>';
+    });
+
+    const isMainAllowed = type === 'exercise';
+
+    modal.innerHTML = `
+        <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 1px solid rgba(0,212,255,0.3); border-radius: 16px; padding: 24px; width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; animation: slideUp 0.3s ease-out;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: #00d4ff;">➕ Übung für ${escapeHtml(dayLabels[dayIndex])} hinzufügen</h3>
+                <button onclick="closePlanExerciseSelector()" style="background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer;">×</button>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 8px; color: #888; font-size: 0.9rem;">Kategorie:</label>
+                <div style="display: flex; flex-wrap: wrap; justify-content: center;">${categoriesHtml}</div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; color: #888; font-size: 0.9rem;">Übung auswählen:</label>
+                ${exercisesHtml}
+            </div>
+
+            <div id="plan-selected-exercise-preview" style="margin-bottom: 20px; padding: 12px; background: rgba(0,212,255,0.1); border-radius: 8px; border: 1px solid rgba(0,212,255,0.2); display: none;">
+                <div style="color: #00d4ff; font-weight: 600; margin-bottom: 10px;" id="plan-selected-exercise-name">Keine Übung ausgewählt</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div>
+                        <label style="display: block; color: #888; font-size: 0.8rem; margin-bottom: 4px;">Sätze</label>
+                        <input type="number" id="plan-add-sets" value="3" min="1" style="width: 100%; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; color: #fff;">
+                    </div>
+                    <div>
+                        <label style="display: block; color: #888; font-size: 0.8rem; margin-bottom: 4px;">Wiederholungen</label>
+                        <input type="number" id="plan-add-reps" value="10" min="1" style="width: 100%; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; color: #fff;">
+                    </div>
+                    <div>
+                        <label style="display: block; color: #888; font-size: 0.8rem; margin-bottom: 4px;">Dauer</label>
+                        <input type="text" id="plan-add-duration" placeholder="z.B. 30 Sek" style="width: 100%; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; color: #fff;">
+                    </div>
+                </div>
+                ${isMainAllowed ? `
+                <label style="display: flex; align-items: center; gap: 8px; color: #fff; cursor: pointer; font-size: 0.95rem;">
+                    <input type="checkbox" id="plan-add-main" style="width: 18px; height: 18px; accent-color: #00d4ff;">
+                    <span>👑 Als Hauptübung markieren</span>
+                </label>
+                ` : ''}
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="closePlanExerciseSelector()" class="btn-secondary">Abbrechen</button>
+                <button onclick="confirmAddPlanExercise(${dayIndex}, '${type}')" class="btn-primary" id="plan-add-confirm-btn" disabled>Hinzufügen</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+function closePlanExerciseSelector() {
+    const modal = document.getElementById('plan-exercise-selector-modal');
+    if (modal) modal.remove();
+}
+
+function selectPlanCategory(category) {
+    document.querySelectorAll('.plan-cat-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.background = 'rgba(255,255,255,0.1)';
+        if (btn.dataset.category === category) {
+            btn.classList.add('active');
+            btn.style.background = 'linear-gradient(45deg, #00d4ff, #7b2cbf)';
+        }
+    });
+    document.querySelectorAll('.plan-exercise-grid').forEach(grid => {
+        grid.style.display = grid.id === 'plan-exercises-' + category ? 'grid' : 'none';
+    });
+}
+
+let selectedPlanExerciseName = null;
+
+function selectPlanExerciseOption(btn) {
+    document.querySelectorAll('.plan-exercise-option').forEach(opt => {
+        opt.style.background = 'rgba(255,255,255,0.05)';
+        opt.style.borderColor = 'rgba(255,255,255,0.2)';
+    });
+    btn.style.background = 'rgba(0,212,255,0.2)';
+    btn.style.borderColor = '#00d4ff';
+
+    selectedPlanExerciseName = btn.dataset.exerciseName;
+    const preview = document.getElementById('plan-selected-exercise-preview');
+    const nameEl = document.getElementById('plan-selected-exercise-name');
+    const confirmBtn = document.getElementById('plan-add-confirm-btn');
+
+    if (preview && nameEl && confirmBtn) {
+        preview.style.display = 'block';
+        nameEl.textContent = selectedPlanExerciseName;
+        confirmBtn.disabled = false;
+    }
+}
+
+function confirmAddPlanExercise(dayIndex, type) {
+    if (!selectedPlanExerciseName) return;
+
+    const sets = document.getElementById('plan-add-sets')?.value || '3';
+    const reps = document.getElementById('plan-add-reps')?.value || '10';
+    const duration = document.getElementById('plan-add-duration')?.value || '';
+    const isMain = type === 'exercise' ? (document.getElementById('plan-add-main')?.checked || false) : false;
+
+    const ex = {
+        name: selectedPlanExerciseName,
+        sets: sets ? parseInt(sets) || sets : '',
+        reps: reps ? parseInt(reps) || reps : '',
+        duration: duration
+    };
+    if (isMain) ex.isMain = true;
+
+    const container = document.querySelector(`.${type}-rows[data-day="${dayIndex}"]`);
+    if (container) {
+        const exIndex = container.children.length;
+        const row = document.createElement('div');
+        row.innerHTML = renderExerciseEditRow(type, dayIndex, exIndex, ex);
+        container.appendChild(row.firstElementChild);
+    }
+
+    selectedPlanExerciseName = null;
+    closePlanExerciseSelector();
 }
 
 function collectPlanFromEditor() {
@@ -386,6 +598,7 @@ function collectExercises(dayIndex, type) {
         const sets = row.querySelector(`[data-${type}-sets="${dayIndex}"]`)?.value || '';
         const reps = row.querySelector(`[data-${type}-reps="${dayIndex}"]`)?.value || '';
         const duration = row.querySelector(`[data-${type}-duration="${dayIndex}"]`)?.value || '';
+        const isMain = type === 'exercise' ? (row.querySelector(`[data-${type}-main="${dayIndex}"]`)?.checked || false) : false;
 
         // Übung wird gespeichert, wenn mindestens ein Feld ausgefüllt ist.
         // Felder dürfen einzeln leer bleiben und werden dann nicht im JSON gesetzt.
@@ -396,6 +609,7 @@ function collectExercises(dayIndex, type) {
         if (sets) ex.sets = isNaN(sets) ? sets : parseInt(sets);
         if (reps) ex.reps = isNaN(reps) ? reps : parseInt(reps);
         if (duration) ex.duration = duration;
+        if (isMain) ex.isMain = true;
         return ex;
     }).filter(Boolean);
 }
