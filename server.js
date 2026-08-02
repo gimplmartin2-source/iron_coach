@@ -806,7 +806,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     app: 'IronCoach',
-    version: '1.2.7',
+    version: '1.2.8',
     defaultExerciseCount: 78,
     commit: 'revert-drive-default',
     timestamp: new Date().toISOString(),
