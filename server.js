@@ -57,13 +57,19 @@ app.use(express.json());
 // Session Setup
 // WICHTIG: Session-Cookie auf 1 Jahr setzen für "Eingeloggt bleiben"
 const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+
+// Cookie-Sicherheit: Auf localhost (auch mit NODE_ENV=production) darf secure=false
+// bleiben, sonst lehnt der Browser das Cookie unter http://localhost ab.
+const isRender = !!process.env.RENDER_EXTERNAL_URL;
+const isLocalhost = !isRender && (!process.env.HOST || process.env.HOST.includes('localhost'));
 app.use(session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: isRender || (!isLocalhost && process.env.NODE_ENV === 'production'),
     httpOnly: true,
+    sameSite: 'lax',
     maxAge: ONE_YEAR_MS
   }
 }));
@@ -340,26 +346,33 @@ passport.use(new LocalStrategy(
 
 // Passport Google Strategy  
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  // Baue absolute URL für Callback
+  // Baue absolute Callback-URL. Reihenfolge:
+  // 1. Render setzt RENDER_EXTERNAL_URL automatisch -> immer diese nehmen
+  // 2. Benutzer kann GOOGLE_CALLBACK_URL explizit setzen (lokal oder eigener Server)
+  // 3. Fallback: http://localhost:PORT (nie https://localhost!)
   const getBaseUrl = () => {
-    // Render setzt diese Variable automatisch
     if (process.env.RENDER_EXTERNAL_URL) {
-      return process.env.RENDER_EXTERNAL_URL;  // z.B. https://trainings-tracker-7kuw.onrender.com
+      return process.env.RENDER_EXTERNAL_URL;  // z.B. https://iron-coach-90eu.onrender.com
     }
-    // Fallback: aus Host bauen
-    const host = process.env.RENDER_EXTERNAL_HOSTNAME || process.env.HOST || 'localhost';
-    const isSecure = process.env.NODE_ENV === 'production';
-    return isSecure ? `https://${host}` : `http://${host}:${PORT}`;
+    if (process.env.PUBLIC_HOSTNAME) {
+      const isSecure = process.env.NODE_ENV === 'production';
+      return isSecure
+        ? `https://${process.env.PUBLIC_HOSTNAME}`
+        : `http://${process.env.PUBLIC_HOSTNAME}`;
+    }
+    return `http://localhost:${PORT}`;
   };
-  
-  // Callback-URL: Render-Domain hat immer Priorität, damit eine lokale .env-Variable
-  // nicht versehentlich auf Render die falsche Redirect-URI erzeugt.
-  // Für lokale Tests kann GOOGLE_CALLBACK_URL gesetzt werden.
+
   const dynamicCallbackURL = `${getBaseUrl()}/auth/google/callback`;
-  const callbackURL = process.env.RENDER_EXTERNAL_URL
-    ? dynamicCallbackURL
-    : (process.env.GOOGLE_CALLBACK_URL || dynamicCallbackURL);
+  const callbackURL = process.env.GOOGLE_CALLBACK_URL || dynamicCallbackURL;
   console.log('🔑 Google OAuth Callback URL:', callbackURL);
+  if (process.env.RENDER_EXTERNAL_URL) {
+    console.log('   (aus RENDER_EXTERNAL_URL, weil auf Render deployed)');
+  } else if (process.env.GOOGLE_CALLBACK_URL) {
+    console.log('   (aus GOOGLE_CALLBACK_URL Umgebungsvariable)');
+  } else {
+    console.log('   (Fallback für lokale Entwicklung)');
+  }
   
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
@@ -678,11 +691,21 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   // Google Auth: accessType offline holt beim ersten Login ein Google-Refresh-Token.
   // Kein 'prompt' -> Google wählt den aktiven Account automatisch, damit bleibt der
   // Nutzer dauerhaft eingeloggt, solange die Google-Session gültig ist.
+  //
+  // WICHTIG: drive.file erfordert eine Google-App-Prüfung und macht den Login
+  // in Test-Modus komplizierter. Deshalb ist er standardmäßig deaktiviert und
+  // kann über GOOGLE_DRIVE_ENABLED=true wieder aktiviert werden.
+  const googleScopes = ['profile', 'email'];
+  if (process.env.GOOGLE_DRIVE_ENABLED === 'true') {
+    googleScopes.push('https://www.googleapis.com/auth/drive.file');
+  }
+  console.log('🔑 Google OAuth Scopes:', googleScopes.join(', '));
+
   app.get('/auth/google', (req, res, next) => {
     const rememberMe = req.query.remember !== 'false';
     const state = rememberMe ? 'remember=true' : 'remember=false';
     passport.authenticate('google', {
-      scope: ['profile', 'email', 'https://www.googleapis.com/auth/drive.file'],
+      scope: googleScopes,
       accessType: 'offline',
       state: state
     })(req, res, next);
@@ -697,8 +720,12 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
           // Hilfreiche Fehlermeldung für bekannte Probleme
           let message = 'Google-Login ist momentan nicht möglich. Bitte versuche es später erneut.';
           const errMsg = (err.message || '').toLowerCase();
+          const expectedCallback = getGoogleCallbackURL();
           if (errMsg.includes('redirect_uri') || err.code === 'redirect_uri_mismatch') {
-            message = 'Google OAuth Redirect-URI passt nicht. In der Google Cloud Console muss EXAKT diese URL hinterlegt sein: https://iron-coach-90eu.onrender.com/auth/google/callback';
+            const localhostHint = expectedCallback.startsWith('http://localhost')
+              ? ' Google erlaubt localhost-URIs nur im Test-Modus der App.'
+              : '';
+            message = `Google OAuth Redirect-URI passt nicht. In der Google Cloud Console muss EXAKT diese URL hinterlegt sein: ${expectedCallback}.${localhostHint}`;
           } else if (errMsg.includes('access_denied')) {
             message = 'Google hat den Zugriff abgelehnt. App ist evtl. noch im Test-Modus – Martin muss als Testnutzer hinzugefügt sein oder die App verifizieren.';
           } else if (errMsg.includes('invalid_client') || errMsg.includes('unauthorized_client')) {
@@ -767,7 +794,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     app: 'IronCoach',
-    version: '1.2.2',
+    version: '1.2.3',
     defaultExerciseCount: 78,
     commit: '9035852',
     timestamp: new Date().toISOString(),
@@ -777,24 +804,34 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Hilfsfunktion: aktuelle Callback-URL ermitteln (wird an mehreren Stellen genutzt)
+function getGoogleCallbackURL() {
+  if (process.env.RENDER_EXTERNAL_URL) {
+    return `${process.env.RENDER_EXTERNAL_URL}/auth/google/callback`;
+  }
+  return process.env.GOOGLE_CALLBACK_URL || `http://localhost:${PORT}/auth/google/callback`;
+}
+
 // Google OAuth Diagnose-Endpoint (keine Secrets ausgeben!)
 app.get('/api/auth/status', (req, res) => {
   const googleEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
-  const callbackURL = process.env.RENDER_EXTERNAL_URL
-    ? `${process.env.RENDER_EXTERNAL_URL}/auth/google/callback`
-    : (process.env.GOOGLE_CALLBACK_URL || `http://localhost:${PORT}/auth/google/callback`);
+  const callbackURL = getGoogleCallbackURL();
   const clientId = process.env.GOOGLE_CLIENT_ID || '';
   res.json({
     googleOAuthEnabled: googleEnabled,
     callbackURL: callbackURL,
     renderExternalUrl: process.env.RENDER_EXTERNAL_URL || null,
     environment: process.env.NODE_ENV || 'development',
+    googleDriveEnabled: process.env.GOOGLE_DRIVE_ENABLED === 'true',
     // Nur Anfang und Ende der Client-ID (ohne Standard-Suffix), damit Martin
     // prüfen kann, ob auf Render die gleiche ID wie lokal hinterlegt ist.
     googleClientIdHint: clientId
       ? `${clientId.split('-')[0]}-...-${clientId.replace('.apps.googleusercontent.com', '').split('-').pop()}`
       : null,
-    requiredRedirectUriInConsole: callbackURL
+    requiredRedirectUriInConsole: callbackURL,
+    localhostNote: callbackURL.startsWith('http://localhost')
+      ? 'Google erlaubt http://localhost-URIs nur im Test-Modus der App.'
+      : null
   });
 });
 
@@ -2108,7 +2145,7 @@ initDatabase()
     server = app.listen(PORT, () => {
       console.log(`🔒 IronCoach Server läuft auf http://localhost:${PORT}`);
       console.log(`📊 Umgebung: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`📦 Version: 1.2.1 | Standardübungen: 78`);
+      console.log(`📦 Version: 1.2.3 | Standardübungen: 78`);
       console.log(`🏥 Health-Check: http://localhost:${PORT}/api/health`);
     });
 
