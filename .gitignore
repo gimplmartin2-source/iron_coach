@@ -35,3 +35,6 @@ memory/
 # Temporary backup files created during fixes
 public/*.bak.*
 server.js.bak.*
+
+# Local backup directory
+backups/

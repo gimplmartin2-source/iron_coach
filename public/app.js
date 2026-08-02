@@ -330,6 +330,89 @@ function logout() {
     window.location.href = '/login.html';
 }
 
+// ===== BACKUP MODAL =====
+function openBackupModal() {
+    const modal = document.getElementById('backup-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        document.getElementById('backup-result').style.display = 'none';
+        document.getElementById('backup-result').textContent = '';
+        document.getElementById('backup-file-input').value = '';
+    }
+}
+
+function closeBackupModal() {
+    const modal = document.getElementById('backup-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function importBackup() {
+    const fileInput = document.getElementById('backup-file-input');
+    const resultEl = document.getElementById('backup-result');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        resultEl.style.display = 'block';
+        resultEl.style.background = 'rgba(255,50,50,0.2)';
+        resultEl.style.border = '1px solid rgba(255,50,50,0.5)';
+        resultEl.style.color = '#ff6666';
+        resultEl.textContent = '❌ Bitte wähle zuerst eine .db-Datei aus.';
+        return;
+    }
+
+    resultEl.style.display = 'block';
+    resultEl.style.background = 'rgba(0,212,255,0.1)';
+    resultEl.style.border = '1px solid rgba(0,212,255,0.3)';
+    resultEl.style.color = '#00d4ff';
+    resultEl.textContent = '🔄 Backup wird gelesen und zusammengeführt...';
+
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        const base64 = btoa(binary);
+
+        const res = await apiFetch('/api/import/merge-backup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ backupBase64: base64 })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+            throw new Error(data.error || 'Import fehlgeschlagen');
+        }
+
+        resultEl.style.background = 'rgba(100,200,100,0.15)';
+        resultEl.style.border = '1px solid rgba(100,200,100,0.4)';
+        resultEl.style.color = '#6c6';
+        resultEl.innerHTML = `
+            ✅ Import erfolgreich!
+            <br>📦 ${data.totalWorkoutsInBackup || 0} Workouts im Backup
+            <br>✔️ ${data.importedWorkouts || 0} Workouts importiert
+            <br>🏋️ ${data.createdExercises || 0} fehlende Übungen neu angelegt
+            <br>⚠️ ${data.skippedWorkouts || 0} Workouts übersprungen (keine passende Übung)
+            <br>💾 Lokale Sicherung: ${data.localBackupPath || '-'}
+        `;
+
+        // Daten neu laden
+        await loadExercises();
+        await loadWorkouts();
+        await loadStats();
+
+    } catch (err) {
+        console.error('❌ Backup-Import Fehler:', err);
+        resultEl.style.background = 'rgba(255,50,50,0.2)';
+        resultEl.style.border = '1px solid rgba(255,50,50,0.5)';
+        resultEl.style.color = '#ff6666';
+        resultEl.textContent = '❌ Fehler: ' + err.message;
+    }
+}
+
 // Tab switching
 function showTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));

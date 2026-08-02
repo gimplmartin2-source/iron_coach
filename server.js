@@ -52,7 +52,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Session Setup
 // WICHTIG: Session-Cookie auf 1 Jahr setzen für "Eingeloggt bleiben"
@@ -2101,6 +2101,213 @@ app.post('/api/exercises/sync', authenticateJWT, async (req, res) => {
   } catch (error) {
     console.error('❌ Sync Fehler:', error);
     res.status(500).json({ error: 'Sync fehlgeschlagen: ' + error.message });
+  }
+});
+
+// === BACKUP MERGE IMPORT (SQLite Backup einlesen, fehlende Uebungen anlegen, Workouts verknuepfen) ===
+
+const BACKUPS_DIR = path.join(__dirname, 'backups');
+if (!fs.existsSync(BACKUPS_DIR)) {
+  fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+}
+
+// Hilfsfunktion: SQLite-Spalten einer Tabelle ermitteln
+async function getColumns(dbHandle, table) {
+  return new Promise((resolve, reject) => {
+    dbHandle.all(`PRAGMA table_info(${table})`, [], (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows.map(r => r.name));
+    });
+  });
+}
+
+// Hilfsfunktion: Backup-Datenbank pruefen und Tabellen anpassen
+async function attachBackup(tempDbPath) {
+  return new Promise((resolve, reject) => {
+    const backupDb = new sqlite3.Database(tempDbPath, sqlite3.OPEN_READONLY, async (err) => {
+      if (err) return reject(err);
+      try {
+        const tables = await new Promise((res, rej) => {
+          backupDb.all("SELECT name FROM sqlite_master WHERE type='table'", [], (e, r) => {
+            if (e) rej(e);
+            else res(r.map(x => x.name));
+          });
+        });
+        if (!tables.includes('exercises') || !tables.includes('workouts')) {
+          throw new Error('Backup muss Tabellen "exercises" und "workouts" enthalten');
+        }
+        resolve(backupDb);
+      } catch (e) {
+        reject(e);
+      }
+    });
+  });
+}
+
+// Backup-Import mit Merge: Fehlende Uebungen anlegen, Workouts remappen
+app.post('/api/import/merge-backup', authenticateJWT, async (req, res) => {
+  const userId = req.user.userId || req.user.id;
+  const { backupBase64 } = req.body;
+
+  if (!backupBase64) {
+    return res.status(400).json({ error: 'Kein Backup-Daten erhalten' });
+  }
+
+  let tempPath = null;
+  let backupDb = null;
+
+  try {
+    // Temporaeres Backup aus Base64 erzeugen
+    const buffer = Buffer.from(backupBase64, 'base64');
+    tempPath = path.join(BACKUPS_DIR, `import_temp_${userId}_${Date.now()}.db`);
+    fs.writeFileSync(tempPath, buffer);
+
+    backupDb = await attachBackup(tempPath);
+
+    const exerciseCols = await getColumns(backupDb, 'exercises');
+    const workoutCols = await getColumns(backupDb, 'workouts');
+
+    // Uebungen aus Backup laden
+    const backupExercises = await new Promise((resolve, reject) => {
+      const fields = ['id', 'name', 'muscle_group']
+        .map(f => exerciseCols.includes(f) ? f : "'' as " + f)
+        .join(', ');
+      const typeField = exerciseCols.includes('exercise_type') ? ', exercise_type' : ", 'strength' as exercise_type";
+      const infoField = exerciseCols.includes('info') ? ', info' : ", null as info";
+      backupDb.all(`SELECT ${fields}${typeField}${infoField} FROM exercises`, [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+
+    // Aktuelle Uebungen des Users laden
+    const currentExercises = await allAsync(
+      'SELECT id, name FROM exercises WHERE user_id = ?',
+      [userId]
+    );
+
+    // Name -> id Map fuer schnelles Matching (case-insensitive, getrimmt)
+    const currentByName = new Map();
+    currentExercises.forEach(e => {
+      currentByName.set(e.name.trim().toLowerCase(), e.id);
+    });
+
+    const exerciseIdMap = new Map(); // backupId -> currentId
+    let createdExercises = 0;
+
+    for (const be of backupExercises) {
+      const normalizedName = (be.name || '').trim().toLowerCase();
+      if (!normalizedName) continue;
+
+      let currentId = currentByName.get(normalizedName);
+      if (!currentId) {
+        const type = be.exercise_type || 'strength';
+        const muscle = be.muscle_group || 'Sonstiges';
+        const info = be.info || null;
+        const result = await runAsync(
+          'INSERT INTO exercises (user_id, name, muscle_group, exercise_type, info) VALUES (?, ?, ?, ?, ?)',
+          [userId, be.name.trim(), muscle, type, info]
+        );
+        currentId = result.lastID;
+        currentByName.set(normalizedName, currentId);
+        createdExercises++;
+      }
+      exerciseIdMap.set(be.id, currentId);
+    }
+
+    // Workouts aus Backup laden
+    const backupWorkouts = await new Promise((resolve, reject) => {
+      const fields = ['exercise_id', 'weight', 'sets', 'reps', 'date']
+        .map(f => workoutCols.includes(f) ? f : (f === 'weight' ? '0 as weight' : f === 'sets' ? '0 as sets' : f === 'reps' ? '0 as reps' : "'' as " + f))
+        .join(', ');
+      const optional = ['duration_seconds', 'rest_seconds', 'feeling', 'info', 'created_at']
+        .map(f => workoutCols.includes(f) ? `, ${f}` : (f === 'duration_seconds' ? ', null as duration_seconds' : f === 'rest_seconds' ? ', null as rest_seconds' : f === 'feeling' ? ', null as feeling' : f === 'info' ? ', null as info' : ", datetime('now') as created_at"))
+        .join('');
+      backupDb.all(`SELECT ${fields}${optional} FROM workouts`, [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+
+    let importedWorkouts = 0;
+    let skippedWorkouts = 0;
+
+    for (const bw of backupWorkouts) {
+      const currentExerciseId = exerciseIdMap.get(bw.exercise_id);
+      if (!currentExerciseId) {
+        skippedWorkouts++;
+        continue;
+      }
+
+      await runAsync(
+        `INSERT INTO workouts (user_id, exercise_id, weight, sets, reps, duration_seconds, rest_seconds, feeling, date, info, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          userId,
+          currentExerciseId,
+          bw.weight || 0,
+          bw.sets || 0,
+          bw.reps || 0,
+          bw.duration_seconds || null,
+          bw.rest_seconds || null,
+          bw.feeling || null,
+          bw.date || new Date().toISOString().split('T')[0],
+          bw.info || null,
+          bw.created_at || new Date().toISOString()
+        ]
+      );
+      importedWorkouts++;
+    }
+
+    backupDb.close();
+
+    // Temporaere Datei aufraeumen
+    if (tempPath && fs.existsSync(tempPath)) {
+      fs.unlinkSync(tempPath);
+    }
+
+    // Lokalen Snapshot als aktualisiertes Backup speichern
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const localBackupPath = path.join(BACKUPS_DIR, `ironcoach_backup_user${userId}_${timestamp}.db`);
+    fs.copyFileSync(DB_PATH, localBackupPath);
+
+    res.json({
+      success: true,
+      message: 'Backup erfolgreich importiert und zusammengefuehrt',
+      importedWorkouts,
+      createdExercises,
+      skippedWorkouts,
+      totalExercisesInBackup: backupExercises.length,
+      totalWorkoutsInBackup: backupWorkouts.length,
+      localBackupPath: path.basename(localBackupPath)
+    });
+
+  } catch (error) {
+    console.error('❌ Merge-Backup Fehler:', error);
+    if (backupDb) backupDb.close();
+    if (tempPath && fs.existsSync(tempPath)) {
+      try { fs.unlinkSync(tempPath); } catch (_) {}
+    }
+    res.status(500).json({ error: 'Import fehlgeschlagen: ' + error.message });
+  }
+});
+
+// Lokales Backup erstellen und als Download bereitstellen
+app.get('/api/backup/local', authenticateJWT, (req, res) => {
+  try {
+    const userId = req.user.userId || req.user.id;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `ironcoach_backup_user${userId}_${timestamp}.db`;
+    const backupPath = path.join(BACKUPS_DIR, filename);
+    fs.copyFileSync(DB_PATH, backupPath);
+    res.download(backupPath, filename, (err) => {
+      if (err) {
+        console.error('❌ Download Fehler:', err);
+      }
+    });
+  } catch (error) {
+    console.error('❌ Lokales Backup Fehler:', error);
+    res.status(500).json({ error: 'Backup fehlgeschlagen: ' + error.message });
   }
 });
 

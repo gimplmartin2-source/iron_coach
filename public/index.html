@@ -32,6 +32,9 @@
             <p class="app-tagline">Dein persönlicher Trainings-Tracker</p>
             <div id="user-info" style="margin-top: 15px; display: none; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
                 <span id="user-name" style="color: #888;"></span>
+                <button id="backup-btn" class="btn-secondary" onclick="openBackupModal()" style="padding: 8px 16px; background: rgba(0,212,255,0.2); border-color: rgba(0,212,255,0.5); color: #00d4ff; font-size: 0.9rem;">
+                    💾 Backup
+                </button>
                 <button id="logout-btn" class="btn-secondary" style="padding: 8px 16px; background: rgba(255,50,50,0.2); border-color: rgba(255,50,50,0.5); color: #ff6666; font-size: 0.9rem;">
                     🚪 Abmelden
                 </button>
@@ -636,12 +639,39 @@
             <button class="tab-btn" onclick="showTab('exercises')">🏋️<span>Übungen</span></button>
             <button class="tab-btn" onclick="showTab('stats')">📊<span>Statistik</span></button>
         </nav>
+
+        <!-- Backup Import Modal -->
+        <div id="backup-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; align-items: center; justify-content: center; padding: 20px;">
+            <div style="background: #1a1a2e; border: 1px solid rgba(0,212,255,0.3); border-radius: 12px; max-width: 500px; width: 100%; padding: 20px; max-height: 90vh; overflow-y: auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0; color: #00d4ff;">💾 Backup & Import</h2>
+                    <button onclick="closeBackupModal()" style="background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer;">×</button>
+                </div>
+
+                <div style="margin-bottom: 20px; padding: 12px; background: rgba(0,212,255,0.1); border-radius: 8px; border: 1px solid rgba(0,212,255,0.2);">
+                    <p style="margin: 0 0 10px 0; color: #ccc; font-size: 0.9rem;">
+                        <strong>SQLite-Backup importieren:</strong> Wähle eine <code>.db</code>-Datei aus. Fehlende Übungen werden automatisch angelegt und Workouts verknüpft.
+                    </p>
+                    <input type="file" id="backup-file-input" accept=".db,.sqlite,.sqlite3" style="display: block; width: 100%; margin-bottom: 10px; color: #fff;">
+                    <button onclick="importBackup()" class="btn-primary" style="width: 100%;">🔄 Backup importieren & mergen</button>
+                </div>
+
+                <div style="margin-bottom: 20px; padding: 12px; background: rgba(100,200,100,0.1); border-radius: 8px; border: 1px solid rgba(100,200,100,0.2);">
+                    <p style="margin: 0 0 10px 0; color: #ccc; font-size: 0.9rem;">
+                        <strong>Aktuellen Stand sichern:</strong> Lädt deine aktuelle Datenbank als Backup herunter.
+                    </p>
+                    <a href="/api/backup/local" class="btn-primary" style="display: block; text-align: center; text-decoration: none; background: rgba(100,200,100,0.3); border-color: rgba(100,200,100,0.5); color: #6c6;">⬇️ Lokales Backup herunterladen</a>
+                </div>
+
+                <div id="backup-result" style="display: none; margin-top: 15px; padding: 12px; border-radius: 8px; font-size: 0.9rem;"></div>
+            </div>
+        </div>
     </div>
 
     <script src="video-mappings.js"></script>
     <script src="gif-click-handler.js"></script>
     <script src="training-plans.js?v=10"></script>
-    <script src="app.js?v=24"></script>
+    <script src="app.js?v=25"></script>
     
     <script>
     // Service Worker für Offline-GIFs registrieren
