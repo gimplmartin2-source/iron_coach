@@ -794,7 +794,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     app: 'IronCoach',
-    version: '1.2.3',
+    version: '1.2.4',
     defaultExerciseCount: 78,
     commit: '9035852',
     timestamp: new Date().toISOString(),
@@ -2352,7 +2352,7 @@ initDatabase()
     server = app.listen(PORT, () => {
       console.log(`🔒 IronCoach Server läuft auf http://localhost:${PORT}`);
       console.log(`📊 Umgebung: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`📦 Version: 1.2.3 | Standardübungen: 78`);
+      console.log(`📦 Version: 1.2.4 | Standardübungen: 78`);
       console.log(`🏥 Health-Check: http://localhost:${PORT}/api/health`);
     });
 
