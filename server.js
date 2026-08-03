@@ -312,16 +312,16 @@ async function refreshGoogleAccessToken(userId) {
         console.log('ℹ️ Kein Refresh Token gefunden für User:', userId);
         return resolve(null);
       }
-      
+
       try {
         const oauth2Client = new google.auth.OAuth2(
           process.env.GOOGLE_CLIENT_ID,
           process.env.GOOGLE_CLIENT_SECRET
         );
-        
+
         oauth2Client.setCredentials({ refresh_token: row.google_refresh_token });
         const { credentials } = await oauth2Client.refreshAccessToken();
-        
+
         console.log('✅ Access Token erfolgreich erneuert für User:', userId);
         resolve(credentials.access_token);
       } catch (error) {
@@ -330,6 +330,22 @@ async function refreshGoogleAccessToken(userId) {
       }
     });
   });
+}
+
+// Holt einen gültigen Google Drive Access Token für den User.
+// Bevorzugt das gespeicherte Refresh Token, damit abgelaufene JWT-AccessTokens
+// nicht zum Problem werden. Fallback auf noch gültiges Token aus JWT.
+async function getDriveAccessToken(userId, jwtAccessToken) {
+  const refreshed = await refreshGoogleAccessToken(userId);
+  if (refreshed) {
+    console.log('☁️ Verwende frischen Access Token aus Refresh Token für User:', userId);
+    return refreshed;
+  }
+  if (jwtAccessToken) {
+    console.log('☁️ Verwende Access Token aus JWT für User:', userId);
+    return jwtAccessToken;
+  }
+  return null;
 }
 
 // Passport Local Strategy
@@ -806,9 +822,9 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     app: 'IronCoach',
-    version: '1.2.9',
+    version: '1.3.0',
     defaultExerciseCount: 78,
-    commit: 'revert-drive-default',
+    commit: 'fix-drive-token-refresh',
     timestamp: new Date().toISOString(),
     database: 'SQLite',
     environment: process.env.NODE_ENV || 'development',
@@ -848,13 +864,26 @@ app.get('/api/auth/status', (req, res) => {
 });
 
 // Verify Token
-app.get('/api/auth/verify', authenticateJWT, (req, res) => {
-  res.json({ user: req.user });
+app.get('/api/auth/verify', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user.userId || req.user.id;
+    const googleTokenRow = await new Promise((resolve, reject) => {
+      db.get('SELECT google_refresh_token FROM user_tokens WHERE user_id = ?', [userId], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+    const googleLinked = !!req.user.googleAccessToken || !!(googleTokenRow && googleTokenRow.google_refresh_token);
+    res.json({ user: req.user, googleLinked });
+  } catch (error) {
+    console.error('❌ Fehler bei /api/auth/verify:', error.message);
+    res.json({ user: req.user, googleLinked: false });
+  }
 });
 
 // JWT Refresh Token Endpunkt: erneuert Access Token ohne erneutes Login
 app.post('/api/auth/refresh', async (req, res) => {
-  const { refreshToken } = req.body;
+  const { refreshToken, currentToken } = req.body;
 
   if (!refreshToken) {
     return res.status(401).json({ error: 'Kein Refresh Token' });
@@ -874,7 +903,7 @@ app.post('/api/auth/refresh', async (req, res) => {
     }
 
     const user = await new Promise((resolve, reject) => {
-      db.get('SELECT id, email, display_name FROM users WHERE id = ?', [row.user_id], (err, user) => {
+      db.get('SELECT id, email, display_name, google_id FROM users WHERE id = ?', [row.user_id], (err, user) => {
         if (err) reject(err);
         else resolve(user);
       });
@@ -884,19 +913,45 @@ app.post('/api/auth/refresh', async (req, res) => {
       return res.status(403).json({ error: 'User nicht gefunden' });
     }
 
-    // Neuen Access Token + Refresh Token ausstellen
-    const token = jwt.sign(
-      { userId: user.id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: TOKEN_LONG }
-    );
+    // Aus dem alten (ggf. abgelaufenen) Token Google-Daten übernehmen,
+    // damit Auto-Backup und Drive-Sync nach einem Token-Refresh weiterlaufen.
+    let googleAccessToken = null;
+    let displayName = user.display_name;
+    if (currentToken) {
+      try {
+        const oldPayload = jwt.verify(currentToken, JWT_SECRET, { ignoreExpiration: true });
+        googleAccessToken = oldPayload.googleAccessToken || null;
+        displayName = oldPayload.displayName || displayName;
+      } catch (e) {
+        // Altes Token nicht verifizierbar -> ignorieren
+      }
+    }
+
+    const tokenPayload = {
+      userId: user.id,
+      email: user.email
+    };
+    if (displayName) tokenPayload.displayName = displayName;
+    if (googleAccessToken) tokenPayload.googleAccessToken = googleAccessToken;
+
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: TOKEN_LONG });
     const newRefreshToken = generateJwtRefreshToken();
     await storeJwtRefreshToken(user.id, newRefreshToken);
+
+    // Prüfe, ob Google-Refresh-Token in DB vorhanden ist (für Client-Info)
+    const googleTokenRow = await new Promise((resolve, reject) => {
+      db.get('SELECT google_refresh_token FROM user_tokens WHERE user_id = ?', [user.id], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+    const googleLinked = !!googleAccessToken || !!(googleTokenRow && googleTokenRow.google_refresh_token);
 
     res.json({
       token,
       refreshToken: newRefreshToken,
-      user: { id: user.id, email: user.email, displayName: user.display_name || user.email }
+      googleLinked,
+      user: { id: user.id, email: user.email, displayName: displayName || user.email, googleLinked }
     });
   } catch (error) {
     console.error('❌ Fehler beim Refresh:', error);
@@ -1298,12 +1353,8 @@ app.get('/api/training-plans', authenticateJWT, (req, res) => {
 // Wiederherstellung ALLER Trainingspläne aus separaten Google Drive Dateien
 app.get('/api/training-plans/restore-drive', authenticateJWT, async (req, res) => {
   try {
-    let accessToken = req.user.googleAccessToken;
     const userId = req.user.userId || req.user.id;
-
-    if (!accessToken) {
-      accessToken = await refreshGoogleAccessToken(userId);
-    }
+    const accessToken = await getDriveAccessToken(userId, req.user.googleAccessToken);
 
     if (!accessToken) {
       return res.status(400).json({ error: 'Kein Google-Token. Bitte mit Google anmelden, um Pläne aus Drive zu laden.' });
@@ -1631,12 +1682,9 @@ async function deletePlanFileFromDrive(drive, fileId) {
 // Speichert ALLE Trainingspläne des Users als separate Dateien in Drive
 app.post('/api/training-plans/sync-all-drive', authenticateJWT, async (req, res) => {
   try {
-    let accessToken = req.user.googleAccessToken;
     const userId = req.user.userId || req.user.id;
+    const accessToken = await getDriveAccessToken(userId, req.user.googleAccessToken);
 
-    if (!accessToken) {
-      accessToken = await refreshGoogleAccessToken(userId);
-    }
     if (!accessToken) {
       return res.status(400).json({ error: 'Kein Google-Token. Bitte mit Google anmelden, um in Drive zu synchronisieren.' });
     }
@@ -1708,16 +1756,13 @@ app.post('/api/training-plans/sync-all-drive', authenticateJWT, async (req, res)
 // Backup zu Google Drive
 app.post('/api/backup/drive', authenticateJWT, async (req, res) => {
   try {
-    let accessToken = req.user.googleAccessToken;
-    
+    const userId = req.user.userId || req.user.id;
+    let accessToken = await getDriveAccessToken(userId, req.user.googleAccessToken);
+
     if (!accessToken) {
-      // Versuche Token mit Refresh Token zu holen
-      accessToken = await refreshGoogleAccessToken(req.user.userId || req.user.id);
-      if (!accessToken) {
-        return res.status(400).json({ 
-          error: 'Nicht mit Google angemeldet. Bitte erneut einloggen.' 
-        });
-      }
+      return res.status(400).json({
+        error: 'Nicht mit Google angemeldet. Bitte erneut einloggen.'
+      });
     }
     
     const oauth2Client = new google.auth.OAuth2();
@@ -1770,7 +1815,6 @@ app.post('/api/backup/drive', authenticateJWT, async (req, res) => {
     }
     
     // Backup-Datei hochladen/aktualisieren
-    const userId = req.user.userId || req.user.id;
     const filename = `ironcoach_backup_user${userId}.db`;
     
     // Prüfe ob Backup-Datei schon existiert
@@ -1824,16 +1868,11 @@ app.post('/api/backup/drive', authenticateJWT, async (req, res) => {
 // Restore von Google Drive
 app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
   try {
-    console.log('🔄 RESTORE-REQUEST für User:', req.user.userId || req.user.id);
-    
-    let accessToken = req.user.googleAccessToken;
-    
-    if (!accessToken) {
-      // Versuche Token mit Refresh Token zu holen
-      console.log('🔄 Kein Access Token, versuche Refresh...');
-      accessToken = await refreshGoogleAccessToken(req.user.userId || req.user.id);
-    }
-    
+    const userId = req.user.userId || req.user.id;
+    console.log('🔄 RESTORE-REQUEST für User:', userId);
+
+    let accessToken = await getDriveAccessToken(userId, req.user.googleAccessToken);
+
     if (!accessToken) {
       console.log('❌ Kein Google Token verfügbar');
       return res.json({ restored: false, message: 'Nicht mit Google angemeldet' });
@@ -1881,7 +1920,6 @@ app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
     console.log('✅ Backup-Ordner ID:', folderId);
     
     // Suche Backup-Datei
-    const userId = req.user.userId || req.user.id;
     const filename = `ironcoach_backup_user${userId}.db`;
     console.log('🔍 Suche Datei:', filename);
     
@@ -2006,17 +2044,12 @@ app.post('/api/restore/drive', authenticateJWT, async (req, res) => {
 
 // Alias für /api/restore (kurzform) - FÜHRT DIREKT DEN RESTORE AUS
 app.post('/api/restore', authenticateJWT, async (req, res) => {
-  console.log('🔄 RESTORE-REQUEST für User:', req.user.userId || req.user.id);
-  
+  const userId = req.user.userId || req.user.id;
+  console.log('🔄 RESTORE-REQUEST für User:', userId);
+
   try {
-    let accessToken = req.user.googleAccessToken;
-    
-    if (!accessToken) {
-      // Versuche Token mit Refresh Token zu holen
-      console.log('🔄 Kein Access Token, versuche Refresh...');
-      accessToken = await refreshGoogleAccessToken(req.user.userId || req.user.id);
-    }
-    
+    const accessToken = await getDriveAccessToken(userId, req.user.googleAccessToken);
+
     if (!accessToken) {
       console.log('❌ Kein Google Token verfügbar');
       return res.json({ success: false, message: 'Nicht mit Google angemeldet' });
@@ -2064,7 +2097,6 @@ app.post('/api/restore', authenticateJWT, async (req, res) => {
     console.log('✅ Backup-Ordner ID:', folderId);
     
     // Suche Backup-Datei
-    const userId = req.user.userId || req.user.id;
     const filename = `ironcoach_backup_user${userId}.db`;
     console.log('🔍 Suche Datei:', filename);
     

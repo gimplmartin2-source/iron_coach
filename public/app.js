@@ -88,6 +88,7 @@ function addRefreshSubscriber(callback) {
 
 async function refreshAccessToken() {
     const refreshToken = localStorage.getItem('refreshToken');
+    const currentToken = localStorage.getItem('token');
     if (!refreshToken) {
         throw new Error('Kein Refresh Token vorhanden');
     }
@@ -96,7 +97,7 @@ async function refreshAccessToken() {
         const res = await fetch(`${API_URL}/api/auth/refresh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken })
+            body: JSON.stringify({ refreshToken, currentToken })
         });
 
         if (!res.ok) {
@@ -107,6 +108,9 @@ async function refreshAccessToken() {
         localStorage.setItem('token', data.token);
         if (data.refreshToken) {
             localStorage.setItem('refreshToken', data.refreshToken);
+        }
+        if (data.googleLinked !== undefined) {
+            window.googleLinked = data.googleLinked;
         }
         console.log('🔑 Access Token automatisch erneuert');
         return data.token;
@@ -211,10 +215,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
     
-    // Verify Token
+    // Verify Token + Google-Status ermitteln
+    let googleLinked = false;
     try {
         const res = await apiFetch('/api/auth/verify');
         if (!res || !res.ok) throw new Error('Auth failed');
+        const verifyData = await res.json();
+        googleLinked = verifyData.googleLinked || false;
+        window.googleLinked = googleLinked;
     } catch (err) {
         window.location.href = '/login.html';
         return;
@@ -238,31 +246,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Restore war erfolgreich
     } else if (!restoreAttempted) {
         sessionStorage.setItem('restoreAttempted', 'true');
-        
-        // Prüfe ob Google-User (egal ob frisch eingeloggt oder bereits eingeloggt)
-        const token = localStorage.getItem('token');
-        let isGoogleUser = false;
-        
-        if (token) {
-            try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                if (payload.googleAccessToken) {
-                    isGoogleUser = true;
-                    console.log('🔑 Google-User erkannt im Token');
-                }
-            } catch (e) {
-                console.log('⚠️ Konnte Token nicht parsen');
-            }
-        }
-        
-        // Bei Google-User: Versuche automatisches Restore (auch bei normalem Seiten-Reload)
+
         // WICHTIG: Prüfe auch urlToken (frisch von Google Login)
         const freshGoogleLogin = urlParams.get('token') !== null;
-        
-        if (isGoogleUser || freshGoogleLogin) {
+
+        if (googleLinked || freshGoogleLogin) {
             console.log('🔑 Automatisches Restore für Google-User...');
             const restoreResult = await restoreFromDrive();
-            
+
             if (restoreResult) {
                 console.log('✅ Restore erfolgreich - lade Seite neu');
                 return;
@@ -902,18 +893,18 @@ async function addExercise(e) {
 
 // Auto-Backup nach Änderungen
 async function autoBackup() {
-    // Prüfe ob Google-User (hat Google Access Token im JWT)
     const token = localStorage.getItem('token');
     if (!token) return;
-    
+
+    // Wenn der Server uns schon mitgeteilt hat, dass kein Google-Account verknüpft ist,
+    // sparen wir uns den API-Call.
+    if (window.googleLinked === false) {
+        console.log('ℹ️ Kein Google-Account verknüpft, Backup übersprungen');
+        return;
+    }
+
     try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        if (!payload.googleAccessToken) {
-            console.log('ℹ️ Kein Google Token, Backup übersprungen');
-            return;
-        }
-        
-        // Silent backup
+        // Silent backup - der Server kümmert sich selbst um Refresh Token / Fehler
         const res = await apiFetch('/api/backup/drive', { method: 'POST' });
         if (res && res.ok) {
             console.log('☁️ Auto-Backup erfolgreich');
