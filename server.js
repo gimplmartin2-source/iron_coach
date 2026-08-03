@@ -806,7 +806,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     app: 'IronCoach',
-    version: '1.2.8',
+    version: '1.2.9',
     defaultExerciseCount: 78,
     commit: 'revert-drive-default',
     timestamp: new Date().toISOString(),
@@ -1294,8 +1294,9 @@ app.get('/api/training-plans', authenticateJWT, (req, res) => {
   });
 });
 
-// Trainingsplan aus Google Drive laden (MUSS vor /:id stehen!)
-app.get('/api/training-plans/sync-drive', authenticateJWT, async (req, res) => {
+// === TRAINING PLAN RESTORE FROM DRIVE ===
+// Wiederherstellung ALLER Trainingspläne aus separaten Google Drive Dateien
+app.get('/api/training-plans/restore-drive', authenticateJWT, async (req, res) => {
   try {
     let accessToken = req.user.googleAccessToken;
     const userId = req.user.userId || req.user.id;
@@ -1304,18 +1305,8 @@ app.get('/api/training-plans/sync-drive', authenticateJWT, async (req, res) => {
       accessToken = await refreshGoogleAccessToken(userId);
     }
 
-    // Wenn kein Google-Token, gebe aktiven Plan aus DB zurück
     if (!accessToken) {
-      const localPlan = await new Promise((resolve, reject) => {
-        db.get('SELECT * FROM training_plans WHERE user_id = ? AND is_active = 1', [userId], (err, row) => {
-          if (err) return reject(err);
-          if (!row) return resolve(null);
-          try { row.plan_data = JSON.parse(row.plan_data); } catch (e) {}
-          resolve(row);
-        });
-      });
-      if (!localPlan) return res.status(404).json({ error: 'Kein aktiver Plan vorhanden', source: 'none' });
-      return res.json({ ...localPlan, source: 'local' });
+      return res.status(400).json({ error: 'Kein Google-Token. Bitte mit Google anmelden, um Pläne aus Drive zu laden.' });
     }
 
     const oauth2Client = new google.auth.OAuth2();
@@ -1323,80 +1314,107 @@ app.get('/api/training-plans/sync-drive', authenticateJWT, async (req, res) => {
     const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
     const folderId = await getOrCreateDriveFolder(drive, 'IronCoach-Backups');
-    const filename = `ironcoach_training_plan_user${userId}.json`;
-    const drivePlan = await loadPlanFromDrive(drive, folderId, filename);
 
-    if (!drivePlan) {
-      // Kein Plan in Drive - aktiven lokalen Plan zurückgeben
-      const localPlan = await new Promise((resolve, reject) => {
-        db.get('SELECT * FROM training_plans WHERE user_id = ? AND is_active = 1', [userId], (err, row) => {
-          if (err) return reject(err);
-          if (!row) return resolve(null);
-          try { row.plan_data = JSON.parse(row.plan_data); } catch (e) {}
-          resolve(row);
+    // 1. Neue separate Plan-Dateien laden (ironcoach_training_plan_userX_planY_Name.json)
+    const planFiles = await listUserPlanFiles(drive, folderId, userId);
+    const importedPlans = [];
+    let activePlanId = null;
+
+    for (const file of planFiles) {
+      try {
+        const data = await loadPlanFileFromDrive(drive, file.id);
+        if (!data || !data.name) {
+          console.warn('⚠️ Überspringe ungültige Plan-Datei:', file.name);
+          continue;
+        }
+
+        const planName = data.name || 'Plan aus Drive';
+        const planDescription = data.description || '';
+        const isActive = data.is_active === true || data.isActive === true;
+        const planDataJson = JSON.stringify(data);
+
+        // Prüfe ob lokaler Plan mit dieser ID schon existiert
+        const existingPlan = await getAsync('SELECT id FROM training_plans WHERE id = ? AND user_id = ?', [data.id, userId]);
+
+        let planId;
+        if (existingPlan) {
+          await runAsync(
+            'UPDATE training_plans SET name = ?, description = ?, plan_data = ?, is_active = ?, updated_at = datetime("now") WHERE id = ? AND user_id = ?',
+            [planName, planDescription, planDataJson, isActive ? 1 : 0, existingPlan.id, userId]
+          );
+          planId = existingPlan.id;
+        } else {
+          planId = (await runAsync(
+            'INSERT INTO training_plans (user_id, name, description, plan_data, is_active) VALUES (?, ?, ?, ?, ?)',
+            [userId, planName, planDescription, planDataJson, isActive ? 1 : 0]
+          )).lastID;
+        }
+
+        if (isActive) activePlanId = planId;
+        importedPlans.push({ id: planId, name: planName, isActive });
+      } catch (err) {
+        console.warn('⚠️ Fehler beim Laden einer Plan-Datei:', file.name, err.message);
+      }
+    }
+
+    // 2. Fallback: alte einzelne Datei ironcoach_training_plan_userX.json
+    if (importedPlans.length === 0) {
+      try {
+        const oldFilename = `ironcoach_training_plan_user${userId}.json`;
+        const oldFile = await drive.files.list({
+          q: `name='${oldFilename}' and '${folderId}' in parents and trashed=false`,
+          fields: 'files(id, name, modifiedTime)',
+          orderBy: 'modifiedTime desc',
+          timeout: DRIVE_TIMEOUT_MS
         });
-      });
-      if (!localPlan) return res.status(404).json({ error: 'Kein Plan in Drive oder lokal vorhanden', source: 'none' });
-      return res.json({ ...localPlan, source: 'local' });
+        if (oldFile.data.files.length > 0) {
+          const data = await loadPlanFileFromDrive(drive, oldFile.data.files[0].id);
+          const planName = data.name || 'Plan aus Drive (Legacy)';
+          const planDescription = data.description || 'Aus alter Google Drive Datei synchronisierter Plan';
+          const planDataJson = JSON.stringify(data);
+
+          const existingActive = await getAsync('SELECT id FROM training_plans WHERE user_id = ? AND is_active = 1', [userId]);
+          let planId;
+          if (existingActive) {
+            await runAsync(
+              'UPDATE training_plans SET name = ?, description = ?, plan_data = ?, updated_at = datetime("now") WHERE id = ? AND user_id = ?',
+              [planName, planDescription, planDataJson, existingActive.id, userId]
+            );
+            planId = existingActive.id;
+          } else {
+            planId = (await runAsync(
+              'INSERT INTO training_plans (user_id, name, description, plan_data, is_active) VALUES (?, ?, ?, ?, ?)',
+              [userId, planName, planDescription, planDataJson, 1]
+            )).lastID;
+          }
+          activePlanId = planId;
+          importedPlans.push({ id: planId, name: planName, isActive: true });
+        }
+      } catch (e) {
+        console.warn('⚠️ Fallback alte Plan-Datei fehlgeschlagen:', e.message);
+      }
     }
 
-    // Plan aus Drive in DB speichern/aktualisieren
-    const planData = drivePlan.data;
-    const planName = planData.name || 'Mein Trainingsplan';
-    const planDescription = planData.description || 'Aus Google Drive synchronisierter Plan';
-    const planDataJson = JSON.stringify(planData);
+    // Sicherstellen, dass maximal EIN Plan aktiv ist
+    if (activePlanId) {
+      await runAsync('UPDATE training_plans SET is_active = 0 WHERE user_id = ? AND id != ?', [userId, activePlanId]);
+    } else if (importedPlans.length > 0) {
+      const firstPlan = await getAsync('SELECT id FROM training_plans WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1', [userId]);
+      if (firstPlan) {
+        await runAsync('UPDATE training_plans SET is_active = 1 WHERE id = ?', [firstPlan.id]);
+        activePlanId = firstPlan.id;
+      }
+    }
 
-    const existingPlan = await new Promise((resolve, reject) => {
-      db.get('SELECT id FROM training_plans WHERE user_id = ? AND is_active = 1', [userId], (err, row) => {
-        if (err) return reject(err);
-        resolve(row);
-      });
+    res.json({
+      success: true,
+      importedCount: importedPlans.length,
+      activePlanId,
+      plans: importedPlans
     });
-
-    if (existingPlan) {
-      await new Promise((resolve, reject) => {
-        db.run(
-          'UPDATE training_plans SET name = ?, description = ?, plan_data = ?, updated_at = datetime("now") WHERE id = ? AND user_id = ?',
-          [planName, planDescription, planDataJson, existingPlan.id, userId],
-          function(err) {
-            if (err) return reject(err);
-            resolve(this.lastID || existingPlan.id);
-          }
-        );
-      });
-      res.json({
-        id: existingPlan.id,
-        name: planName,
-        description: planDescription,
-        is_active: 1,
-        plan_data: planData,
-        modifiedTime: drivePlan.modifiedTime,
-        source: 'drive'
-      });
-    } else {
-      const newId = await new Promise((resolve, reject) => {
-        db.run(
-          'INSERT INTO training_plans (user_id, name, description, plan_data, is_active) VALUES (?, ?, ?, ?, ?)',
-          [userId, planName, planDescription, planDataJson, 1],
-          function(err) {
-            if (err) return reject(err);
-            resolve(this.lastID);
-          }
-        );
-      });
-      res.json({
-        id: newId,
-        name: planName,
-        description: planDescription,
-        is_active: 1,
-        plan_data: planData,
-        modifiedTime: drivePlan.modifiedTime,
-        source: 'drive'
-      });
-    }
   } catch (error) {
-    console.error('❌ Plan Load from Drive Fehler:', error);
-    res.status(500).json({ error: 'Laden aus Drive fehlgeschlagen: ' + error.message });
+    console.error('❌ Plan Restore Fehler:', error);
+    res.status(500).json({ error: 'Wiederherstellung aus Drive fehlgeschlagen: ' + error.message });
   }
 });
 
@@ -1513,6 +1531,20 @@ app.patch('/api/training-plans/:id/activate', authenticateJWT, (req, res) => {
 const DRIVE_TIMEOUT_MS = 20000;
 const DRIVE_TIMEOUT_ERR = 'Google Drive Anfrage hat das Zeitlimit überschritten';
 
+// Sicheren Dateinamen aus Plan-Namen erzeugen
+function safeDriveFilename(name) {
+  return (name || 'Plan')
+    .toString()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9äöüÄÖÜß _-]/g, '')
+    .replace(/\s+/g, '_')
+    .slice(0, 50);
+}
+
+function planDriveFilename(userId, planId, name) {
+  return `ironcoach_training_plan_user${userId}_plan${planId}_${safeDriveFilename(name)}.json`;
+}
+
 // Hilfsfunktion: Google Drive Ordner suchen oder erstellen
 async function getOrCreateDriveFolder(drive, name) {
   let response;
@@ -1571,31 +1603,36 @@ async function savePlanToDrive(drive, folderId, filename, planData) {
   }
 }
 
-// Hilfsfunktion: Trainingsplan aus Google Drive laden
-async function loadPlanFromDrive(drive, folderId, filename) {
+// Hilfsfunktion: Liste aller separaten Trainingsplan-Dateien eines Users
+async function listUserPlanFiles(drive, folderId, userId) {
+  const prefix = `ironcoach_training_plan_user${userId}_`;
   const response = await drive.files.list({
-    q: `name='${filename}' and '${folderId}' in parents and trashed=false`,
+    q: `name contains '${prefix}' and '${folderId}' in parents and trashed=false`,
     fields: 'files(id, name, modifiedTime)',
-    orderBy: 'modifiedTime desc',
+    orderBy: 'name',
+    spaces: 'drive',
     timeout: DRIVE_TIMEOUT_MS
   });
-
-  if (response.data.files.length === 0) return null;
-
-  const fileId = response.data.files[0].id;
-  const download = await drive.files.get({ fileId, alt: 'media' }, { responseType: 'json', timeout: DRIVE_TIMEOUT_MS });
-  return {
-    data: download.data,
-    modifiedTime: response.data.files[0].modifiedTime
-  };
+  return response.data.files || [];
 }
 
-// Trainingsplan zu Google Drive synchronisieren (speichern)
-app.post('/api/training-plans/:id/sync-drive', authenticateJWT, async (req, res) => {
+// Hilfsfunktion: Einzelne Datei aus Drive laden
+async function loadPlanFileFromDrive(drive, fileId) {
+  const download = await drive.files.get({ fileId, alt: 'media' }, { responseType: 'json', timeout: DRIVE_TIMEOUT_MS });
+  return download.data;
+}
+
+// Hilfsfunktion: Datei aus Drive in den Papierkorb verschieben
+async function deletePlanFileFromDrive(drive, fileId) {
+  await drive.files.update({ fileId, requestBody: { trashed: true }, timeout: DRIVE_TIMEOUT_MS });
+}
+
+// === TRAINING PLAN SAVE TO DRIVE ===
+// Speichert ALLE Trainingspläne des Users als separate Dateien in Drive
+app.post('/api/training-plans/sync-all-drive', authenticateJWT, async (req, res) => {
   try {
     let accessToken = req.user.googleAccessToken;
     const userId = req.user.userId || req.user.id;
-    const planId = req.params.id;
 
     if (!accessToken) {
       accessToken = await refreshGoogleAccessToken(userId);
@@ -1604,13 +1641,14 @@ app.post('/api/training-plans/:id/sync-drive', authenticateJWT, async (req, res)
       return res.status(400).json({ error: 'Kein Google-Token. Bitte mit Google anmelden, um in Drive zu synchronisieren.' });
     }
 
-    // Plan aus DB laden
-    const plan = await new Promise((resolve, reject) => {
-      db.get('SELECT * FROM training_plans WHERE id = ? AND user_id = ?', [planId, userId], (err, row) => {
+    // Alle Pläne des Users laden
+    const plans = await new Promise((resolve, reject) => {
+      db.all('SELECT * FROM training_plans WHERE user_id = ?', [userId], (err, rows) => {
         if (err) return reject(err);
-        if (!row) return reject(new Error('Plan nicht gefunden'));
-        try { row.plan_data = JSON.parse(row.plan_data); } catch (e) {}
-        resolve(row);
+        rows.forEach(row => {
+          try { row.plan_data = JSON.parse(row.plan_data); } catch (e) {}
+        });
+        resolve(rows);
       });
     });
 
@@ -1619,14 +1657,45 @@ app.post('/api/training-plans/:id/sync-drive', authenticateJWT, async (req, res)
     const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
     const folderId = await getOrCreateDriveFolder(drive, 'IronCoach-Backups');
-    const filename = `ironcoach_training_plan_user${userId}.json`;
-    const result = await savePlanToDrive(drive, folderId, filename, plan.plan_data);
+
+    // Bestehende Plan-Dateien finden, um verwaiste Dateien später zu löschen
+    const existingFiles = await listUserPlanFiles(drive, folderId, userId);
+    const savedFileIds = [];
+    const savedPlans = [];
+
+    for (const plan of plans) {
+      const planData = plan.plan_data || {};
+      planData.id = plan.id;
+      planData.name = plan.name;
+      planData.description = plan.description;
+      planData.is_active = plan.is_active === 1;
+
+      const filename = planDriveFilename(userId, plan.id, plan.name);
+      const result = await savePlanToDrive(drive, folderId, filename, planData);
+      savedFileIds.push(result.id);
+      savedPlans.push({ id: plan.id, name: plan.name, driveFileId: result.id });
+    }
+
+    // Dateien löschen, die nicht mehr zu aktuellen Plänen passen (z. B. gelöschte Pläne)
+    let deletedCount = 0;
+    for (const file of existingFiles) {
+      if (!savedFileIds.includes(file.id)) {
+        try {
+          await deletePlanFileFromDrive(drive, file.id);
+          deletedCount++;
+          console.log('🗑️ Verwaiste Plan-Datei gelöscht:', file.name);
+        } catch (e) {
+          console.warn('⚠️ Konnte alte Plan-Datei nicht löschen:', file.name, e.message);
+        }
+      }
+    }
 
     res.json({
       success: true,
-      message: 'Trainingsplan in Google Drive gespeichert',
-      driveFileId: result.id,
-      modifiedTime: result.modifiedTime
+      message: 'Trainingspläne in Google Drive synchronisiert',
+      savedCount: savedPlans.length,
+      deletedCount,
+      plans: savedPlans
     });
   } catch (error) {
     console.error('❌ Plan Sync Fehler:', error);
@@ -2470,7 +2539,7 @@ initDatabase()
     server = app.listen(PORT, () => {
       console.log(`🔒 IronCoach Server läuft auf http://localhost:${PORT}`);
       console.log(`📊 Umgebung: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`📦 Version: 1.2.7 | Standardübungen: 78`);
+      console.log(`📦 Version: 1.2.9 | Standardübungen: 78`);
       console.log(`🏥 Health-Check: http://localhost:${PORT}/api/health`);
     });
 

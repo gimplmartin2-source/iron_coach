@@ -491,27 +491,48 @@ async function restoreFromDrive() {
     console.log('🔍 Versuche Restore von Google Drive...');
     
     // Automatisches Restore (Token kommt aus dem JWT)
+    let restoreDone = false;
     try {
-        const res = await apiFetch('/api/restore', { 
+        const res = await apiFetch('/api/restore', {
             method: 'POST',
             body: JSON.stringify({})
         });
-        
+
         if (res.ok) {
             const data = await res.json();
             if (data.success) {
-                console.log('✅ Restore erfolgreich - lade Seite neu');
-                window.location.reload();
-                return true;
+                console.log('✅ DB-Backup Restore erfolgreich');
+                restoreDone = true;
             } else {
                 console.log('ℹ️ Kein Backup gefunden:', data.message);
-                return false;
             }
         }
     } catch (err) {
-        console.log('⚠️ Restore fehlgeschlagen:', err.message);
+        console.log('⚠️ DB-Restore fehlgeschlagen:', err.message);
     }
-    
+
+    // Auch Trainingspläne aus Drive wiederherstellen (separate Dateien)
+    try {
+        const planRes = await apiFetch('/api/training-plans/restore-drive', { method: 'GET' });
+        if (planRes.ok) {
+            const planData = await planRes.json();
+            if (planData.success && planData.importedCount > 0) {
+                console.log('✅ Trainingspläne aus Drive wiederhergestellt:', planData.importedCount);
+                restoreDone = true;
+            } else {
+                console.log('ℹ️ Keine Trainingspläne in Drive zum Wiederherstellen');
+            }
+        }
+    } catch (err) {
+        console.log('⚠️ Trainingsplan-Restore fehlgeschlagen:', err.message);
+    }
+
+    if (restoreDone) {
+        console.log('✅ Restore abgeschlossen - lade Seite neu');
+        window.location.reload();
+        return true;
+    }
+
     return false;
 }
 

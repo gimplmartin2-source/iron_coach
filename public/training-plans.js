@@ -216,6 +216,30 @@ function updateSyncStatus(message) {
     if (el) el.textContent = message;
 }
 
+async function syncAllPlansToDrive(silent = false) {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+        const syncController = new AbortController();
+        const syncTimeout = setTimeout(() => syncController.abort(), 20000);
+        const syncRes = await fetch('/api/training-plans/sync-all-drive', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + token },
+            signal: syncController.signal
+        });
+        clearTimeout(syncTimeout);
+        const syncResult = await syncRes.json();
+        if (syncRes.ok) {
+            if (!silent) updateSyncStatus('☁️ ' + (syncResult.savedCount || 1) + ' Plan' + ((syncResult.savedCount || 1) > 1 ? 'e' : '') + ' in Google Drive gespeichert');
+        } else if (!silent) {
+            updateSyncStatus('⚠️ Drive-Sync: ' + (syncResult.error || 'nicht verfügbar'));
+        }
+    } catch (syncErr) {
+        if (!silent) updateSyncStatus('⚠️ Drive-Sync fehlgeschlagen');
+        console.warn('syncAllPlansToDrive fehlgeschlagen:', syncErr);
+    }
+}
+
 function isPlanActive(planId) {
     const p = trainingPlans.find(x => x.id === planId);
     return p ? p.is_active : false;
@@ -662,36 +686,33 @@ async function saveCurrentPlan() {
         planId = saveResult.id || planId;
         currentPlanId = planId;
 
-        if (isActive) {
-            try {
-                const syncController = new AbortController();
-                const syncTimeout = setTimeout(() => syncController.abort(), 15000);
-                const syncRes = await fetch('/api/training-plans/' + planId + '/sync-drive', {
-                    method: 'POST',
-                    headers: { Authorization: 'Bearer ' + token },
-                    signal: syncController.signal
-                });
-                clearTimeout(syncTimeout);
-                const syncResult = await syncRes.json();
-                if (syncRes.ok) {
-                    updateSyncStatus('✅ Gespeichert & mit Google Drive synchronisiert');
-                } else if (syncRes.status >= 500) {
-                    updateSyncStatus('✅ Lokal gespeichert (Drive-Server temporär nicht erreichbar)');
-                    console.warn('Drive-Sync Server-Fehler:', syncResult.error || syncRes.statusText);
-                } else {
-                    updateSyncStatus('✅ Lokal gespeichert (Drive: ' + (syncResult.error || 'nicht verfügbar') + ')');
-                }
-            } catch (syncErr) {
-                if (syncErr.name === 'AbortError') {
-                    updateSyncStatus('✅ Lokal gespeichert (Drive-Sync Zeitüberschreitung)');
-                    console.warn('Drive-Sync Timeout (15s)');
-                } else {
-                    updateSyncStatus('✅ Lokal gespeichert (Drive-Sync fehlgeschlagen)');
-                    console.warn('Drive-Sync fehlgeschlagen:', syncErr);
-                }
+        // Immer alle Pläne zu Drive synchronisieren (unabhängig vom aktiven Status)
+        try {
+            const syncController = new AbortController();
+            const syncTimeout = setTimeout(() => syncController.abort(), 20000);
+            const syncRes = await fetch('/api/training-plans/sync-all-drive', {
+                method: 'POST',
+                headers: { Authorization: 'Bearer ' + token },
+                signal: syncController.signal
+            });
+            clearTimeout(syncTimeout);
+            const syncResult = await syncRes.json();
+            if (syncRes.ok) {
+                updateSyncStatus('✅ Gespeichert & ' + (syncResult.savedCount || 1) + ' Plan' + ((syncResult.savedCount || 1) > 1 ? 'e' : '') + ' in Google Drive synchronisiert');
+            } else if (syncRes.status >= 500) {
+                updateSyncStatus('✅ Lokal gespeichert (Drive-Server temporär nicht erreichbar)');
+                console.warn('Drive-Sync Server-Fehler:', syncResult.error || syncRes.statusText);
+            } else {
+                updateSyncStatus('✅ Lokal gespeichert (Drive: ' + (syncResult.error || 'nicht verfügbar') + ')');
             }
-        } else {
-            updateSyncStatus('✅ Plan gespeichert (inaktiv, keine Drive-Sync)');
+        } catch (syncErr) {
+            if (syncErr.name === 'AbortError') {
+                updateSyncStatus('✅ Lokal gespeichert (Drive-Sync Zeitüberschreitung)');
+                console.warn('Drive-Sync Timeout (20s)');
+            } else {
+                updateSyncStatus('✅ Lokal gespeichert (Drive-Sync fehlgeschlagen)');
+                console.warn('Drive-Sync fehlgeschlagen:', syncErr);
+            }
         }
 
         currentPlan = planData;
@@ -771,6 +792,7 @@ async function createNewPlan() {
         currentPlanId = saved.id;
         currentPlan = empty;
         await loadTrainingPlansList();
+        await syncAllPlansToDrive(true);
         togglePlanEditor();
     } catch (err) {
         console.error('Neuer Plan fehlgeschlagen:', err);
@@ -803,6 +825,7 @@ async function duplicateCurrentPlan() {
         if (!res.ok) throw new Error('Plan konnte nicht dupliziert werden');
         const saved = await res.json();
         await loadTrainingPlansList();
+        await syncAllPlansToDrive(true);
         await loadPlan(saved.id);
     } catch (err) {
         console.error('Duplizieren fehlgeschlagen:', err);
@@ -830,6 +853,7 @@ async function deleteCurrentPlan() {
         currentPlanId = null;
         currentPlan = null;
         await loadTrainingPlansList();
+        await syncAllPlansToDrive(true);
     } catch (err) {
         console.error('Löschen fehlgeschlagen:', err);
         alert('Fehler: ' + err.message);
@@ -851,6 +875,7 @@ async function setCurrentPlanActive() {
         });
         if (!res.ok) throw new Error('Aktivieren fehlgeschlagen');
         await loadTrainingPlansList();
+        await syncAllPlansToDrive(true);
         updateSyncStatus('⭐ Dieser Plan ist jetzt aktiv');
     } catch (err) {
         console.error('Aktivieren fehlgeschlagen:', err);
