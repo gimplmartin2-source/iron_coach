@@ -12,6 +12,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { google } = require('googleapis');
 const fs = require('fs');
+const { Readable } = require('stream');
 require('dotenv').config();
 
 const app = express();
@@ -822,7 +823,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     app: 'IronCoach',
-    version: '1.3.1',
+    version: '1.3.2',
     defaultExerciseCount: 78,
     commit: 'fix-drive-token-refresh',
     timestamp: new Date().toISOString(),
@@ -1683,7 +1684,8 @@ async function getOrCreateDriveFolder(drive, name) {
 
 // Hilfsfunktion: Trainingsplan als JSON in Google Drive speichern/aktualisieren
 async function savePlanToDrive(drive, folderId, filename, planData) {
-  const buffer = Buffer.from(JSON.stringify(planData, null, 2));
+  const jsonString = JSON.stringify(planData, null, 2);
+  const stream = Readable.from([jsonString]);
 
   // Prüfe ob Datei existiert
   const existing = await drive.files.list({
@@ -1696,7 +1698,7 @@ async function savePlanToDrive(drive, folderId, filename, planData) {
     const fileId = existing.data.files[0].id;
     const file = await drive.files.update({
       fileId,
-      media: { mimeType: 'application/json', body: buffer },
+      media: { mimeType: 'application/json', body: stream },
       fields: 'id, name, modifiedTime',
       timeout: DRIVE_TIMEOUT_MS
     });
@@ -1704,7 +1706,7 @@ async function savePlanToDrive(drive, folderId, filename, planData) {
   } else {
     const file = await drive.files.create({
       requestBody: { name: filename, parents: [folderId] },
-      media: { mimeType: 'application/json', body: buffer },
+      media: { mimeType: 'application/json', body: stream },
       fields: 'id, name, modifiedTime',
       timeout: DRIVE_TIMEOUT_MS
     });
@@ -2693,7 +2695,7 @@ initDatabase()
     server = app.listen(PORT, () => {
       console.log(`🔒 IronCoach Server läuft auf http://localhost:${PORT}`);
       console.log(`📊 Umgebung: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`📦 Version: 1.3.1 | Standardübungen: 78`);
+      console.log(`📦 Version: 1.3.2 | Standardübungen: 78`);
       console.log(`🏥 Health-Check: http://localhost:${PORT}/api/health`);
     });
 
