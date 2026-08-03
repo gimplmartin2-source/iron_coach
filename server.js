@@ -822,7 +822,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     app: 'IronCoach',
-    version: '1.3.0',
+    version: '1.3.1',
     defaultExerciseCount: 78,
     commit: 'fix-drive-token-refresh',
     timestamp: new Date().toISOString(),
@@ -1582,6 +1582,64 @@ app.patch('/api/training-plans/:id/activate', authenticateJWT, (req, res) => {
 const DRIVE_TIMEOUT_MS = 20000;
 const DRIVE_TIMEOUT_ERR = 'Google Drive Anfrage hat das Zeitlimit überschritten';
 
+// Google Drive Fehler klassifizieren, damit Frontend konkrete Hinweise anzeigen kann
+function classifyDriveError(error) {
+  const code = error.code || error.status || (error.response && error.response.status);
+  const message = (error.message || '').toLowerCase();
+  const details = error.errors && error.errors[0] && error.errors[0].message ? error.errors[0].message.toLowerCase() : '';
+
+  // 401 / unauthenticated -> Token abgelaufen oder ungültig
+  if (code === 401 || message.includes('invalid credentials') || message.includes('unauthorized') || details.includes('invalid credentials')) {
+    return {
+      type: 'AUTH_EXPIRED',
+      status: 401,
+      userMessage: 'Google-Token abgelaufen. Bitte abmelden und neu mit Google einloggen.'
+    };
+  }
+
+  // 403 / insufficient permissions -> Drive-Scope fehlt
+  if (code === 403 || message.includes('insufficient permission') || message.includes('forbidden') || details.includes('insufficient permission') || details.includes('does not have')) {
+    return {
+      type: 'NO_DRIVE_SCOPE',
+      status: 403,
+      userMessage: 'Keine Google-Drive Berechtigung. Bitte abmelden und neu mit Google einloggen (Drive-Zugriff erlauben).'
+    };
+  }
+
+  // 404 -> Datei nicht gefunden
+  if (code === 404) {
+    return {
+      type: 'NOT_FOUND',
+      status: 404,
+      userMessage: 'Drive-Datei nicht gefunden.'
+    };
+  }
+
+  // 5xx Google Server-Fehler -> temporär nicht erreichbar
+  if (code >= 500 && code < 600) {
+    return {
+      type: 'DRIVE_SERVER_ERROR',
+      status: 503,
+      userMessage: 'Google Drive ist temporär nicht erreichbar. Bitte später erneut versuchen.'
+    };
+  }
+
+  // Netzwerk/Timeout
+  if (message.includes('timeout') || message.includes('etimedout') || message.includes('econnreset')) {
+    return {
+      type: 'TIMEOUT',
+      status: 503,
+      userMessage: 'Google Drive Antwort-Zeitüberschreitung. Bitte später erneut versuchen.'
+    };
+  }
+
+  return {
+    type: 'UNKNOWN',
+    status: 500,
+    userMessage: 'Drive-Synchronisation fehlgeschlagen: ' + error.message
+  };
+}
+
 // Sicheren Dateinamen aus Plan-Namen erzeugen
 function safeDriveFilename(name) {
   return (name || 'Plan')
@@ -1746,8 +1804,72 @@ app.post('/api/training-plans/sync-all-drive', authenticateJWT, async (req, res)
       plans: savedPlans
     });
   } catch (error) {
-    console.error('❌ Plan Sync Fehler:', error);
-    res.status(500).json({ error: 'Synchronisation fehlgeschlagen: ' + error.message });
+    const classified = classifyDriveError(error);
+    console.error(`❌ Plan Sync Fehler [${classified.type}]:`, error.message);
+    res.status(classified.status).json({
+      error: classified.userMessage,
+      errorType: classified.type,
+      detail: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// === GOOGLE DRIVE DIAGNOSTICS ===
+// Testet, ob die Google Drive Verbindung wirklich funktioniert (Token + Scope).
+// Gibt KEINE Secrets zurück, nur Status.
+app.get('/api/drive/test', authenticateJWT, async (req, res) => {
+  try {
+    const userId = req.user.userId || req.user.id;
+
+    // 1. Prüfen, ob überhaupt ein Token vorhanden ist
+    const hasJwtGoogleToken = !!req.user.googleAccessToken;
+    const googleTokenRow = await new Promise((resolve, reject) => {
+      db.get('SELECT google_refresh_token FROM user_tokens WHERE user_id = ?', [userId], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+    const hasRefreshToken = !!(googleTokenRow && googleTokenRow.google_refresh_token);
+
+    if (!hasJwtGoogleToken && !hasRefreshToken) {
+      return res.status(400).json({
+        connected: false,
+        errorType: 'NO_TOKEN',
+        error: 'Kein Google-Token vorhanden. Bitte mit Google einloggen.'
+      });
+    }
+
+    // 2. Gültiges Access Token holen
+    const accessToken = await getDriveAccessToken(userId, req.user.googleAccessToken);
+    if (!accessToken) {
+      return res.status(401).json({
+        connected: false,
+        errorType: 'AUTH_EXPIRED',
+        error: 'Google-Token konnte nicht erneuert werden. Bitte abmelden und neu mit Google einloggen.'
+      });
+    }
+
+    // 3. Drive API testen (about.get braucht Drive-Scope)
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({ access_token: accessToken });
+    const drive = google.drive({ version: 'v3', auth: oauth2Client });
+
+    await drive.about.get({ fields: 'user(displayName)' });
+
+    res.json({
+      connected: true,
+      message: 'Google Drive Verbindung OK',
+      source: hasRefreshToken ? 'refresh_token' : 'jwt_access_token'
+    });
+  } catch (error) {
+    const classified = classifyDriveError(error);
+    console.error(`❌ Drive Test Fehler [${classified.type}]:`, error.message);
+    res.status(classified.status).json({
+      connected: false,
+      errorType: classified.type,
+      error: classified.userMessage,
+      detail: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -2571,7 +2693,7 @@ initDatabase()
     server = app.listen(PORT, () => {
       console.log(`🔒 IronCoach Server läuft auf http://localhost:${PORT}`);
       console.log(`📊 Umgebung: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`📦 Version: 1.2.9 | Standardübungen: 78`);
+      console.log(`📦 Version: 1.3.1 | Standardübungen: 78`);
       console.log(`🏥 Health-Check: http://localhost:${PORT}/api/health`);
     });
 

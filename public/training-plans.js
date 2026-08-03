@@ -699,11 +699,11 @@ async function saveCurrentPlan() {
             const syncResult = await syncRes.json();
             if (syncRes.ok) {
                 updateSyncStatus('✅ Gespeichert & ' + (syncResult.savedCount || 1) + ' Plan' + ((syncResult.savedCount || 1) > 1 ? 'e' : '') + ' in Google Drive synchronisiert');
-            } else if (syncRes.status >= 500) {
-                updateSyncStatus('✅ Lokal gespeichert (Drive-Server temporär nicht erreichbar)');
-                console.warn('Drive-Sync Server-Fehler:', syncResult.error || syncRes.statusText);
             } else {
-                updateSyncStatus('✅ Lokal gespeichert (Drive: ' + (syncResult.error || 'nicht verfügbar') + ')');
+                // Server liefert jetzt konkrete Fehlermeldungen (401/403/etc.)
+                const driveError = syncResult.error || 'nicht verfügbar';
+                updateSyncStatus('✅ Lokal gespeichert (Drive: ' + driveError + ')');
+                console.warn('Drive-Sync Fehler [' + (syncResult.errorType || syncRes.status) + ']:', driveError);
             }
         } catch (syncErr) {
             if (syncErr.name === 'AbortError') {

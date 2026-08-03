@@ -417,6 +417,43 @@ async function importBackup() {
     }
 }
 
+// Google Drive Verbindung testen (zeigt konkreten Fehler, z. B. fehlender Scope)
+async function testDriveConnection() {
+    const resultEl = document.getElementById('backup-result');
+    resultEl.style.display = 'block';
+    resultEl.style.background = 'rgba(0,212,255,0.1)';
+    resultEl.style.border = '1px solid rgba(0,212,255,0.3)';
+    resultEl.style.color = '#00d4ff';
+    resultEl.textContent = '☁️ Teste Google Drive Verbindung...';
+
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('Nicht eingeloggt.');
+        }
+
+        const res = await fetch('/api/drive/test', {
+            headers: { Authorization: 'Bearer ' + token }
+        });
+        const data = await res.json();
+
+        if (res.ok && data.connected) {
+            resultEl.style.background = 'rgba(100,200,100,0.15)';
+            resultEl.style.border = '1px solid rgba(100,200,100,0.4)';
+            resultEl.style.color = '#6c6';
+            resultEl.textContent = '✅ ' + data.message;
+        } else {
+            throw new Error(data.error || 'Drive-Test fehlgeschlagen');
+        }
+    } catch (err) {
+        console.error('❌ Drive-Test Fehler:', err);
+        resultEl.style.background = 'rgba(255,50,50,0.2)';
+        resultEl.style.border = '1px solid rgba(255,50,50,0.5)';
+        resultEl.style.color = '#ff6666';
+        resultEl.textContent = '❌ ' + err.message + ' → Bitte abmelden und neu mit Google einloggen (Drive-Zugriff erlauben).';
+    }
+}
+
 // Tab switching
 function showTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
