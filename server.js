@@ -305,6 +305,23 @@ async function revokeJwtRefreshToken(userId) {
   });
 }
 
+// Google Refresh Token sicher in DB speichern.
+// WICHTIG: jwt_refresh_token bleibt erhalten, damit automatische JWT-Verlängerung
+// weiter funktioniert, wenn sich ein User nachträglich mit Google verknüpft.
+async function storeGoogleRefreshToken(userId, refreshToken) {
+  if (!refreshToken) return;
+  try {
+    const existing = await getAsync('SELECT jwt_refresh_token FROM user_tokens WHERE user_id = ?', [userId]);
+    await runAsync(
+      'INSERT OR REPLACE INTO user_tokens (user_id, google_refresh_token, jwt_refresh_token, updated_at) VALUES (?, ?, ?, datetime("now"))',
+      [userId, refreshToken, existing ? existing.jwt_refresh_token : null]
+    );
+    console.log('✅ Google Refresh Token gespeichert für User:', userId);
+  } catch (err) {
+    console.error('❌ Fehler beim Speichern des Google Refresh Tokens:', err.message);
+  }
+}
+
 // WICHTIG: Hilfsfunktion zum Erneuern des Google Access Tokens
 async function refreshGoogleAccessToken(userId) {
   return new Promise((resolve, reject) => {
@@ -385,8 +402,9 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     return `http://localhost:${PORT}`;
   };
 
-  const dynamicCallbackURL = `${getBaseUrl()}/auth/google/callback`;
-  const callbackURL = process.env.GOOGLE_CALLBACK_URL || dynamicCallbackURL;
+  // Konsistente Callback-URL: Render-URL hat immer Vorrang, damit
+  // GOOGLE_CALLBACK_URL nicht aus Versehen localhost auf Render setzt.
+  const callbackURL = getGoogleCallbackURL();
   console.log('🔑 Google OAuth Callback URL:', callbackURL);
   if (process.env.RENDER_EXTERNAL_URL) {
     console.log('   (aus RENDER_EXTERNAL_URL, weil auf Render deployed)');
@@ -395,12 +413,12 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   } else {
     console.log('   (Fallback für lokale Entwicklung)');
   }
-  
+
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: callbackURL
-  }, (accessToken, refreshToken, profile, done) => {
+  }, async (accessToken, refreshToken, profile, done) => {
     const email = profile.emails[0].value;
     const googleId = profile.id;
     const displayName = profile.displayName;
@@ -408,48 +426,36 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     // Tokens für Drive-API speichern
     const authInfo = { accessToken, refreshToken };
 
-    db.get('SELECT * FROM users WHERE google_id = ? OR email = ?', [googleId, email], (err, user) => {
+    db.get('SELECT * FROM users WHERE google_id = ? OR email = ?', [googleId, email], async (err, user) => {
       if (err) return done(err);
-      
+
       if (user) {
         // Update google_id falls nötig
         if (!user.google_id) {
           db.run('UPDATE users SET google_id = ? WHERE id = ?', [googleId, user.id]);
         }
         
-        // WICHTIG: Refresh Token speichern für automatische Erneuerung
-        if (refreshToken) {
-          db.run(
-            'INSERT OR REPLACE INTO user_tokens (user_id, google_refresh_token, updated_at) VALUES (?, ?, datetime("now"))',
-            [user.id, refreshToken],
-            (err) => {
-              if (err) console.error('❌ Fehler beim Speichern des Refresh Tokens:', err.message);
-              else console.log('✅ Refresh Token gespeichert für User:', user.id);
-            }
-          );
+        // WICHTIG: Refresh Token sicher speichern (jwt_refresh_token erhalten)
+        await storeGoogleRefreshToken(user.id, refreshToken);
+        if (!refreshToken) {
+          console.warn('⚠️ Google lieferte kein Refresh-Token für bestehenden User:', user.id);
         }
-        
+
         return done(null, user, authInfo);
       }
       
       // Neuen User erstellen
-      db.run('INSERT INTO users (email, google_id, display_name) VALUES (?, ?, ?)', 
-        [email, googleId, displayName], function(err) {
+      db.run('INSERT INTO users (email, google_id, display_name) VALUES (?, ?, ?)',
+        [email, googleId, displayName], async function(err) {
         if (err) return done(err);
         const newUserId = this.lastID;
-        
-        // WICHTIG: Refresh Token für neuen User speichern
-        if (refreshToken) {
-          db.run(
-            'INSERT INTO user_tokens (user_id, google_refresh_token, updated_at) VALUES (?, ?, datetime("now"))',
-            [newUserId, refreshToken],
-            (err) => {
-              if (err) console.error('❌ Fehler beim Speichern des Refresh Tokens:', err.message);
-              else console.log('✅ Refresh Token gespeichert für neuen User:', newUserId);
-            }
-          );
+
+        // WICHTIG: Refresh Token sicher für neuen User speichern
+        await storeGoogleRefreshToken(newUserId, refreshToken);
+        if (!refreshToken) {
+          console.warn('⚠️ Google lieferte kein Refresh-Token für neuen User:', newUserId, '- Drive-Zugriff kann später ablaufen');
         }
-        
+
         // Standardübungen und Default-Trainingsplan erstellen
         seedDefaultExercises(newUserId);
         seedDefaultTrainingPlan(newUserId);
@@ -773,16 +779,10 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
           }
 
           try {
-            // WICHTIG: Google-Refresh-Token in DB speichern wenn vorhanden
-            if (authInfo && authInfo.refreshToken) {
-              db.run(
-                'INSERT OR REPLACE INTO user_tokens (user_id, google_refresh_token, updated_at) VALUES (?, ?, datetime("now"))',
-                [user.id, authInfo.refreshToken],
-                (dbErr) => {
-                  if (dbErr) console.error('❌ Fehler beim Speichern des Refresh Tokens:', dbErr.message);
-                  else console.log('✅ Refresh Token in DB gespeichert für User:', user.id);
-                }
-              );
+            // WICHTIG: Google-Refresh-Token in DB speichern (jwt_refresh_token erhalten)
+            await storeGoogleRefreshToken(user.id, authInfo?.refreshToken);
+            if (!authInfo?.refreshToken) {
+              console.warn('⚠️ Google lieferte kein Refresh-Token im Callback für User:', user.id, '- bestehendes Token in DB bleibt erhalten');
             }
 
             // Google Tokens für Drive-Backup in JWT speichern
@@ -823,7 +823,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     app: 'IronCoach',
-    version: '1.3.2',
+    version: '1.3.3',
     defaultExerciseCount: 78,
     commit: 'fix-drive-token-refresh',
     timestamp: new Date().toISOString(),
@@ -2695,7 +2695,7 @@ initDatabase()
     server = app.listen(PORT, () => {
       console.log(`🔒 IronCoach Server läuft auf http://localhost:${PORT}`);
       console.log(`📊 Umgebung: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`📦 Version: 1.3.2 | Standardübungen: 78`);
+      console.log(`📦 Version: 1.3.3 | Standardübungen: 78`);
       console.log(`🏥 Health-Check: http://localhost:${PORT}/api/health`);
     });
 
