@@ -70,7 +70,26 @@ if (urlToken) {
 // Auth Check
 const token = localStorage.getItem('token');
 if (!token && !window.location.pathname.includes('login')) {
-    window.location.href = '/login.html';
+    // Prüfen, ob der Server im No-Auth-Modus läuft (lokal/Tailnet):
+    // Dann kein Login nötig – Platzhalter-Token + User setzen und neu laden.
+    (async () => {
+        try {
+            const res = await fetch('/api/auth/status');
+            const status = await res.json();
+            if (status.authDisabled && status.autoLoginUser) {
+                localStorage.setItem('token', 'no-auth');
+                localStorage.setItem('user', JSON.stringify({
+                    email: status.autoLoginUser.email,
+                    displayName: status.autoLoginUser.displayName
+                }));
+                window.location.reload();
+            } else {
+                window.location.href = '/login.html';
+            }
+        } catch (err) {
+            window.location.href = '/login.html';
+        }
+    })();
 }
 
 // Hilfsfunktion: Access Token via Refresh Token erneuern
@@ -274,7 +293,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         await loadExercises();
     }
     
-    loadWorkouts();
+    await loadWorkouts();
+
+    // === Render-Wipe-Schutz / Auto-Restore ===
+    // Wenn Google verknüpft ist, aber lokal 0 Workouts vorliegen (z. B. nach
+    // Server-Neustart auf Render Free: ephemere Disk = DB geleert), wird das
+    // neueste Google-Drive-Backup automatisch ins AKTUELLE Konto zusammengeführt.
+    // onlyIfEmpty = Duplikat-Schutz: es wird nur gemerged, wenn wirklich nichts da ist.
+    if (window.googleLinked && workouts.length === 0 && !sessionStorage.getItem('driveMergeAttempted')) {
+        sessionStorage.setItem('driveMergeAttempted', 'true');
+        console.log('🔄 Lokal keine Workouts – prüfe Google-Drive-Backup (Merge-Restore)...');
+        try {
+            const res = await apiFetch('/api/restore/drive/merge', {
+                method: 'POST',
+                body: JSON.stringify({ onlyIfEmpty: true })
+            });
+            if (res && res.ok) {
+                const data = await res.json();
+                if (data.success) {
+                    console.log('✅ Merge-Restore:', data.importedWorkouts, 'Workouts aus', data.backupFile);
+                    await loadExercises();
+                    await loadWorkouts();
+                } else {
+                    console.log('ℹ️ Merge-Restore übersprungen:', data.message);
+                }
+            }
+        } catch (err) {
+            console.log('ℹ️ Merge-Restore nicht möglich:', err.message);
+        }
+    }
+
     loadStats();
     
     // Set today's date
@@ -318,6 +366,7 @@ function logout() {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     sessionStorage.removeItem('restoreAttempted'); // WICHTIG: Reset für nächsten Login
+    sessionStorage.removeItem('driveMergeAttempted'); // Reset für nächsten Login
     window.location.href = '/login.html';
 }
 
@@ -410,6 +459,72 @@ async function importBackup() {
 
     } catch (err) {
         console.error('❌ Backup-Import Fehler:', err);
+        resultEl.style.background = 'rgba(255,50,50,0.2)';
+        resultEl.style.border = '1px solid rgba(255,50,50,0.5)';
+        resultEl.style.color = '#ff6666';
+        resultEl.textContent = '❌ Fehler: ' + err.message;
+    }
+}
+
+// Neuestes Google-Drive-Backup ins aktuelle Konto zusammenführen.
+// Manueller Gegenpart zum automatischen Merge-Restore beim App-Start.
+async function restoreFromDriveMerge() {
+    const resultEl = document.getElementById('backup-result');
+    if (!resultEl) return;
+
+    // Sicherheitsabfrage: Merge fügt Workouts/Pläne HINZU (kein Überschreiben).
+    // Bei versehentlichem Doppelklick gäbe es Duplikate.
+    if (!confirm('Neuestes Google-Drive-Backup in dein aktuelles Konto zusammenführen?\n\nVorhandene Übungen werden wiederverwendet, Workouts und Trainingspläne werden HINZUGEFÜGT. Bei erneutem Ausführen können Workouts doppelt erscheinen.')) {
+        return;
+    }
+
+    resultEl.style.display = 'block';
+    resultEl.style.background = 'rgba(0,212,255,0.1)';
+    resultEl.style.border = '1px solid rgba(0,212,255,0.3)';
+    resultEl.style.color = '#00d4ff';
+    resultEl.textContent = '🔄 Lade neuestes Backup aus Google Drive und führe es zusammen...';
+
+    try {
+        const res = await apiFetch('/api/restore/drive/merge', {
+            method: 'POST',
+            body: JSON.stringify({ onlyIfEmpty: false })
+        });
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+            throw new Error(data.error || 'Restore fehlgeschlagen');
+        }
+
+        if (!data.success) {
+            resultEl.style.background = 'rgba(255,200,100,0.15)';
+            resultEl.style.border = '1px solid rgba(255,200,100,0.4)';
+            resultEl.style.color = '#fc6';
+            resultEl.textContent = 'ℹ️ ' + (data.message || 'Kein Backup gefunden');
+            return;
+        }
+
+        resultEl.style.background = 'rgba(100,200,100,0.15)';
+        resultEl.style.border = '1px solid rgba(100,200,100,0.4)';
+        resultEl.style.color = '#6c6';
+        resultEl.innerHTML = `
+            ✅ Drive-Backup zusammengeführt!
+            <br>📁 Backup: ${data.backupFile || '-'} (Stand ${data.backupModified ? new Date(data.backupModified).toLocaleString('de-DE') : '-'})
+            <br>📦 ${data.totalWorkoutsInBackup || 0} Workouts im Backup
+            <br>✔️ ${data.importedWorkouts || 0} Workouts importiert
+            <br>🏋️ ${data.createdExercises || 0} fehlende Übungen neu angelegt
+            <br>📋 ${data.importedPlans || 0} Trainingspläne importiert
+            ${data.skippedWorkouts ? `<br>⚠️ ${data.skippedWorkouts} Workouts übersprungen` : ''}
+        `;
+
+        // Daten neu laden
+        await loadExercises();
+        await loadWorkouts();
+        await loadStats();
+        if (typeof loadTrainingPlansList === 'function') {
+            await loadTrainingPlansList();
+        }
+    } catch (err) {
+        console.error('❌ Drive-Merge-Restore Fehler:', err);
         resultEl.style.background = 'rgba(255,50,50,0.2)';
         resultEl.style.border = '1px solid rgba(255,50,50,0.5)';
         resultEl.style.color = '#ff6666';

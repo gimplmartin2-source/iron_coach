@@ -29,6 +29,13 @@ const GOOGLE_DRIVE_ENABLED = process.env.GOOGLE_DRIVE_ENABLED !== 'false';
 const TOKEN_SHORT = '24h';      // Standard-Session
 const TOKEN_LONG = '365d';      // "Eingeloggt bleiben" (1 Jahr)
 
+// No-Auth-Modus (NUR für die lokale/Tailnet-Instanz!): AUTH_DISABLED=1 umgeht
+// den Login komplett – jede Anfrage läuft automatisch als der Default-User.
+// Aus Sicherheitsgründen bindet der Server dann ausschließlich an 127.0.0.1,
+// Erreichbarkeit also nur lokal am PC oder über Tailscale serve (HTTPS).
+const AUTH_DISABLED = process.env.AUTH_DISABLED === '1';
+let noAuthUser = null; // wird nach DB-Init mit dem Default-User befüllt
+
 // Security Middleware
 app.use(helmet({
   contentSecurityPolicy: false
@@ -245,8 +252,29 @@ async function initDatabase() {
   });
 }
 
+// No-Auth-Modus: Default-User ermitteln (AUTH_DISABLED_USER_ID oder erster User in DB).
+// Wird nach der DB-Initialisierung aufgerufen, bevor der Server Verbindungen annimmt.
+async function resolveNoAuthUser() {
+  if (!AUTH_DISABLED) return;
+  const envId = parseInt(process.env.AUTH_DISABLED_USER_ID, 10);
+  const row = envId
+    ? await getAsync('SELECT id, email, display_name FROM users WHERE id = ?', [envId])
+    : await getAsync('SELECT id, email, display_name FROM users ORDER BY id LIMIT 1');
+  if (!row) {
+    console.error('❌ AUTH_DISABLED aktiv, aber kein User in der DB gefunden – Login bleibt aktiv!');
+    return;
+  }
+  noAuthUser = row;
+  console.log(`🔓 No-Auth-Modus aktiv: Anfragen laufen automatisch als User ${row.id} (${row.email || row.display_name || 'unbekannt'})`);
+}
+
 // JWT Middleware
 const authenticateJWT = (req, res, next) => {
+  // No-Auth-Modus: Login komplett umgangen, Anfrage läuft als Default-User.
+  if (AUTH_DISABLED && noAuthUser) {
+    req.user = { id: noAuthUser.id, userId: noAuthUser.id };
+    return next();
+  }
   const authHeader = req.headers.authorization;
   if (authHeader) {
     const token = authHeader.split(' ')[1];
@@ -823,7 +851,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     app: 'IronCoach',
-    version: '1.3.3',
+    version: '1.3.4',
     defaultExerciseCount: 78,
     commit: 'fix-drive-token-refresh',
     timestamp: new Date().toISOString(),
@@ -847,6 +875,11 @@ app.get('/api/auth/status', (req, res) => {
   const callbackURL = getGoogleCallbackURL();
   const clientId = process.env.GOOGLE_CLIENT_ID || '';
   res.json({
+    // No-Auth-Modus (lokal/Tailnet): Frontend kann Login dann komplett überspringen
+    authDisabled: AUTH_DISABLED,
+    autoLoginUser: noAuthUser
+      ? { id: noAuthUser.id, email: noAuthUser.email, displayName: noAuthUser.display_name || noAuthUser.email }
+      : null,
     googleOAuthEnabled: googleEnabled,
     callbackURL: callbackURL,
     renderExternalUrl: process.env.RENDER_EXTERNAL_URL || null,
@@ -2381,25 +2414,17 @@ async function attachBackup(tempDbPath) {
   });
 }
 
-// Backup-Import mit Merge: Fehlende Uebungen anlegen, Workouts remappen
-app.post('/api/import/merge-backup', authenticateJWT, async (req, res) => {
-  const userId = req.user.userId || req.user.id;
-  const { backupBase64 } = req.body;
-
-  if (!backupBase64) {
-    return res.status(400).json({ error: 'Kein Backup-Daten erhalten' });
-  }
-
-  let tempPath = null;
+// Kernlogik des Backup-Merge: Liest eine Backup-DB vom angegebenen Pfad ein,
+// legt fehlende Übungen für den User an, remapped Workouts und importiert
+// Trainingspläne. Wird genutzt von:
+//  - POST /api/import/merge-backup  (Upload einer .db-Datei)
+//  - POST /api/restore/drive/merge  (Restore aus Google Drive nach Server-Wipe)
+// Die Temp-Datei wird in jedem Fall (auch bei Fehler) aufgeräumt.
+async function mergeBackupIntoUser(userId, tempPath) {
   let backupDb = null;
   let fkDisabled = false;
 
   try {
-    // Temporaeres Backup aus Base64 erzeugen
-    const buffer = Buffer.from(backupBase64, 'base64');
-    tempPath = path.join(BACKUPS_DIR, `import_temp_${userId}_${Date.now()}.db`);
-    fs.writeFileSync(tempPath, buffer);
-
     backupDb = await attachBackup(tempPath);
 
     const exerciseCols = await getColumns(backupDb, 'exercises');
@@ -2589,6 +2614,7 @@ app.post('/api/import/merge-backup', authenticateJWT, async (req, res) => {
     }
 
     backupDb.close();
+    backupDb = null;
 
     // Temporaere Datei aufraeumen
     if (tempPath && fs.existsSync(tempPath)) {
@@ -2600,8 +2626,7 @@ app.post('/api/import/merge-backup', authenticateJWT, async (req, res) => {
     const localBackupPath = path.join(BACKUPS_DIR, `ironcoach_backup_user${userId}_${timestamp}.db`);
     fs.copyFileSync(DB_PATH, localBackupPath);
 
-    res.json({
-      success: true,
+    return {
       message: 'Backup erfolgreich importiert und zusammengefuehrt',
       importedWorkouts,
       createdExercises,
@@ -2615,13 +2640,14 @@ app.post('/api/import/merge-backup', authenticateJWT, async (req, res) => {
       failedPlans,
       totalPlansInBackup,
       localBackupPath: path.basename(localBackupPath)
-    });
+    };
 
   } catch (error) {
-    console.error('❌ Merge-Backup Fehler:', error);
-    res.status(500).json({ error: 'Import fehlgeschlagen: ' + error.message });
+    throw error;
   } finally {
-    if (backupDb) backupDb.close();
+    if (backupDb) {
+      try { backupDb.close(); } catch (_) {}
+    }
     if (tempPath && fs.existsSync(tempPath)) {
       try { fs.unlinkSync(tempPath); } catch (_) {}
     }
@@ -2632,6 +2658,135 @@ app.post('/api/import/merge-backup', authenticateJWT, async (req, res) => {
         console.warn('⚠️ Fremdschluessel-Checks konnten nicht wieder aktiviert werden:', fkErr.message);
       }
     }
+  }
+}
+
+// Backup-Import mit Merge: Fehlende Uebungen anlegen, Workouts remappen
+app.post('/api/import/merge-backup', authenticateJWT, async (req, res) => {
+  const userId = req.user.userId || req.user.id;
+  const { backupBase64 } = req.body;
+
+  if (!backupBase64) {
+    return res.status(400).json({ error: 'Kein Backup-Daten erhalten' });
+  }
+
+  try {
+    // Temporaeres Backup aus Base64 erzeugen
+    const buffer = Buffer.from(backupBase64, 'base64');
+    const tempPath = path.join(BACKUPS_DIR, `import_temp_${userId}_${Date.now()}.db`);
+    fs.writeFileSync(tempPath, buffer);
+
+    const stats = await mergeBackupIntoUser(userId, tempPath);
+    res.json({ success: true, ...stats });
+  } catch (error) {
+    console.error('❌ Merge-Backup Fehler:', error);
+    res.status(500).json({ error: 'Import fehlgeschlagen: ' + error.message });
+  }
+});
+
+// Restore-Merge aus Google Drive: Laedt das neueste Backup (ironcoach_backup_user*.db)
+// und fuehrt es in den AKTUELLEN User zusammen - Workouts/Übungen/Pläne werden also
+// dem aktuell angemeldeten Konto zugeordnet, egal welche User-ID das Backup hatte.
+// Das ist der robuste Weg zurück nach einem Server-Wipe (z. B. Render Free mit
+// ephemere Disk): der Server vergibt danach neue User-IDs, deshalb scheitert das
+// klassische per-User-Restore (POST /api/restore/drive) an der Datei-Namensbindung.
+// Duplikat-Schutz: mit onlyIfEmpty:true wird nur gemerged, wenn der User noch keine
+// Workouts hat (verhindert doppelte Einträge bei versehentlichem erneutem Aufruf).
+app.post('/api/restore/drive/merge', authenticateJWT, async (req, res) => {
+  const userId = req.user.userId || req.user.id;
+  let tempPath = null;
+
+  try {
+    let accessToken = await getDriveAccessToken(userId, req.user.googleAccessToken);
+
+    if (!accessToken) {
+      return res.status(400).json({ error: 'Kein Google-Token. Bitte mit Google anmelden, um aus Drive wiederherzustellen.' });
+    }
+
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({ access_token: accessToken });
+    const drive = google.drive({ version: 'v3', auth: oauth2Client });
+
+    // Backup-Ordner suchen (mit Token-Refresh-Fallback)
+    let folderResponse;
+    try {
+      folderResponse = await drive.files.list({
+        q: "name='IronCoach-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+        fields: 'files(id, name)'
+      });
+    } catch (err) {
+      if (err.code === 401 || err.response?.status === 401) {
+        accessToken = await refreshGoogleAccessToken(userId);
+        if (!accessToken) {
+          return res.status(401).json({ error: 'Token abgelaufen. Bitte neu einloggen.' });
+        }
+        oauth2Client.setCredentials({ access_token: accessToken });
+        folderResponse = await drive.files.list({
+          q: "name='IronCoach-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+          fields: 'files(id, name)'
+        });
+      } else {
+        throw err;
+      }
+    }
+
+    if (!folderResponse.data.files || folderResponse.data.files.length === 0) {
+      return res.json({ success: false, message: 'Kein Backup-Ordner in Google Drive gefunden' });
+    }
+    const folderId = folderResponse.data.files[0].id;
+
+    // Neuestes Backup suchen: bevorzugt das des aktuellen Users,
+    // sonst das neueste aller Backups (Server-Wipe vergibt neue User-IDs).
+    const filesResponse = await drive.files.list({
+      q: `name contains 'ironcoach_backup_user' and '${folderId}' in parents and trashed=false`,
+      fields: 'files(id, name, modifiedTime)',
+      orderBy: 'modifiedTime desc',
+      pageSize: 50
+    });
+    const files = (filesResponse.data && filesResponse.data.files) || [];
+    if (files.length === 0) {
+      return res.json({ success: false, message: 'Keine Backup-Datei in Google Drive gefunden' });
+    }
+    const ownFile = files.find(f => f.name === `ironcoach_backup_user${userId}.db`);
+    const chosen = ownFile || files[0]; // Liste ist nach modifiedTime desc sortiert
+
+    // Duplikat-Schutz (optional): nur mergen, wenn der User noch KEINE Workouts hat
+    if (req.body && req.body.onlyIfEmpty) {
+      const workoutRow = await getAsync('SELECT COUNT(*) as count FROM workouts WHERE user_id = ?', [userId]);
+      if (workoutRow && workoutRow.count > 0) {
+        console.log('ℹ️ Drive-Merge abgebrochen: User hat bereits', workoutRow.count, 'Workouts (Duplikat-Schutz)');
+        return res.json({ success: false, message: 'Abgebrochen: Es sind bereits Workouts vorhanden (Duplikat-Schutz)' });
+      }
+    }
+
+    console.log(`📥 Drive-Merge-Restore: lade ${chosen.name} (Stand ${chosen.modifiedTime}) für User ${userId}...`);
+
+    // Backup herunterladen
+    const response = await drive.files.get({ fileId: chosen.id, alt: 'media' }, { responseType: 'stream' });
+    tempPath = path.join(BACKUPS_DIR, `drive_restore_${userId}_${Date.now()}.db`);
+    const dest = fs.createWriteStream(tempPath);
+    response.data.pipe(dest);
+    await new Promise((resolve, reject) => {
+      dest.on('finish', resolve);
+      dest.on('error', reject);
+    });
+
+    const stats = await mergeBackupIntoUser(userId, tempPath);
+    tempPath = null; // wurde in der Funktion aufgeraeumt
+
+    res.json({
+      success: true,
+      message: 'Backup aus Google Drive in aktuelles Konto zusammengeführt',
+      backupFile: chosen.name,
+      backupModified: chosen.modifiedTime,
+      ...stats
+    });
+  } catch (error) {
+    console.error('❌ Drive-Merge-Restore Fehler:', error);
+    if (tempPath && fs.existsSync(tempPath)) {
+      try { fs.unlinkSync(tempPath); } catch (_) {}
+    }
+    res.status(500).json({ error: 'Restore fehlgeschlagen: ' + error.message });
   }
 });
 
@@ -2691,11 +2846,15 @@ process.on('unhandledRejection', (reason, promise) => {
 // Server starten – erst nach erfolgreicher Datenbank-Initialisierung
 let server = null;
 initDatabase()
-  .then(() => {
-    server = app.listen(PORT, () => {
+  .then(async () => {
+    await resolveNoAuthUser();
+    // Im No-Auth-Modus NUR an localhost binden – Erreichbarkeit ausschließlich
+    // am PC selbst oder über Tailscale serve, nicht im Netzwerk.
+    const listenHost = AUTH_DISABLED ? '127.0.0.1' : undefined;
+    server = app.listen(PORT, listenHost, () => {
       console.log(`🔒 IronCoach Server läuft auf http://localhost:${PORT}`);
       console.log(`📊 Umgebung: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`📦 Version: 1.3.3 | Standardübungen: 78`);
+      console.log(`📦 Version: 1.3.4 | Standardübungen: 78`);
       console.log(`🏥 Health-Check: http://localhost:${PORT}/api/health`);
     });
 

@@ -201,8 +201,18 @@
             }
             window.location.href = '/'; // Redirect zur App
         } else {
-            // Normaler Seitenaufbau
-            initPage();
+            // No-Auth-Modus (lokal/Tailnet)? Dann braucht es keinen Login -> direkt in die App.
+            // Sonst normaler Seitenaufbau.
+            fetch('/api/auth/status')
+                .then(res => res.json())
+                .then(status => {
+                    if (status.authDisabled) {
+                        window.location.href = '/';
+                    } else {
+                        initPage();
+                    }
+                })
+                .catch(() => initPage());
         }
         
         function initPage() {
