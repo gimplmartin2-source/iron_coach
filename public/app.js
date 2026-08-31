@@ -246,7 +246,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = '/login.html';
         return;
     }
-    
+
+    // Drive-Verknüpfung: Rückmeldungen vom Google-OAuth-Callback anzeigen
+    // (No-Auth-Modus lokal leitet nach /?drive_linked=1 / ?drive_error=... zurück)
+    const driveParams = new URLSearchParams(window.location.search);
+    const driveLinkedFlag = driveParams.get('drive_linked') === '1';
+    const driveErrorMsg = driveParams.get('drive_error');
+    const driveWarnMsg = driveParams.get('drive_warn');
+    if (driveLinkedFlag || driveErrorMsg || driveWarnMsg) {
+        // URL säubern, damit ein Reload die Meldung nicht erneut zeigt
+        window.history.replaceState({}, document.title, window.location.pathname);
+        if (driveErrorMsg) {
+            showDriveBanner('error', '❌ Drive-Verknüpfung fehlgeschlagen: ' + driveErrorMsg);
+        } else if (driveLinkedFlag) {
+            showDriveBanner(driveWarnMsg ? 'warn' : 'ok',
+                driveWarnMsg ? '⚠️ Verknüpft, aber: ' + driveWarnMsg
+                             : '✅ Google Drive erfolgreich verknüpft – Backups & Restore sind jetzt aktiv.');
+            // Verbindung direkt gegenprüfen und Backup-Modal öffnen
+            setTimeout(() => { openBackupModal(); testDriveConnection(); }, 800);
+        } else {
+            showDriveBanner('warn', '⚠️ ' + driveWarnMsg);
+        }
+    }
     // WICHTIG: Reihenfolge!
     // 1. Zuerst Restore (bringt bereinigte DB mit UNIQUE Constraint)
     // 2. DANN fallback zu Standard-Übungen wenn kein Backup
@@ -532,6 +553,30 @@ async function restoreFromDriveMerge() {
     }
 }
 
+// Google Drive verbinden (OAuth-Flow starten – auch im No-Auth-Modus lokal nutzbar,
+// um den Google-Refresh-Token für Backup/Merge zu hinterlegen)
+function connectGoogleDrive() {
+    window.location.href = '/auth/google';
+}
+
+// Banner für Drive-Verknüpfungs-Meldungen (ok/warn/error), verschwindet nach 12s
+function showDriveBanner(type, text) {
+    const colors = {
+        ok:    { bg: 'rgba(100,200,100,0.2)', border: 'rgba(100,200,100,0.6)', color: '#6c6' },
+        warn:  { bg: 'rgba(255,200,100,0.2)', border: 'rgba(255,200,100,0.6)', color: '#fc6' },
+        error: { bg: 'rgba(255,50,50,0.2)',   border: 'rgba(255,50,50,0.6)',   color: '#ff6666' }
+    };
+    const c = colors[type] || colors.warn;
+    const banner = document.createElement('div');
+    banner.id = 'drive-link-banner';
+    banner.style.cssText = `position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:5000;
+        max-width:90vw;padding:14px 20px;border-radius:10px;font-size:0.95rem;text-align:center;
+        background:${c.bg};border:1px solid ${c.border};color:${c.color};box-shadow:0 4px 20px rgba(0,0,0,0.5);`;
+    banner.textContent = text;
+    document.body.appendChild(banner);
+    setTimeout(() => { if (banner.parentNode) banner.remove(); }, 12000);
+}
+
 // Google Drive Verbindung testen (zeigt konkreten Fehler, z. B. fehlender Scope)
 async function testDriveConnection() {
     const resultEl = document.getElementById('backup-result');
@@ -542,14 +587,9 @@ async function testDriveConnection() {
     resultEl.textContent = '☁️ Teste Google Drive Verbindung...';
 
     try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            throw new Error('Nicht eingeloggt.');
-        }
-
-        const res = await fetch('/api/drive/test', {
-            headers: { Authorization: 'Bearer ' + token }
-        });
+        // apiFetch statt rohem fetch: funktioniert auch im No-Auth-Modus
+        // (lokal/Tailnet liegt dort kein Token im localStorage).
+        const res = await apiFetch('/api/drive/test');
         const data = await res.json();
 
         if (res.ok && data.connected) {

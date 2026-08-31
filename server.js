@@ -794,9 +794,17 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
           } else if (errMsg.includes('invalid_client') || errMsg.includes('unauthorized_client')) {
             message = 'Google Client-ID oder Client-Secret ist ungültig. Bitte Render-Umgebungsvariablen prüfen.';
           }
+          if (AUTH_DISABLED) {
+            // No-Auth-Modus (lokal/Tailnet): Fehler direkt in die App melden –
+            // login.html leitet sonst weiter und die Meldung wäre verloren.
+            return res.redirect(`/?drive_error=${encodeURIComponent(message)}`);
+          }
           return res.redirect(`/login.html?google_error=${encodeURIComponent(message)}`);
         }
         if (!user) {
+          if (AUTH_DISABLED) {
+            return res.redirect(`/?drive_error=${encodeURIComponent('Google-Login fehlgeschlagen.')}`);
+          }
           return res.redirect('/login.html?error=google-login-failed');
         }
 
@@ -811,6 +819,23 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
             await storeGoogleRefreshToken(user.id, authInfo?.refreshToken);
             if (!authInfo?.refreshToken) {
               console.warn('⚠️ Google lieferte kein Refresh-Token im Callback für User:', user.id, '- bestehendes Token in DB bleibt erhalten');
+            }
+
+            // No-Auth-Modus (lokal/Tailnet): Die App läuft fix als noAuthUser.
+            // Der Google-Login dient hier NUR der Drive-Verknüpfung – das Token
+            // muss also zum No-Auth-User passen, sonst nutzt der Drive-Zugriff
+            // später einem anderen Konto.
+            if (AUTH_DISABLED && noAuthUser) {
+              if (user.id !== noAuthUser.id) {
+                const msg = `Google-Konto (${user.email || 'unbekannt'}) passt nicht zum lokalen Konto (${noAuthUser.email}). Bitte mit ${noAuthUser.email} bei Google einloggen.`;
+                console.warn('⚠️ Drive-Verknüfung abgelehnt:', msg);
+                return res.redirect(`/?drive_error=${encodeURIComponent(msg)}`);
+              }
+              console.log('☁️ Drive-Verknüpfung im No-Auth-Modus gespeichert für User', user.id);
+              const warn = (!authInfo || !authInfo.refreshToken)
+                ? '&drive_warn=' + encodeURIComponent('Google lieferte kein neues Refresh-Token – bestehendes bleibt gespeichert.')
+                : '';
+              return res.redirect(`/?drive_linked=1${warn}`);
             }
 
             // Google Tokens für Drive-Backup in JWT speichern
@@ -851,9 +876,9 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     app: 'IronCoach',
-    version: '1.3.4',
+    version: '1.3.6',
     defaultExerciseCount: 78,
-    commit: 'fix-drive-token-refresh',
+    commit: 'local-drive-link',
     timestamp: new Date().toISOString(),
     database: 'SQLite',
     environment: process.env.NODE_ENV || 'development',
@@ -2430,6 +2455,32 @@ async function mergeBackupIntoUser(userId, tempPath) {
     const exerciseCols = await getColumns(backupDb, 'exercises');
     const workoutCols = await getColumns(backupDb, 'workouts');
 
+    // Quell-User im Backup bestimmen: der User mit den meisten Workouts
+    // (bzw. meisten Übungen als Fallback). Verhindert, dass Daten von
+    // Test-/Alt-Usern aus einem Voll-DB-Backup mit importiert werden.
+    let sourceUserId = null;
+    try {
+      const sourceRows = await new Promise((resolve, reject) => {
+        backupDb.all('SELECT user_id, COUNT(*) AS c FROM workouts GROUP BY user_id ORDER BY c DESC LIMIT 1', [], (err, rows) => err ? reject(err) : resolve(rows));
+      });
+      if (sourceRows.length && sourceRows[0].c > 0) {
+        sourceUserId = sourceRows[0].user_id;
+      }
+    } catch (_) {}
+    if (sourceUserId === null) {
+      try {
+        const sourceRows = await new Promise((resolve, reject) => {
+          backupDb.all('SELECT user_id, COUNT(*) AS c FROM exercises GROUP BY user_id ORDER BY c DESC LIMIT 1', [], (err, rows) => err ? reject(err) : resolve(rows));
+        });
+        if (sourceRows.length && sourceRows[0].c > 0) {
+          sourceUserId = sourceRows[0].user_id;
+        }
+      } catch (_) {}
+    }
+    const whereUser = sourceUserId !== null ? ' WHERE user_id = ?' : '';
+    const whereUserParams = sourceUserId !== null ? [sourceUserId] : [];
+    console.log(`ℹ️ Merge: importiere Daten des Backup-Users ${sourceUserId !== null ? sourceUserId : '(alle)'}`);
+
     // Fremdschluessel-Checks waehrend des Imports abschalten, damit
     // inkonsistente oder aeltere Backups trotzdem importiert werden koennen.
     // Wird am Ende in finally wieder eingeschaltet.
@@ -2443,7 +2494,7 @@ async function mergeBackupIntoUser(userId, tempPath) {
         .join(', ');
       const typeField = exerciseCols.includes('exercise_type') ? ', exercise_type' : ", 'strength' as exercise_type";
       const infoField = exerciseCols.includes('info') ? ', info' : ", null as info";
-      backupDb.all(`SELECT ${fields}${typeField}${infoField} FROM exercises`, [], (err, rows) => {
+      backupDb.all(`SELECT ${fields}${typeField}${infoField} FROM exercises${whereUser}`, whereUserParams, (err, rows) => {
         if (err) reject(err);
         else resolve(rows);
       });
@@ -2498,7 +2549,7 @@ async function mergeBackupIntoUser(userId, tempPath) {
       const optional = ['duration_seconds', 'rest_seconds', 'feeling', 'info', 'created_at']
         .map(f => workoutCols.includes(f) ? `, ${f}` : (f === 'duration_seconds' ? ', null as duration_seconds' : f === 'rest_seconds' ? ', null as rest_seconds' : f === 'feeling' ? ', null as feeling' : f === 'info' ? ', null as info' : ", datetime('now') as created_at"))
         .join('');
-      backupDb.all(`SELECT ${fields}${optional} FROM workouts`, [], (err, rows) => {
+      backupDb.all(`SELECT ${fields}${optional} FROM workouts${whereUser}`, whereUserParams, (err, rows) => {
         if (err) reject(err);
         else resolve(rows);
       });
@@ -2511,6 +2562,24 @@ async function mergeBackupIntoUser(userId, tempPath) {
     for (const bw of backupWorkouts) {
       const currentExerciseId = exerciseIdMap.get(bw.exercise_id);
       if (!currentExerciseId) {
+        skippedWorkouts++;
+        continue;
+      }
+
+      const workoutDate = bw.date || new Date().toISOString().split('T')[0];
+
+      // Duplikat-Schutz: identischer Eintrag (Übung+Datum+Werte) bereits
+      // vorhanden -> überspringen. Macht den Merge idempotent, damit
+      // wiederholtes Zusammenführen (z. B. täglicher Render-Sync) nichts doppelt.
+      const dupe = await getAsync(
+        `SELECT id FROM workouts
+         WHERE user_id = ? AND exercise_id = ? AND date = ?
+           AND weight = ? AND sets = ? AND reps = ?
+           AND duration_seconds IS ? AND rest_seconds IS ?
+         LIMIT 1`,
+        [userId, currentExerciseId, workoutDate, bw.weight || 0, bw.sets || 0, bw.reps || 0, bw.duration_seconds || null, bw.rest_seconds || null]
+      );
+      if (dupe) {
         skippedWorkouts++;
         continue;
       }
@@ -2528,7 +2597,7 @@ async function mergeBackupIntoUser(userId, tempPath) {
             bw.duration_seconds || null,
             bw.rest_seconds || null,
             bw.feeling || null,
-            bw.date || new Date().toISOString().split('T')[0],
+            workoutDate,
             bw.info || null,
             bw.created_at || new Date().toISOString()
           ]
@@ -2559,7 +2628,7 @@ async function mergeBackupIntoUser(userId, tempPath) {
           ]
             .map(f => planCols.includes(f.name) ? f.name : f.fallback)
             .join(', ');
-          backupDb.all(`SELECT ${fields} FROM training_plans`, [], (err, rows) => {
+          backupDb.all(`SELECT ${fields} FROM training_plans${whereUser}`, whereUserParams, (err, rows) => {
             if (err) reject(err);
             else resolve(rows);
           });
@@ -2582,6 +2651,13 @@ async function mergeBackupIntoUser(userId, tempPath) {
           try {
             let baseName = (bp.name || 'Trainingsplan').trim();
             if (!baseName) baseName = 'Trainingsplan';
+
+            // Plan mit gleichem Namen bereits vorhanden -> überspringen
+            // (idempotent: taeglicher Sync erzeugt sonst bei jedem Lauf Kopien)
+            if (currentPlanNames.has(baseName.toLowerCase())) {
+              skippedPlans++;
+              continue;
+            }
 
             let uniqueName = baseName;
             let suffix = 1;
@@ -2809,6 +2885,92 @@ app.get('/api/backup/local', authenticateJWT, (req, res) => {
   }
 });
 
+// ============================================================
+// Sync-Pull: die lokale Instanz zieht hier den Datenstand ab
+// (taeglicher geplanter Task, siehe sync_from_render.js).
+// Auth NUR über Header x-sync-token – Wert muss GOOGLE_CLIENT_SECRET
+// entsprechen (kennt nur die Render-Env und die lokale .env, steht in
+// keinem Repo/Code). Liefert einen SQLite-Snapshot der Live-DB
+// (VACUUM INTO); liegt dort nichts (z. B. Render-Wipe), wird stattdessen
+// das neueste Google-Drive-Backup gestreamt.
+// ============================================================
+app.get('/api/sync/pull', async (req, res) => {
+  const token = req.headers['x-sync-token'];
+  const expected = process.env.GOOGLE_CLIENT_SECRET;
+  try {
+    if (!expected || !token || token !== expected) {
+      return res.status(403).json({ error: 'Sync-Token ungueltig' });
+    }
+
+    let tempPath = null;
+    const workoutCount = await getAsync('SELECT COUNT(*) AS c FROM workouts');
+
+    if (workoutCount && workoutCount.c > 0) {
+      // Live-DB als saubere Ein-Datei-Snapshot exportieren
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      tempPath = path.join(BACKUPS_DIR, `sync_pull_${timestamp}.db`);
+      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+      await runAsync(`VACUUM INTO '${tempPath.replace(/\\/g, '/')}'`);
+      res.setHeader('x-sync-source', 'live-db');
+      console.log('🔄 Sync-Pull: Live-DB-Snapshot erstellt');
+    } else {
+      // Fallback: neuestes Drive-Backup laden (Server-Wipe-Szenario)
+      let tokenUser = null;
+      try {
+        tokenUser = await getAsync('SELECT user_id FROM user_tokens WHERE google_refresh_token IS NOT NULL ORDER BY updated_at DESC LIMIT 1');
+      } catch (_) {}
+      const accessToken = tokenUser ? await refreshGoogleAccessToken(tokenUser.user_id) : null;
+      if (!accessToken) {
+        return res.status(404).json({ error: 'Keine Daten und kein Google-Token vorhanden' });
+      }
+
+      const oauth2Client = new google.auth.OAuth2();
+      oauth2Client.setCredentials({ access_token: accessToken });
+      const drive = google.drive({ version: 'v3', auth: oauth2Client });
+
+      const folderResponse = await drive.files.list({
+        q: "name='IronCoach-Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+        fields: 'files(id, name)'
+      });
+      const folderId = folderResponse.data.files && folderResponse.data.files[0] && folderResponse.data.files[0].id;
+      if (!folderId) {
+        return res.status(404).json({ error: 'Kein Backup-Ordner in Google Drive gefunden' });
+      }
+
+      const filesResponse = await drive.files.list({
+        q: `name contains 'ironcoach_backup_user' and '${folderId}' in parents and trashed=false`,
+        fields: 'files(id, name, modifiedTime)',
+        orderBy: 'modifiedTime desc',
+        pageSize: 50
+      });
+      const files = (filesResponse.data && filesResponse.data.files) || [];
+      if (files.length === 0) {
+        return res.status(404).json({ error: 'Keine Backup-Datei in Google Drive gefunden' });
+      }
+
+      const chosen = files[0];
+      console.log(`🔄 Sync-Pull: lade Drive-Backup ${chosen.name} (Stand ${chosen.modifiedTime})`);
+      const response = await drive.files.get({ fileId: chosen.id, alt: 'media' }, { responseType: 'stream' });
+      tempPath = path.join(BACKUPS_DIR, `sync_pull_drive_${Date.now()}.db`);
+      const dest = fs.createWriteStream(tempPath);
+      response.data.pipe(dest);
+      await new Promise((resolve, reject) => {
+        dest.on('finish', resolve);
+        dest.on('error', reject);
+      });
+      res.setHeader('x-sync-source', 'drive-backup');
+    }
+
+    res.download(tempPath, 'ironcoach_sync_snapshot.db', (err) => {
+      if (err) console.error('❌ Sync-Pull Download Fehler:', err);
+      try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch (_) {}
+    });
+  } catch (error) {
+    console.error('❌ Sync-Pull Fehler:', error);
+    res.status(500).json({ error: 'Sync-Pull fehlgeschlagen: ' + error.message });
+  }
+});
+
 // Static Files
 const publicPath = path.join(__dirname, 'public');
 console.log('📁 Serving static files from:', publicPath);
@@ -2854,7 +3016,7 @@ initDatabase()
     server = app.listen(PORT, listenHost, () => {
       console.log(`🔒 IronCoach Server läuft auf http://localhost:${PORT}`);
       console.log(`📊 Umgebung: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`📦 Version: 1.3.4 | Standardübungen: 78`);
+      console.log(`📦 Version: 1.3.6 | Standardübungen: 78`);
       console.log(`🏥 Health-Check: http://localhost:${PORT}/api/health`);
     });
 
