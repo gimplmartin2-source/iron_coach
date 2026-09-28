@@ -846,19 +846,26 @@ function openExerciseSelector() {
     
     // Nach Muskelgruppe gruppieren (KEINE Sonderbehandlung nach Namen)
     const grouped = {};
-    
+    const FAVORITES_CATEGORY = '⭐ Favoriten';
+
     exercises.forEach(e => {
         // Nur nach muscle_group gruppieren, nicht nach Namen-Kategorien
         let category = e.muscle_group;
-        
+
         if (!grouped[category]) {
             grouped[category] = [];
         }
         grouped[category].push(e);
     });
-    
-    // Sortierreihenfolge der Muskelgruppen
-    const categoryOrder = ['Brust', 'Rücken', 'Schultern', 'Beine', 'Arme', 'Bauch', 'Ganzkörper', 'Dehnen', 'Mobilität', 'Judo', 'Core'];
+
+    // Favoriten-Gruppe: Übungen mit is_favorite kommen zusätzlich ganz nach vorne
+    const favoriteExercises = exercises.filter(e => e.is_favorite);
+    if (favoriteExercises.length > 0) {
+        grouped[FAVORITES_CATEGORY] = favoriteExercises;
+    }
+
+    // Sortierreihenfolge der Muskelgruppen (Favoriten immer zuerst)
+    const categoryOrder = [FAVORITES_CATEGORY, 'Brust', 'Rücken', 'Schultern', 'Beine', 'Arme', 'Bauch', 'Ganzkörper', 'Dehnen', 'Mobilität', 'Judo', 'Core'];
     const sortedCategories = Object.keys(grouped).sort((a, b) => {
         const idxA = categoryOrder.indexOf(a);
         const idxB = categoryOrder.indexOf(b);
@@ -867,36 +874,38 @@ function openExerciseSelector() {
         if (idxB === -1) return -1;
         return idxA - idxB;
     });
-    
+
     // Sortiere Übungen innerhalb Kategorien
     sortedCategories.forEach(cat => {
         grouped[cat].sort((a, b) => a.name.localeCompare(b.name, 'de'));
     });
-    
+
     // Erstelle HTML für Kategorien und Übungen
     let categoriesHtml = '';
     let exercisesHtml = '';
-    
+
     sortedCategories.forEach((cat, index) => {
         const isFirst = index === 0;
         categoriesHtml += `<button type="button" class="category-btn ${isFirst ? 'active' : ''}" data-category="${cat}" onclick="selectCategory('${cat}')" style="padding: 10px 20px; margin: 5px; background: ${isFirst ? 'linear-gradient(45deg, #00d4ff, #7b2cbf)' : 'rgba(255,255,255,0.1)'}; border: none; border-radius: 8px; color: #fff; cursor: pointer; transition: all 0.2s;">${cat}</button>`;
-        
+
         const display = isFirst ? 'grid' : 'none';
         exercisesHtml += `<div class="exercise-grid" id="exercises-${cat}" style="display: ${display}; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 15px;">`;
-        
+
         grouped[cat].forEach(e => {
             const media = getExerciseMedia(e.name);
             const videoHtml = media ? `<video src="${media.src}" muted playsinline loop autoplay style="width: 100%; height: 80px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;" onerror="this.style.display='none'"></video>` : '';
+            const starActive = e.is_favorite ? 1 : 0;
             exercisesHtml += `
-                <button type="button" class="exercise-option" onclick="selectExerciseForWorkout(${e.id}, '${e.name.replace(/'/g, "\\'")}')" style="padding: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; cursor: pointer; transition: all 0.2s; text-align: left;"
-                onmouseover="this.style.background='rgba(0,212,255,0.2)'; this.style.borderColor='#00d4ff';" 
+                <button type="button" class="exercise-option" onclick="selectExerciseForWorkout(${e.id}, '${e.name.replace(/'/g, "\\'")}')" style="position: relative; padding: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; cursor: pointer; transition: all 0.2s; text-align: left;"
+                onmouseover="this.style.background='rgba(0,212,255,0.2)'; this.style.borderColor='#00d4ff';"
                 onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.2)';">
+                    <span class="fav-star" data-exercise-id="${e.id}" onclick="event.stopPropagation(); toggleFavorite(${e.id}, this);" title="${starActive ? 'Favorit entfernen' : 'Als Favorit markieren'}" style="position: absolute; top: 6px; right: 6px; font-size: 1.1rem; cursor: pointer; filter: ${starActive ? 'none' : 'grayscale(1) opacity(0.5)'};">⭐</span>
                     ${videoHtml}
-                    <div style="font-weight: bold; margin-bottom: 5px; font-size: 0.9rem;">${e.name}</div>
+                    <div style="font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; padding-right: 20px;">${e.name}</div>
                     <div style="font-size: 0.75rem; color: #888;">${e.muscle_group}</div>
                 </button>`;
         });
-        
+
         exercisesHtml += '</div>';
     });
     
@@ -943,6 +952,44 @@ function selectCategory(category) {
     const selectedGrid = document.getElementById(`exercises-${category}`);
     if (selectedGrid) {
         selectedGrid.style.display = 'grid';
+    }
+}
+
+// Favorit umschalten (Übungsauswahl-Modal + Übungsverwaltung)
+async function toggleFavorite(exerciseId, el) {
+    const exercise = exercises.find(e => e.id === parseInt(exerciseId));
+    if (!exercise) return;
+    const newState = exercise.is_favorite ? 0 : 1;
+
+    try {
+        const res = await apiFetch(`/api/exercises/${exerciseId}/favorite`, { method: newState ? 'POST' : 'DELETE' });
+        if (!res || !res.ok) {
+            console.error('❌ Fehler beim Umschalten des Favoriten');
+            return;
+        }
+    } catch (err) {
+        console.error('❌ Fehler beim Umschalten des Favoriten:', err);
+        return;
+    }
+
+    exercise.is_favorite = newState;
+
+    // Übungsauswahl-Modal: neu aufbauen, damit Favoriten-Gruppe aktuell ist,
+    // dabei aktive Kategorie möglichst beibehalten
+    if (document.getElementById('exercise-selector-modal')) {
+        const activeBtn = document.querySelector('#exercise-selector-modal .category-btn.active');
+        const activeCategory = activeBtn ? activeBtn.dataset.category : null;
+        closeExerciseSelector();
+        openExerciseSelector();
+        if (activeCategory) {
+            const stillExists = Array.from(document.querySelectorAll('#exercise-selector-modal .category-btn')).find(b => b.dataset.category === activeCategory);
+            if (stillExists) selectCategory(activeCategory);
+        }
+    }
+
+    // Übungsverwaltung: falls sichtbar, Liste neu rendern
+    if (document.getElementById('exercises-list')) {
+        renderExercisesList();
     }
 }
 
@@ -1271,13 +1318,21 @@ function renderExercisesList() {
         grouped[e.muscle_group].push(e);
     });
 
+    // Favoriten zuerst als eigene Gruppe, danach Muskelgruppen wie gewohnt
+    const favoriteExercises = exercises.filter(e => e.is_favorite).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    const groupEntries = Object.entries(grouped);
+    if (favoriteExercises.length > 0) {
+        groupEntries.unshift(['⭐ Favoriten', favoriteExercises]);
+    }
+
     let html = '';
-    Object.entries(grouped).forEach(([muscleGroup, exerciseList]) => {
+    groupEntries.forEach(([muscleGroup, exerciseList]) => {
         html += `<div style="margin-bottom: 20px;"><h3>${muscleGroup}</h3></div>`;
         html += exerciseList.map(e => {
             const typeIcon = e.exercise_type === 'time' ? '⏱️' : '💪';
             const media = getExerciseMedia(e.name);
             const videoHtml = media ? `<video src="${media.src}" muted playsinline loop autoplay style="width: 80px; height: 60px; object-fit: cover; border-radius: 8px; margin-right: 12px; cursor: pointer;" onclick="showVideoModal('${media.src}', '${e.name.replace(/'/g, "\\'")}')" title="Klicken zum Vergrößern"></video>` : '';
+            const favActive = e.is_favorite ? 1 : 0;
             return `
             <div class="list-item" style="margin-bottom: 10px; display: flex; align-items: center;">
                 ${videoHtml}
@@ -1286,13 +1341,14 @@ function renderExercisesList() {
                     <p style="color: #888; font-size: 0.85rem;">${e.muscle_group}</p>
                 </div>
                 <div class="workout-actions" style="display: flex; gap: 8px;">
+                    <button class="btn-favorite" onclick="toggleFavorite(${e.id}, this)" title="${favActive ? 'Favorit entfernen' : 'Als Favorit markieren'}" style="filter: ${favActive ? 'none' : 'grayscale(1) opacity(0.5)'};">⭐</button>
                     <button class="btn-edit" onclick="editExerciseForm(${e.id})" title="Bearbeiten">✏️</button>
                     <button class="btn-delete" onclick="deleteExercise(${e.id})" title="Löschen">🗑️</button>
                 </div>
             </div>`;
         }).join('');
     });
-    
+
     container.innerHTML = html;
 }
 

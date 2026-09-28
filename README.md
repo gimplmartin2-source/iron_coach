@@ -99,6 +99,51 @@ EXPOSE 3000
 CMD ["node", "server.js"]
 ```
 
+## Lieblings-Übungen (Favoriten) — 2026-09-11
+
+Übungen können mit ⭐ als Favorit markiert werden. Favorisierte Übungen erscheinen
+in der Übungsauswahl beim Workout (Modal über `#exercise-select-btn`) als eigene,
+standardmäßig aktive Gruppe "⭐ Favoriten" ganz oben vor den Muskelgruppen. In der
+normalen Übungsverwaltung (Übungen-Tab) gibt es dieselbe Favoriten-Gruppe zuerst
+sowie einen Stern-Button neben "Bearbeiten"/"Löschen".
+
+Geänderte Dateien:
+- `server.js` — Migration `exercise_favorites(user_id, exercise_id, created_at)`
+  mit `UNIQUE(user_id, exercise_id)` (Auto-Heal-Pattern wie bestehende Tabellen,
+  läuft beim Serverstart). `GET /api/exercises` liefert jetzt zusätzlich Feld
+  `is_favorite` (0/1) per LEFT JOIN. Neue Endpunkte:
+  `POST /api/exercises/:id/favorite` (setzen, idempotent via `INSERT OR IGNORE`)
+  und `DELETE /api/exercises/:id/favorite` (entfernen). Beide user-gebunden
+  (`user_id` aus JWT bzw. No-Auth-User), keine globalen Favoriten.
+- `public/app.js` — `openExerciseSelector()` baut zusätzlich eine
+  "⭐ Favoriten"-Gruppe (aktive Default-Kategorie, wenn mindestens 1 Favorit
+  existiert) aus allen favorisierten Übungen unabhängig von Muskelgruppe.
+  `renderExercisesList()` zeigt dieselbe Favoriten-Gruppe zuerst. Neue Funktion
+  `toggleFavorite(exerciseId, el)` ruft die API auf, aktualisiert das lokale
+  `exercises`-Array und baut die aktive Ansicht (Modal bzw. Liste) neu auf.
+- `public/style.css` — `.btn-favorite` (Stern-Button in der Übungsverwaltung,
+  analog zu `.btn-edit`/`.btn-delete`).
+
+Testen:
+```bash
+curl -X POST http://127.0.0.1:3001/api/exercises/<id>/favorite
+curl http://127.0.0.1:3001/api/exercises   # Feld is_favorite prüfen
+curl -X DELETE http://127.0.0.1:3001/api/exercises/<id>/favorite
+```
+Im Browser: Workout-Tab → "Übung auswählen" → Stern oben rechts auf einer
+Übungskarte klickt, Favorit erscheint sofort in der Gruppe "⭐ Favoriten" ganz
+oben und bleibt nach Reload erhalten (Server-seitig, `training.db`).
+
+**Nachverifiziert 2026-09-13** (To-Do 547230c45986): Feature war bereits vollständig
+implementiert (Backend + Frontend), lief seit 2026-09-11 uncommitted auf Disk. Erneut
+gegen die laufende Live-Instanz (Port 3001, User 21) getestet: `exercise_favorites`-
+Tabelle existiert in `training.db` (Auto-Heal lief beim letzten Start), `GET
+/api/exercises` liefert `is_favorite`, `POST`/`DELETE .../favorite` setzen bzw.
+entfernen den Favoriten korrekt (mit Test-JWT für User 21 geprüft, kein Login-Flow
+nötig). Kein Neustart erforderlich, Server lief bereits mit diesem Code. Vor dem Test
+Backup `backups/training_pre_favtest_20260913_185002.db` angelegt. Health-Check
+danach weiterhin `{"status":"OK", ...}`, nur ein Prozess auf Port 3001.
+
 ## Sicherheit
 
 - Passwörter werden mit bcrypt gehasht

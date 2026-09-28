@@ -38,3 +38,9 @@ server.js.bak.*
 
 # Local backup directory
 backups/
+
+# Laufzeit / Test-Artefakte
+__pycache__/
+*.pyc
+*.pid
+screenshots/

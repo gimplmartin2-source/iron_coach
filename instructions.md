@@ -210,7 +210,7 @@ pyautogui.click()
 # Text eingeben
 pyautogui.typewrite('Martin Gimpl', interval=0.05)
 pyautogui.press('tab')
-pyautogui.typewrite('james100claw@gmail.com')
+pyautogui.typewrite('<LOGIN_EMAIL_AUS_SECRET_STORE>')
 pyautogui.press('enter')
 
 # Screenshot nachher

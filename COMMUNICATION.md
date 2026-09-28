@@ -27,8 +27,8 @@ message(
 ## 🔐 Login-Daten für Gratis-Registrierungen
 
 **Für IronCoach:**
-- **Email:** `james100claw@gmail.com`
-- **Passwort:** `P8hFM$@PwlPNz5`
+- **Email:** `<LOGIN_EMAIL_AUS_SECRET_STORE>`
+- **Passwort:** `<REDACTED_PASSWORT>`
 
 **Wichtig:**
 - ✅ NUR für kostenlose Registrierungen/Logins

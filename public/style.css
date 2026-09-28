@@ -956,6 +956,28 @@ header p {
     background: rgba(255,200,100,0.3);
 }
 
+.btn-favorite {
+    background: rgba(255,215,0,0.15);
+    border: 1px solid rgba(255,215,0,0.5);
+    color: #ffd700;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: filter 0.15s ease;
+}
+
+.btn-favorite:hover,
+.btn-favorite:active {
+    background: rgba(255,215,0,0.3);
+}
+
 /* Touch feedback für alle interaktiven Elemente */
 button, 
 input[type="checkbox"],

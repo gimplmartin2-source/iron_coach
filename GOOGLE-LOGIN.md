@@ -1,8 +1,8 @@
 # IronCoach - Google Login Anleitung
 
 ## Login-Daten (Bereits in AGENTS.md)
-- **Email:** `james100claw@gmail.com`
-- **Passwort:** `P8hFM$@PwlPNz5`
+- **Email:** `<LOGIN_EMAIL_AUS_SECRET_STORE>`
+- **Passwort:** `<REDACTED_PASSWORT>`
 
 ---
 
@@ -48,7 +48,7 @@ browser(action="wait", timeMs=1000, profile="openclaw")
 browser(
   action="type",
   ref="1",
-  text="james100claw@gmail.com",
+  text="<LOGIN_EMAIL_AUS_SECRET_STORE>",
   profile="openclaw"
 )
 
@@ -75,7 +75,7 @@ browser(action="click", ref="1", profile="openclaw")
 browser(
   action="type",
   ref="1",
-  text="P8hFM$@PwlPNz5",
+  text="<REDACTED_PASSWORT>",
   profile="openclaw"
 )
 
@@ -202,7 +202,7 @@ write(path="memory/YYYY-MM-DD.md", content="Google Drive Upload: [Datei] hochgel
 
 | Service | Email | Passwort | Nutzung |
 |---------|-------|----------|---------|
-| Google | james100claw@gmail.com | P8hFM$@PwlPNz5 | NUR wenn Martin es sagt! |
+| Google | <LOGIN_EMAIL_AUS_SECRET_STORE> | <REDACTED_PASSWORT> | NUR wenn Martin es sagt! |
 
 ---
 

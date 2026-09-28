@@ -234,8 +234,19 @@ async function initDatabase() {
         )`);
         await ensureColumn('training_plans', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
 
+        // Lieblings-Übungen (Favoriten) Tabelle
+        await ensureTable('exercise_favorites', `CREATE TABLE IF NOT EXISTS exercise_favorites (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          exercise_id INTEGER NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, exercise_id),
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
+        )`);
+
         // Finale Validierung: alle erwarteten Tabellen müssen existieren
-        const expectedTables = ['users', 'user_tokens', 'exercises', 'workouts', 'training_plans'];
+        const expectedTables = ['users', 'user_tokens', 'exercises', 'workouts', 'training_plans', 'exercise_favorites'];
         for (const tbl of expectedTables) {
           if (!(await tableExists(tbl))) {
             throw new Error(`Validierung fehlgeschlagen: Tabelle ${tbl} existiert nicht nach Init`);
@@ -1024,14 +1035,59 @@ app.post('/api/auth/refresh', async (req, res) => {
 app.get('/api/exercises', authenticateJWT, async (req, res) => {
   try {
     await ensureColumn('exercises', 'info', 'TEXT');
-    db.all('SELECT id, user_id, name, muscle_group, exercise_type, info, created_at FROM exercises WHERE user_id = ? ORDER BY name', [req.user.userId], (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(rows);
-    });
+    db.all(
+      `SELECT e.id, e.user_id, e.name, e.muscle_group, e.exercise_type, e.info, e.created_at,
+              CASE WHEN f.exercise_id IS NULL THEN 0 ELSE 1 END AS is_favorite
+       FROM exercises e
+       LEFT JOIN exercise_favorites f ON f.exercise_id = e.id AND f.user_id = e.user_id
+       WHERE e.user_id = ?
+       ORDER BY e.name`,
+      [req.user.userId],
+      (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+      }
+    );
   } catch (err) {
     console.error('❌ Fehler beim Sicherstellen der info-Spalte:', err.message);
     res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
   }
+});
+
+// Übung als Favorit markieren
+app.post('/api/exercises/:id/favorite', authenticateJWT, (req, res) => {
+  const exerciseId = parseInt(req.params.id, 10);
+  if (isNaN(exerciseId)) {
+    return res.status(400).json({ error: 'Ungültige exercise_id' });
+  }
+  db.get('SELECT id FROM exercises WHERE id = ? AND user_id = ?', [exerciseId, req.user.userId], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'Übung nicht gefunden' });
+    db.run(
+      'INSERT OR IGNORE INTO exercise_favorites (user_id, exercise_id) VALUES (?, ?)',
+      [req.user.userId, exerciseId],
+      (insertErr) => {
+        if (insertErr) return res.status(500).json({ error: insertErr.message });
+        res.json({ id: exerciseId, is_favorite: 1 });
+      }
+    );
+  });
+});
+
+// Favorit entfernen
+app.delete('/api/exercises/:id/favorite', authenticateJWT, (req, res) => {
+  const exerciseId = parseInt(req.params.id, 10);
+  if (isNaN(exerciseId)) {
+    return res.status(400).json({ error: 'Ungültige exercise_id' });
+  }
+  db.run(
+    'DELETE FROM exercise_favorites WHERE user_id = ? AND exercise_id = ?',
+    [req.user.userId, exerciseId],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ id: exerciseId, is_favorite: 0 });
+    }
+  );
 });
 
 // Neue Übung hinzufügen
