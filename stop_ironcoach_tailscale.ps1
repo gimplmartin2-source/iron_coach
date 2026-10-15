@@ -53,3 +53,12 @@ if ($LASTEXITCODE -eq 0) {
 
 Write-Host ""
 Write-Host "IronCoach ist jetzt gestoppt. Polsia auf /command-center laeuft weiter."
+
+# Whisper-Server (Sprach-Eintrag) ebenfalls stoppen, falls von start_whisper.ps1 gestartet
+$whisperPid = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) "whisper.pid"
+if (Test-Path $whisperPid) {
+    $wp = Get-Content $whisperPid
+    Stop-Process -Id $wp -Force -ErrorAction SilentlyContinue
+    Remove-Item $whisperPid -ErrorAction SilentlyContinue
+    Write-Host "Whisper-Server gestoppt (PID $wp)"
+}

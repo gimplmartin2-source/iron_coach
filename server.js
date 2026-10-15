@@ -3047,6 +3047,90 @@ app.get('/api/exercises/videos', (req, res) => {
   res.json(videoMap);
 });
 
+// === SPRACH-EINTRAG (Audio -> lokales Whisper -> Übungs-Parser) ===
+const voiceParser = require('./voice/parser');
+const voiceWhisper = require('./voice/whisper');
+const voiceLLM = require('./voice/llm');
+
+// Übungen des Users + Nutzungshäufigkeit (Tie-Break bei doppelten Übungsnamen)
+async function loadVoiceContext(userId) {
+  const exercises = await allAsync(
+    'SELECT id, name, muscle_group, exercise_type FROM exercises WHERE user_id = ?',
+    [userId]
+  );
+  const usageRows = await allAsync(
+    'SELECT exercise_id, COUNT(*) AS n FROM workouts WHERE user_id = ? GROUP BY exercise_id',
+    [userId]
+  );
+  const usage = {};
+  usageRows.forEach(r => { usage[r.exercise_id] = r.n; });
+  return { exercises, usage };
+}
+
+// Regelbasiert zuerst (schnell, deterministisch); lokales LLM nur als Fallback,
+// wenn konfiguriert und die Regeln nicht alles eindeutig zuordnen konnten.
+async function parseVoiceText(text, ctx) {
+  const rules = voiceParser.parseWorkoutText(text, ctx.exercises, { usage: ctx.usage });
+  rules.parser = 'rules';
+  if (rules.ok || !voiceLLM.enabled() || !text.trim()) return rules;
+  try {
+    const llm = await voiceLLM.parseWithLLM(text, ctx.exercises, { usage: ctx.usage });
+    const okCount = r => r.entries.filter(e => e.status === 'ok').length;
+    if (okCount(llm) > okCount(rules)) {
+      llm.parser = 'llm';
+      return llm;
+    }
+  } catch (err) {
+    console.warn('⚠️ Voice-LLM Fallback fehlgeschlagen:', err.message);
+    rules.llmError = err.message;
+  }
+  return rules;
+}
+
+app.get('/api/voice/status', authenticateJWT, async (req, res) => {
+  const [whisper, llm] = await Promise.all([voiceWhisper.status(), voiceLLM.status()]);
+  res.json({ whisper, llm });
+});
+
+// Nur Text auswerten (manuelle Eingabe oder korrigiertes Transkript)
+app.post('/api/voice/parse', authenticateJWT, async (req, res) => {
+  const text = String((req.body && req.body.text) || '').slice(0, 5000);
+  try {
+    const ctx = await loadVoiceContext(req.user.userId);
+    res.json(await parseVoiceText(text, ctx));
+  } catch (err) {
+    console.error('❌ Voice-Parse Fehler:', err);
+    res.status(500).json({ error: 'Auswertung fehlgeschlagen: ' + err.message });
+  }
+});
+
+// Audio hochladen -> transkribieren -> auswerten. Speichert NICHTS; das Speichern
+// erfolgt nach Bestätigung im Frontend über POST /api/workouts.
+app.post(
+  '/api/voice/transcribe',
+  authenticateJWT,
+  express.raw({ type: ['audio/*', 'video/webm', 'video/mp4', 'application/octet-stream'], limit: '25mb' }),
+  async (req, res) => {
+    if (!Buffer.isBuffer(req.body) || req.body.length < 1000) {
+      return res.status(400).json({ error: 'Keine (oder zu kurze) Audiodaten empfangen' });
+    }
+    try {
+      const ctx = await loadVoiceContext(req.user.userId);
+      const prompt = voiceParser.buildWhisperPrompt(ctx.exercises);
+      const { text, ms } = await voiceWhisper.transcribe(req.body, req.headers['content-type'], { prompt });
+      console.log(`🎤 Transkript (${ms} ms, ${Math.round(req.body.length / 1024)} KB): ${text}`);
+      if (!text) return res.status(422).json({ error: 'Keine Sprache erkannt – bitte nochmal deutlicher aufnehmen', text: '' });
+      const result = await parseVoiceText(text, ctx);
+      result.transcribeMs = ms;
+      res.json(result);
+    } catch (err) {
+      console.error('❌ Voice-Transkription Fehler:', err.message);
+      const status = err.code === 'WHISPER_UNREACHABLE' ? 503 : 502;
+      res.status(status).json({ error: err.message });
+    }
+  }
+);
+
 // Fallback für SPA
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

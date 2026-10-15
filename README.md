@@ -163,3 +163,9 @@ cp training.db training.db.backup.$(date +%Y%m%d)
 # Oder automatisch mit Cron
 0 2 * * * cp /pfad/zu/training.db /pfad/zu/backups/training.db.$(date +\%Y\%m\%d)
 ```
+## Sprach-Eintrag (🎤) — 2026-10-15
+
+Ganz oben im Workout-Tab: Aufnahme → lokales Whisper (whisper.cpp auf dem PC) → regelbasierter
+Parser ordnet nur vorhandene Übungen zu → Vorschau → Speichern. Unbekannte/mehrdeutige Übungen
+werden als Fehler angezeigt und nie angelegt. Setup und Details: **[VOICE-SETUP.md](VOICE-SETUP.md)**.
+Tests: `npm test`.

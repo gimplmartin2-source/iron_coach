@@ -58,6 +58,9 @@ Write-Host "Tailscale Hostname: $tailnetName"
 Write-Host "Oeffentliche URL  : https://${tailnetName}:$tailscalePort"
 Write-Host "Login            : deaktiviert (No-Auth-Modus, nur 127.0.0.1 + Tailscale)"
 
+# 2b. Lokalen Whisper-Server fuer den Sprach-Eintrag starten (optional, siehe VOICE-SETUP.md)
+try { & "$projectDir\start_whisper.ps1" } catch { Write-Warning "Whisper-Start fehlgeschlagen: $_" }
+
 # 3. Node.js im Hintergrund starten
 $nodeProc = Start-Process -NoNewWindow -FilePath "node" -ArgumentList "server.js" -PassThru -RedirectStandardOutput "ironcoach.out.log" -RedirectStandardError "ironcoach.err.log"
 $nodeProc.Id | Set-Content $pidFile
